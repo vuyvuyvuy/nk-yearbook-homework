@@ -1,0 +1,1320 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TestAS 30-Day Deathmatch</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#05060a; --panel:#0c0f17; --line:#1c2333;
+    --neon:#00ffa3; --cyan:#00e5ff; --pink:#ff2e88; --red:#ff1f3d; --yellow:#ffe14d;
+    --text:#d7e3f4; --muted:#7d8aa3;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--text);font-family:'Chakra Petch',system-ui,sans-serif;}
+  body{
+    min-height:100vh;
+    background-image:
+      linear-gradient(rgba(0,255,163,.035) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(0,255,163,.035) 1px,transparent 1px),
+      radial-gradient(ellipse at top,rgba(255,46,136,.12),transparent 60%),
+      radial-gradient(ellipse at bottom right,rgba(0,229,255,.10),transparent 60%);
+    background-size:32px 32px,32px 32px,100% 100%,100% 100%;
+  }
+  body::after{ /* scanlines */
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:90;
+    background:repeating-linear-gradient(0deg,rgba(0,0,0,.18) 0 1px,transparent 1px 3px);
+    mix-blend-mode:multiply;
+  }
+  .mono{font-family:'JetBrains Mono',ui-monospace,monospace}
+  .panel{background:linear-gradient(180deg,rgba(18,22,34,.92),rgba(10,12,19,.92));border:1px solid var(--line);border-radius:14px;position:relative;}
+  .panel.neon{border-color:rgba(0,255,163,.35);box-shadow:0 0 0 1px rgba(0,255,163,.08),0 0 24px rgba(0,255,163,.07) inset}
+  .panel.danger{border-color:rgba(255,31,61,.45);box-shadow:0 0 24px rgba(255,31,61,.12) inset}
+  .tape{position:absolute;top:-10px;left:18px;background:var(--yellow);color:#000;font-weight:700;font-size:11px;padding:2px 10px;transform:rotate(-2deg);letter-spacing:.08em}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:.4rem;padding:.6rem 1rem;border-radius:10px;font-weight:700;letter-spacing:.03em;border:1px solid transparent;cursor:pointer;transition:transform .08s,box-shadow .2s,background .2s;user-select:none}
+  .btn:active{transform:translateY(1px) scale(.98)}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .btn-neon{background:var(--neon);color:#001a10;box-shadow:0 0 18px rgba(0,255,163,.35)}
+  .btn-neon:hover{box-shadow:0 0 28px rgba(0,255,163,.6)}
+  .btn-pink{background:var(--pink);color:#fff;box-shadow:0 0 18px rgba(255,46,136,.35)}
+  .btn-red{background:var(--red);color:#fff;box-shadow:0 0 18px rgba(255,31,61,.4)}
+  .btn-ghost{background:transparent;border-color:var(--line);color:var(--text)}
+  .btn-ghost:hover{border-color:var(--cyan);color:var(--cyan)}
+  .opt{width:100%;text-align:left;padding:.8rem 1rem;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.02);cursor:pointer;transition:.15s;color:var(--text)}
+  .opt:hover{border-color:var(--cyan);background:rgba(0,229,255,.07);transform:translateX(3px)}
+  .opt .k{display:inline-block;width:1.6rem;color:var(--cyan);font-family:'JetBrains Mono',monospace}
+  .tab{padding:.55rem .9rem;border-radius:9px;border:1px solid transparent;color:var(--muted);font-weight:600;white-space:nowrap;cursor:pointer}
+  .tab:hover{color:var(--text)}
+  .tab.active{color:#001a10;background:var(--neon);box-shadow:0 0 16px rgba(0,255,163,.45)}
+  input,textarea,select{background:#070910;border:1px solid var(--line);color:var(--text);border-radius:10px;padding:.65rem .8rem;width:100%;font-family:inherit}
+  input:focus,textarea:focus,select:focus{outline:none;border-color:var(--cyan);box-shadow:0 0 0 3px rgba(0,229,255,.15)}
+  .glitch{position:relative;color:#fff;text-shadow:0 0 12px rgba(0,255,163,.5)}
+  .glitch::before,.glitch::after{content:attr(data-text);position:absolute;inset:0;overflow:hidden}
+  .glitch::before{color:var(--pink);transform:translate(2px,0);clip-path:inset(0 0 60% 0);animation:gl1 2.8s infinite steps(2)}
+  .glitch::after{color:var(--cyan);transform:translate(-2px,0);clip-path:inset(55% 0 0 0);animation:gl2 3.3s infinite steps(2)}
+  @keyframes gl1{0%,92%{transform:translate(0)}93%{transform:translate(-4px,-1px)}96%{transform:translate(4px,1px)}}
+  @keyframes gl2{0%,88%{transform:translate(0)}90%{transform:translate(5px,1px)}94%{transform:translate(-3px,0)}}
+  .pulse-neon{animation:pn 1.6s infinite}
+  @keyframes pn{0%,100%{box-shadow:0 0 0 0 rgba(0,229,255,.55)}50%{box-shadow:0 0 0 8px rgba(0,229,255,0)}}
+  .shake{animation:shake .45s}
+  @keyframes shake{20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
+  .ecg-wrap{overflow:hidden;height:60px;position:relative}
+  .ecg{width:200%;height:60px;animation:ecg 2.2s linear infinite}
+  .ecg path{fill:none;stroke:var(--neon);stroke-width:2;filter:drop-shadow(0 0 4px var(--neon))}
+  @keyframes ecg{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+  .flat path{stroke:var(--red);filter:drop-shadow(0 0 6px var(--red))}
+  .overlay{position:fixed;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;padding:1rem;background:rgba(0,0,0,.82);backdrop-filter:blur(3px)}
+  .died-title{font-size:clamp(2.4rem,9vw,5.5rem);font-weight:700;color:var(--red);text-shadow:0 0 30px rgba(255,31,61,.8);letter-spacing:.05em;animation:flick 1.2s infinite}
+  @keyframes flick{0%,100%{opacity:1}45%{opacity:.85}50%{opacity:.35}55%{opacity:.9}}
+  .terminal{background:#000;color:#18ff6d;font-family:'JetBrains Mono',monospace;text-shadow:0 0 6px rgba(24,255,109,.6)}
+  .caret::after{content:"█";animation:blink 1s steps(1) infinite;margin-left:2px}
+  @keyframes blink{50%{opacity:0}}
+  .bubble{position:relative;background:#0b0f19;border:1px solid rgba(255,46,136,.45);border-radius:14px;padding:.75rem .9rem}
+  .bar{height:10px;background:#111725;border-radius:99px;overflow:hidden;border:1px solid var(--line)}
+  .bar>div{height:100%;transition:width .4s}
+  .daycell{aspect-ratio:1/1;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;border:1px solid var(--line)}
+  .node{aspect-ratio:1/1;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;border:1px solid var(--line);cursor:pointer;transition:.15s;font-weight:700;padding:4px;text-align:center}
+  .node:hover{transform:translateY(-2px)}
+  .lecture-body h3{color:var(--cyan);font-weight:700;font-size:1.1rem;margin-top:1rem}
+  .mnemo{border-left:3px solid var(--pink);background:rgba(255,46,136,.07);padding:.6rem .8rem;border-radius:0 10px 10px 0;margin-top:.5rem}
+  ::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-thumb{background:#1c2333;border-radius:10px}
+  .fade-in{animation:fi .35s ease}
+  @keyframes fi{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .heartbeat{animation:hb 1s infinite}
+  @keyframes hb{0%,100%{transform:scale(1)}15%{transform:scale(1.18)}30%{transform:scale(1)}45%{transform:scale(1.12)}}
+</style>
+</head>
+<body>
+
+<!-- ================= HEADER ================= -->
+<header class="max-w-6xl mx-auto px-4 pt-6">
+  <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
+    <div>
+      <div class="text-xs mono text-pink-400 tracking-widest">NEO-SÀI GÒN GENERAL HOSPITAL // KHOA HỒI SỨC NÃO BỘ // TẦNG -6</div>
+      <h1 class="glitch text-3xl md:text-5xl font-bold tracking-tight" data-text="TESTAS 30-DAY DEATHMATCH">TESTAS 30-DAY DEATHMATCH</h1>
+      <div class="text-sm text-slate-400 mt-1">Kernmodul + Fachmodul Medizin · 30 ngày · 0 lòng thương xót</div>
+    </div>
+    <div id="statbar" class="grid grid-cols-3 md:grid-cols-6 gap-2 text-center text-xs"></div>
+  </div>
+  <nav id="tabs" class="flex gap-1 overflow-x-auto mt-5 p-1 panel"></nav>
+</header>
+
+<main id="view" class="max-w-6xl mx-auto px-4 py-6 pb-48"></main>
+
+<footer class="max-w-6xl mx-auto px-4 pb-40 text-xs text-slate-500">
+  ⚠️ Nội dung y khoa ở đây để ôn thi cho vui-mà-nhớ. Luôn đối chiếu lại với Amboss/sách chuẩn. Mọi "hình phạt" đều là FAKE, chỉ có cảm giác tội lỗi là thật.
+</footer>
+
+<!-- ================= TOXIC TUTOR ================= -->
+<aside id="tutor" class="fixed bottom-3 right-3 left-3 md:left-auto md:w-[420px] z-[70]">
+  <div class="panel p-3 flex gap-3 items-start" style="border-color:rgba(255,46,136,.5);box-shadow:0 0 30px rgba(255,46,136,.18)">
+    <div id="tutor-face" class="text-4xl select-none cursor-pointer" title="Chọc tức gia sư" onclick="pokeTutor()">🤖</div>
+    <div class="flex-1 min-w-0">
+      <div class="flex items-center justify-between">
+        <div class="text-xs font-bold text-pink-400">BS. MỎ HỖN <span class="text-slate-500 font-normal">(Dr. Giftzunge — "lưỡi độc")</span></div>
+        <button class="text-slate-500 hover:text-white text-xs" onclick="toggleTutor()" id="tutor-toggle">thu nhỏ ▾</button>
+      </div>
+      <div id="tutor-bubble-wrap"><div id="tutor-text" class="bubble text-sm mt-1 min-h-[44px]"></div></div>
+    </div>
+  </div>
+</aside>
+
+<div id="modal-root"></div>
+<div id="overlay-root"></div>
+
+<script>
+/* =====================================================================
+   0. UTILITIES
+   ===================================================================== */
+const $ = (s, r = document) => r.querySelector(s);
+const pick = a => a[Math.floor(Math.random() * a.length)];
+const shuffle = a => { const b = a.slice(); for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; } return b; };
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+// escape + **bold** + newlines (safe mini-markdown for AI output)
+const md = s => esc(s).replace(/\*\*(.+?)\*\*/g, '<b class="text-white">$1</b>').replace(/\n/g, '<br>');
+const pad = n => String(n).padStart(2, '0');
+const todayStr = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const parseDay = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+const daysBetween = (a, b) => Math.round((parseDay(b) - parseDay(a)) / 86400000);
+const addDays = (s, n) => { const d = parseDay(s); d.setDate(d.getDate() + n); return todayStr(d); };
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const stripVN = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase().replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ').trim();
+
+/* =====================================================================
+   1. STATE + localStorage
+   ===================================================================== */
+const LS_KEY = 'testas_deathmatch_v1';
+const DEFAULT_STATE = () => ({
+  version: 1,
+  startDate: todayStr(),
+  checkins: [],           // ['2026-10-26', ...] sorted ascending
+  xp: 0, streak: 0, bestStreak: 0,
+  cleared: [],            // ER levels cleared
+  deaths: 0,
+  lectures: [],           // saved bizarre lectures
+  dating: {},             // organId -> {best, married}
+  settings: { provider: 'openai', apiKey: '', model: '' },
+  pendingPunishment: false,
+  lastDeadmanCheck: '',
+  punishments: 0,
+  tutorMin: false
+});
+function loadState() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (raw) {
+      const data = JSON.parse(raw);
+      const st = Object.assign(DEFAULT_STATE(), data);
+      st.settings = Object.assign(DEFAULT_STATE().settings, data.settings || {});
+      return st;
+    }
+  } catch (e) { console.warn('State load failed', e); }
+  return DEFAULT_STATE();
+}
+let S = loadState();
+function save() {
+  try { localStorage.setItem(LS_KEY, JSON.stringify(S)); }
+  catch (e) { tutorSay('localStorage đầy rồi! Bạn lưu nhiều bài bựa quá, xoá bớt trong Study Hub đi.', 'roast'); }
+}
+function addXP(n) { S.xp = Math.max(0, S.xp + n); save(); renderStats(); }
+
+const RANKS = [
+  [0, 'Phôi thai (Embryo)'], [300, 'SV Y năm nhất mất ngủ'], [800, 'Famulant (thực tập) bị sai vặt'],
+  [1500, 'Assistenzarzt khóc trong toilet'], [2500, 'Oberarzt mỏ hỗn'], [4000, 'Chefarzt của sự hỗn loạn']
+];
+const rankOf = xp => RANKS.filter(r => xp >= r[0]).pop()[1];
+const dayNumber = () => Math.min(30, Math.max(1, daysBetween(S.startDate, todayStr()) + 1));
+
+/* =====================================================================
+   2. TOXIC AI TUTOR
+   ===================================================================== */
+const ROASTS = [
+  'Trả lời vậy mà cũng đòi đi Đức? Chắc định bay sang bằng niềm tin à 🤡',
+  'Não bạn đang bật chế độ máy bay hả? Tắt đi, sóng kiến thức không vào được.',
+  'Bệnh nhân không chết vì bệnh. Bệnh nhân chết vì BẠN. Bravo 👏',
+  'Sai rồi má ơi. Con mèo nhà tôi đọc ECG còn chuẩn hơn.',
+  'Thầy Amboss mà thấy câu trả lời này chắc xin nghỉ hưu non.',
+  'Câu dễ như ăn bánh mì mà bạn làm như đang giải mã máy Enigma.',
+  'Alo? Neuron của bạn đang đình công đòi tăng lương à?',
+  'Tiếng Đức có từ "Dummkopf" (nghĩa: đồ đầu đất). Hôm nay tặng bạn, học thuộc luôn đi.',
+  'Sai một ly đi một dặm. Bạn sai nguyên cây số, đi luôn sang Ba Lan.',
+  'Bạn chọn đáp án như đi chợ mua rau: thấy cái nào xanh xanh là lấy.',
+  '"Na toll." — tiếng Đức nghĩa là "Ồ hay ghê", nhưng dùng để MỈA MAI. Đúng rồi, đang nói bạn đó.',
+  'Sai một cách tự tin như vậy, tôi suýt tin theo luôn.',
+  'Bạn mà làm bác sĩ thì nghĩa trang nên thuê thêm người.',
+  '"Ach du Scheiße!" — tiếng Đức nghĩa là "Ôi trời đất ơi!" (bản thô). Đó là phản ứng của tôi lúc này.',
+  'Cứ đà này TestAS sẽ không test bạn nữa, nó test sức chịu đựng của TÔI.',
+  'Câu trả lời của bạn có mùi... mùi của người lướt TikTok đến 3h sáng.',
+  'Ủa, bạn đang học TestAS hay đang chơi xổ số vậy?',
+  'Người Đức nói "Übung macht den Meister" (luyện tập tạo nên bậc thầy). Bạn thì luyện tập tạo nên... thảm hoạ.'
+];
+const PRAISES = [
+  'Đúng rồi. Bất ngờ chưa? Chính tôi cũng bất ngờ.',
+  'Ủa đúng hả? Chắc ăn may như trúng vé số Vietlott.',
+  'Ờ, giỏi. Giỏi kiểu đồng hồ hỏng mỗi ngày đúng 2 lần ấy.',
+  'Đúng. Tôi sẽ không khen đâu, kẻo bạn lại kiêu rồi lười.',
+  '"Nicht schlecht" — tiếng Đức nghĩa là "không tệ". Với người Đức, đó là lời khen cao nhất rồi đấy, đừng đòi hơn.',
+  'Chính xác! Bố mẹ bạn có thể bớt lo khoảng 0,5%.',
+  'Ổn đấy. Neuron số 2 của bạn cuối cùng cũng chịu kết nối với neuron số 1.',
+  'Đúng. Hôm nay chắc bạn uống đúng loại cà phê.',
+  'Đúng rồi, nhưng đừng ảo tưởng. Một con chim én không làm nên mùa xuân, một câu đúng không làm nên Medizinstudium (ngành Y).',
+  '"Gut gemacht" (làm tốt lắm)... là tôi nói với cái may mắn của bạn, không phải bạn.',
+  'Đúng! Tôi định roast mà bạn không cho cơ hội. Bực ghê.'
+];
+const IDLE = [
+  'Còn ngồi đó à? Bệnh nhân ở phòng cấp cứu đang tự chẩn đoán cho nhau rồi kìa.',
+  'Mẹo: "Lernen" là học, "Lärm" là tiếng ồn. Bạn đang tạo ra cái thứ hai nhiều hơn.',
+  'Tôi là gia sư, không phải bảo mẫu. Bấm vào cái gì đó đi.',
+  'Bạn biết từ dài nhất tiếng Đức không? Không cần đâu, học cho xong TestAS đã.',
+  'Chọc tôi lần nữa xem, tôi gửi lịch sử tìm kiếm cho mẹ bạn (đùa thôi... chắc vậy).'
+];
+let tutorToken = 0;
+function tutorSay(text, mood = 'neutral') {
+  const el = $('#tutor-text'); const face = $('#tutor-face');
+  face.textContent = mood === 'roast' ? '😈' : mood === 'praise' ? '😒' : mood === 'panic' ? '🚨' : '🤖';
+  face.classList.remove('shake'); void face.offsetWidth; if (mood === 'roast') face.classList.add('shake');
+  el.style.borderColor = mood === 'roast' ? 'rgba(255,31,61,.7)' : mood === 'praise' ? 'rgba(0,255,163,.6)' : 'rgba(255,46,136,.45)';
+  const my = ++tutorToken; el.textContent = ''; let i = 0;
+  (function type() {
+    if (my !== tutorToken) return;
+    el.textContent = text.slice(0, ++i);
+    if (i < text.length) setTimeout(type, 14);
+  })();
+  if (S.tutorMin) toggleTutor(false);
+}
+const roast = (extra = '') => tutorSay(pick(ROASTS) + (extra ? ' ' + extra : ''), 'roast');
+const praise = (extra = '') => tutorSay(pick(PRAISES) + (extra ? ' ' + extra : ''), 'praise');
+let pokes = 0;
+function pokeTutor() {
+  pokes++;
+  if (pokes % 5 === 0) tutorSay('Bạn chọc tôi ' + pokes + ' lần rồi. Thời gian đó đủ học 3 từ vựng tiếng Đức. Ví dụ: "die Zeitverschwendung" = sự lãng phí thời gian. Như bạn.', 'roast');
+  else tutorSay(pick(IDLE));
+}
+function toggleTutor(force) {
+  S.tutorMin = typeof force === 'boolean' ? force : !S.tutorMin; save();
+  $('#tutor-bubble-wrap').style.display = S.tutorMin ? 'none' : '';
+  $('#tutor-toggle').textContent = S.tutorMin ? 'mở ▴' : 'thu nhỏ ▾';
+}
+
+/* =====================================================================
+   3. CONTENT: 30 ER LEVELS (Kernmodul logic + Amboss-style medicine)
+   Each: t=topic, p=patient, L=logic {q,o,a,e}, M=medical {q,o,a,e}, m=mnemonic
+   ===================================================================== */
+const LEVELS = [
+ {t:'Myokardinfarkt (Nhồi máu cơ tim)', p:'Ông Hùng, 58t, chủ quán nhậu. Đau ngực trái bóp nghẹt >20 phút, lan tay trái, vã mồ hôi.',
+  L:{q:'Dãy số: 2, 4, 8, 16, ?',o:['24','32','30','64'],a:1,e:'Mỗi số ×2 → 16×2 = 32.'},
+  M:{q:'Nghi nhồi máu cơ tim cấp. Xét nghiệm/thăm dò ĐẦU TIÊN phải làm trong 10 phút?',o:['CT ngực','ECG 12 chuyển đạo','Nội soi dạ dày','Siêu âm bụng'],a:1,e:'ECG 12 chuyển đạo trong ≤10 phút để phát hiện STEMI → can thiệp mạch vành (PCI) càng sớm càng tốt. Troponin làm song song.'},
+  m:'"Time is muscle": mỗi phút chần chừ là cơ tim chết thêm. Đau ngực lan tay trái = tim đang nhắn tin chia tay qua cánh tay.'},
+ {t:'Herzinsuffizienz (Suy tim)', p:'Bà Lan, 72t. Khó thở khi nằm, phải kê 3 cái gối, phù 2 chân như bánh bao.',
+  L:{q:'Dãy số: 3, 6, 5, 10, 9, 18, ?',o:['17','36','19','16'],a:0,e:'Quy luật xen kẽ ×2 rồi −1: 9×2=18, 18−1 = 17.'},
+  M:{q:'Thuốc nào CẢI THIỆN TỶ LỆ SỐNG trong suy tim EF giảm (HFrEF)?',o:['Furosemid (lợi tiểu quai)','Thuốc ức chế men chuyển (ACE-Hemmer)','Digoxin','Nifedipin'],a:1,e:'ACE-Hemmer (cùng beta-blocker, MRA, SGLT2-Hemmer) giảm tử vong. Furosemid chỉ giảm triệu chứng phù/khó thở.'},
+  m:'Phải kê 3 gối mới thở được (Orthopnoe) = tim yếu đến mức nằm xuống là phổi "ngập lụt" như Sài Gòn mùa mưa.'},
+ {t:'Asthma bronchiale (Hen phế quản)', p:'Bé Tí, 19t, sinh viên. Thở rít, khò khè sau khi ôm con mèo của crush.',
+  L:{q:'Tất cả bác sĩ đều uống cà phê. Một số người uống cà phê là zombie. Kết luận nào CHẮC CHẮN đúng?',o:['Tất cả bác sĩ là zombie','Một số bác sĩ là zombie','Không thể kết luận bác sĩ có phải zombie hay không','Không bác sĩ nào là zombie'],a:2,e:'Nhóm "zombie" có thể nằm ngoài nhóm bác sĩ trong tập người uống cà phê → không kết luận được gì.'},
+  M:{q:'Thuốc cắt cơn hen cấp đầu tay?',o:['Beta-2 cường giao cảm tác dụng ngắn dạng hít (SABA, vd Salbutamol)','Kháng sinh','Corticoid hít liều thấp dùng 1 lần duy nhất','Beta-blocker'],a:0,e:'SABA hít (Salbutamol) giãn phế quản nhanh. Beta-blocker có thể gây co thắt phế quản → CẤM kỵ.'},
+  m:'SALbutamol = "SA-LÚ thì Bơm": cứ khò khè là bơm. Beta-BLOCKer = BLOCK luôn đường thở → cấm.'},
+ {t:'COPD (Bệnh phổi tắc nghẽn mạn tính)', p:'Ông Bảy, 66t, hút 2 gói/ngày từ năm 15 tuổi. Ho khạc đờm mỗi sáng.',
+  L:{q:'Dãy số: 1, 1, 2, 3, 5, 8, ?',o:['11','12','13','15'],a:2,e:'Dãy Fibonacci: mỗi số = tổng 2 số trước. 5+8 = 13.'},
+  M:{q:'Yếu tố nguy cơ quan trọng nhất của COPD?',o:['Ăn mặn','Hút thuốc lá (Rauchen)','Uống bia','Thiếu vitamin C'],a:1,e:'Hút thuốc là nguyên nhân hàng đầu (~80-90%). Chẩn đoán bằng hô hấp ký: FEV1/FVC < 0,7 sau test giãn phế quản.'},
+  m:'COPD = "Cứ Ôm điếu thuốc, Phổi Đi". Phổi ông Bảy bây giờ có màu như cái chảo chống dính 20 năm.'},
+ {t:'Pneumonie (Viêm phổi)', p:'Cô Mai, 45t. Sốt 39,5°C, ho đờm gỉ sắt, đau ngực khi hít sâu.',
+  L:{q:'Herz (tim) : Blut (máu) = Lunge (phổi) : ?',o:['Luft (không khí)','Knochen (xương)','Leber (gan)','Wasser (nước)'],a:0,e:'Tim bơm máu ↔ phổi trao đổi/chứa không khí → Luft.'},
+  M:{q:'Tác nhân thường gặp nhất của viêm phổi cộng đồng?',o:['Streptococcus pneumoniae (phế cầu)','E. coli','Candida','Virus HIV'],a:0,e:'Phế cầu (Pneumokokken) là thủ phạm số 1 của viêm phổi mắc phải ở cộng đồng; đờm "gỉ sắt" là kinh điển.'},
+  m:'PHẾ cầu gây viêm PHỔI — "phế" là phổi (Hán Việt). Đờm gỉ sắt = phổi bị rỉ sét vì để ngoài mưa.'},
+ {t:'Lungenembolie (Thuyên tắc phổi)', p:'Anh Tuấn, 34t. Vừa bay 14 tiếng Frankfurt–Sài Gòn, bắp chân phải sưng đau, giờ khó thở đột ngột.',
+  L:{q:'Dãy số: 81, 27, 9, 3, ?',o:['0','1','2','1/3'],a:1,e:'Mỗi số chia 3 → 3÷3 = 1.'},
+  M:{q:'Cục máu đông gây thuyên tắc phổi thường xuất phát từ đâu?',o:['Tâm nhĩ trái','Tĩnh mạch sâu chi dưới (tiefe Beinvenenthrombose)','Động mạch cảnh','Tĩnh mạch cửa'],a:1,e:'Huyết khối tĩnh mạch sâu chân (DVT) bong ra → theo tĩnh mạch về tim phải → kẹt ở động mạch phổi. Bộ ba Virchow: ứ trệ, tổn thương thành mạch, tăng đông.'},
+  m:'Cục máu đông là "Việt kiều" từ chân bay lên phổi định cư. Ngồi máy bay lâu = cho nó visa.'},
+ {t:'Diabetische Ketoazidose (Nhiễm toan ceton)', p:'Bạn Khoa, 17t, tiểu đường type 1, quên tiêm insulin 2 ngày vì mải chơi game. Hơi thở mùi táo thối.',
+  L:{q:'Y tá truyền 3 chai dịch trong 2 giờ. Cùng tốc độ, truyền 7,5 chai mất bao lâu?',o:['4 giờ','4,5 giờ','5 giờ','6 giờ'],a:2,e:'1,5 chai/giờ → 7,5 ÷ 1,5 = 5 giờ.'},
+  M:{q:'Kiểu thở đặc trưng của DKA?',o:['Thở Cheyne-Stokes','Thở Kussmaul (sâu, nhanh, đều)','Thở chậm nông','Ngưng thở khi ngủ'],a:1,e:'Kussmaul-Atmung: cơ thể thở sâu để thải CO₂ bù trừ toan chuyển hoá. Điều trị: bù dịch + insulin + theo dõi Kali.'},
+  m:'KUSSmaul = "Khò khè Uất ức Sâu Sâu": cơ thể đang thở như người vừa đọc đề TestAS.'},
+ {t:'Hypoglykämie (Hạ đường huyết)', p:'Cô Hoa, 60t, dùng insulin, bỏ bữa trưa. Được phát hiện bất tỉnh, đường huyết 35 mg/dl. Chưa có đường truyền.',
+  L:{q:'Dãy số: 2, 3, 5, 7, 11, 13, ?',o:['15','17','19','16'],a:1,e:'Dãy số nguyên tố. Sau 13 là 17.'},
+  M:{q:'Bệnh nhân BẤT TỈNH, hạ đường huyết, không có đường truyền tĩnh mạch. Xử trí?',o:['Tiêm insulin','Glucagon tiêm bắp','Bón bánh mì vào miệng','Furosemid'],a:1,e:'Bất tỉnh → không cho ăn uống (nguy cơ sặc). Không có IV → Glucagon tiêm bắp/xịt mũi. Có IV → Glucose 40% tiêm TM.'},
+  m:'GLUCAgon = "GỌI LUÔN đường về": glucagon kéo đường từ kho gan ra. Insulin là đứa cất đường đi — đừng gọi nó lúc này.'},
+ {t:'Schlaganfall (Đột quỵ)', p:'Bà Tư, 70t. Đột ngột méo miệng, yếu tay phải, nói ngọng. Khởi phát 45 phút trước.',
+  L:{q:'"Nếu trời mưa thì đường ướt." Bạn thấy đường ướt. Kết luận?',o:['Chắc chắn trời đã mưa','Chắc chắn trời không mưa','Không chắc trời mưa — có thể do nguyên nhân khác','Đường luôn ướt'],a:2,e:'Lỗi "khẳng định hệ quả": đường ướt có thể do xe tưới, vỡ ống nước... Không suy ngược được.'},
+  M:{q:'Trước khi làm tiêu sợi huyết (Lyse) cho đột quỵ, BẮT BUỘC làm gì?',o:['Chụp CT sọ não không cản quang để loại trừ xuất huyết','Chọc dò dịch não tuỷ','Điện não đồ','Đợi 24 giờ xem có tự hết'],a:0,e:'Phải loại trừ xuất huyết não (cCT) trước khi Lyse. Cửa sổ Lyse thường ≤4,5 giờ. "Time is brain".'},
+  m:'BE-FAST: Balance, Eyes, Face, Arm, Speech, Time. Bà Tư méo miệng = não đang gửi tin nhắn SOS bằng khuôn mặt.'},
+ {t:'Meningitis (Viêm màng não)', p:'Bạn Nam, 20t, ở ký túc xá. Sốt cao, đau đầu như búa bổ, cúi cằm chạm ngực không nổi.',
+  L:{q:'A > B, B > C, C > D. Ai nhỏ THỨ HAI?',o:['A','B','C','D'],a:2,e:'Thứ tự A > B > C > D → nhỏ nhất D, nhỏ thứ hai C.'},
+  M:{q:'Bộ ba triệu chứng kinh điển của viêm màng não vi khuẩn?',o:['Sốt – đau đầu – cứng gáy (Meningismus)','Ho – sổ mũi – hắt hơi','Vàng da – sốt – đau bụng','Đau ngực – khó thở – ho máu'],a:0,e:'Sốt + đau đầu + cứng gáy (Nackensteifigkeit). Ban xuất huyết → nghĩ não mô cầu. Kháng sinh KHÔNG được chậm trễ.'},
+  m:'Cứng gáy = cổ bị "đóng băng" như lúc crush seen không rep, không dám cúi xuống xem điện thoại.'},
+ {t:'Appendizitis (Viêm ruột thừa)', p:'Bé Bông, 14t. Đau quanh rốn rồi chuyển xuống hố chậu phải, buồn nôn, sốt nhẹ.',
+  L:{q:'Dãy số: 1, 4, 9, 16, 25, ?',o:['30','35','36','49'],a:2,e:'Bình phương: 1², 2², ... 6² = 36.'},
+  M:{q:'Điểm McBurney nằm ở đâu?',o:['Giữa đường nối rốn – mũi ức','1/3 ngoài đường nối gai chậu trước trên phải – rốn','Hạ sườn trái','Ngay trên xương mu'],a:1,e:'McBurney: 1/3 ngoài trên đường nối gai chậu trước trên phải với rốn. Đau di chuyển từ quanh rốn → hố chậu phải là kinh điển.'},
+  m:'Ruột thừa = "thừa" nhưng khi viêm thì quan trọng hơn cả người yêu cũ. Đau "di cư" từ rốn xuống phải như sinh viên chuyển trọ.'},
+ {t:'Anaphylaxie (Sốc phản vệ)', p:'Chị Thảo, 28t. Ăn tôm xong 5 phút: nổi mề đay, phù môi, khó thở, HA 70/40.',
+  L:{q:'5 sinh viên làm 5 ca trực trong 5 phút. 100 sinh viên làm 100 ca mất bao lâu?',o:['100 phút','20 phút','5 phút','1 phút'],a:2,e:'Mỗi sinh viên làm 1 ca trong 5 phút → 100 người làm 100 ca song song vẫn 5 phút.'},
+  M:{q:'Thuốc đầu tay trong sốc phản vệ?',o:['Kháng histamin uống','Adrenalin tiêm bắp (đùi ngoài)','Corticoid uống','Paracetamol'],a:1,e:'Adrenalin 0,5 mg IM (người lớn) vào mặt ngoài đùi, lặp lại sau 5 phút nếu cần. Kháng histamin/corticoid chỉ là hỗ trợ.'},
+  m:'Phản vệ → "ADRENALIN ĐÂM ĐÙI": như phim hành động, cắm thẳng bút tiêm vào đùi. Không có thời gian uống trà.'},
+ {t:'Sepsis (Nhiễm khuẩn huyết)', p:'Ông Sáu, 80t, sốt, lú lẫn, thở 26 lần/phút, HA 90/55. Có nhiễm trùng tiểu.',
+  L:{q:'Dãy số: 4, 7, 12, 19, 28, ?',o:['37','39','40','35'],a:1,e:'Hiệu số tăng dần 3, 5, 7, 9, 11 → 28 + 11 = 39.'},
+  M:{q:'Cái nào KHÔNG thuộc tiêu chí qSOFA?',o:['Nhịp thở ≥ 22/phút','Thay đổi ý thức','HA tâm thu ≤ 100 mmHg','Sốt > 38,5°C'],a:3,e:'qSOFA = nhịp thở ≥22, rối loạn ý thức, HA tâm thu ≤100. Sốt KHÔNG nằm trong qSOFA.'},
+  m:'qSOFA = "Thở nhanh – Lú – Tụt áp": như sinh viên đêm trước thi. Sốt không có mặt vì nó... đi trễ.'},
+ {t:'Pneumothorax (Tràn khí màng phổi)', p:'Anh Long, 22t, cao gầy như cây sào. Đột ngột đau ngực phải và khó thở dữ dội, khí quản lệch trái, tụt HA.',
+  L:{q:'Arzt (bác sĩ) : Krankenhaus (bệnh viện) = Lehrer (giáo viên) : ?',o:['Schule (trường học)','Buch (sách)','Kind (trẻ em)','Kreide (phấn)'],a:0,e:'Nơi làm việc: bác sĩ ở bệnh viện, giáo viên ở trường → Schule.'},
+  M:{q:'Tràn khí màng phổi ÁP LỰC (Spannungspneumothorax). Xử trí ngay?',o:['Chụp CT rồi tính','Chọc kim giải áp (Entlastungspunktion) ngay','Cho thở oxy và về nhà','Đặt nội khí quản rồi đợi'],a:1,e:'Đây là chẩn đoán LÂM SÀNG → giải áp bằng kim ngay, sau đó dẫn lưu màng phổi. Không đợi phim.'},
+  m:'Áp lực = phổi bị "ép tim" như đám cưới bị họ hàng ép. Giải pháp: chọc thủng cho xì hơi.'},
+ {t:'Akutes Nierenversagen (Tổn thương thận cấp)', p:'Bà Chín, 75t, tiêu chảy 4 ngày, không uống nước. Gần như không đi tiểu.',
+  L:{q:'Dãy số: 100, 95, 85, 70, 50, ?',o:['30','25','20','35'],a:1,e:'Trừ dần 5, 10, 15, 20, 25 → 50 − 25 = 25.'},
+  M:{q:'Đây là nguyên nhân suy thận cấp loại nào?',o:['Trước thận (prärenal) – do mất nước/giảm thể tích','Tại thận – viêm cầu thận','Sau thận – sỏi niệu quản 2 bên','Sau thận – phì đại tiền liệt tuyến'],a:0,e:'Mất nước → giảm tưới máu thận → prärenal, loại thường gặp nhất. Điều trị: bù dịch.'},
+  m:'Trước thận = "khát nước", tại thận = "thận tự hỏng", sau thận = "ống cống tắc". Bà Chín thuộc team khát.'},
+ {t:'Hyperkaliämie (Tăng Kali máu)', p:'Ông Đức, 65t, suy thận mạn, ăn 2 nải chuối. K⁺ = 7,2 mmol/l, ECG bất thường.',
+  L:{q:'Một lượng thuốc giảm 50% mỗi giờ. Sau 3 giờ còn 10 mg. Ban đầu có bao nhiêu?',o:['30 mg','60 mg','80 mg','40 mg'],a:2,e:'Ngược lại ×2 ba lần: 10 → 20 → 40 → 80 mg.'},
+  M:{q:'Thuốc dùng ĐẦU TIÊN để bảo vệ tim (ổn định màng) trong tăng Kali nặng có thay đổi ECG?',o:['Calcium gluconat tĩnh mạch','Kali clorid','Digoxin','Vitamin D'],a:0,e:'Calcium ổn định màng cơ tim ngay. Sau đó insulin + glucose, salbutamol để đẩy K vào tế bào; lọc máu nếu cần. ECG: sóng T cao nhọn (zeltförmig = hình lều).'},
+  m:'T cao nhọn như cái lều (Zelt) — Kali cắm trại trong ECG. Gọi CANXI (Calcium) đến làm bảo vệ đuổi đi.'},
+ {t:'Thyreotoxische Krise (Cơn bão giáp)', p:'Cô Ngọc, 35t, Basedow bỏ thuốc. Sốt 40°C, mạch 160, run, kích động.',
+  L:{q:'Dãy số: 2, 6, 18, 54, ?',o:['108','162','72','156'],a:1,e:'×3 → 54×3 = 162.'},
+  M:{q:'Thuốc giúp kiểm soát nhịp tim nhanh và triệu chứng giao cảm trong bão giáp?',o:['Propranolol (beta-blocker)','Levothyroxin','Adrenalin','Atropin'],a:0,e:'Propranolol giảm nhịp & triệu chứng. Kèm thuốc kháng giáp (Thiamazol), corticoid, làm mát. Levothyroxin = đổ thêm dầu vào lửa.'},
+  m:'Tuyến giáp bão = động cơ xe máy độ pô quá tay. Propranolol là cái phanh. Levothyroxin là... thêm xăng.'},
+ {t:'Addison-Krise (Suy thượng thận cấp)', p:'Anh Phát, 40t, dùng corticoid lâu rồi tự ngừng đột ngột. Tụt HA, nôn, da sạm.',
+  L:{q:'Không con mèo nào biết bay. Một số thú cưng là mèo. Kết luận chắc chắn?',o:['Không thú cưng nào biết bay','Một số thú cưng không biết bay','Mọi thú cưng biết bay','Một số mèo biết bay'],a:1,e:'Những thú cưng là mèo thì không biết bay → ít nhất một số thú cưng không biết bay.'},
+  M:{q:'Rối loạn điện giải điển hình của suy thượng thận (Addison)?',o:['Tăng Na, hạ K','Hạ Na, tăng K','Tăng Ca','Hạ Mg đơn thuần'],a:1,e:'Thiếu aldosteron → mất Na, giữ K. Điều trị cơn: Hydrocortison IV + NaCl 0,9%.'},
+  m:'ADDison = "thiếu muối, thừa Kali": Na đi xuống, K lên ngôi — như drama cung đấu.'},
+ {t:'Obere GI-Blutung (Xuất huyết tiêu hoá trên)', p:'Chú Ba, 55t, uống Ibuprofen như kẹo. Đi ngoài phân đen như hắc ín, chóng mặt.',
+  L:{q:'Dãy số: 1, 2, 6, 24, 120, ?',o:['240','600','720','144'],a:2,e:'Giai thừa: ×2, ×3, ×4, ×5, ×6 → 120×6 = 720.'},
+  M:{q:'Phân đen hắc ín (Teerstuhl/Meläna) gợi ý chảy máu ở đâu?',o:['Trực tràng','Đường tiêu hoá trên (dạ dày–tá tràng)','Hậu môn (trĩ)','Bàng quang'],a:1,e:'Máu bị tiêu hoá/oxy hoá đi qua ruột → đen. Thường do loét dạ dày–tá tràng (NSAID!). Xử trí: ổn định huyết động, PPI, nội soi.'},
+  m:'Teer = hắc ín. Máu từ dạ dày đi tour cả đường ruột nên bị "rám nắng" đen thui.'},
+ {t:'Akute Pankreatitis (Viêm tụy cấp)', p:'Anh Dũng, 42t, sau tiệc cưới bạn uống 2 thùng bia. Đau thượng vị lan sau lưng như dao đâm.',
+  L:{q:'Thuốc nồng độ 250 mg/5 ml. Cần 400 mg, phải rút bao nhiêu ml?',o:['6 ml','8 ml','10 ml','7,5 ml'],a:1,e:'250 mg/5 ml = 50 mg/ml → 400 ÷ 50 = 8 ml.'},
+  M:{q:'Men nào đặc hiệu nhất để chẩn đoán viêm tụy cấp?',o:['Lipase','ALT','Troponin','CK'],a:0,e:'Lipase > 3 lần giới hạn trên. Hai nguyên nhân hàng đầu: sỏi mật và rượu.'},
+  m:'Tụy viêm vì 2 thứ: "SỎI và SAY" (mật và rượu). Đau xuyên ra lưng như bị bạn thân đâm sau lưng.'},
+ {t:'Cholezystitis (Viêm túi mật)', p:'Cô Quyên, 45t, nữ, béo, hay ăn đồ chiên. Đau hạ sườn phải sau bữa mỡ, sốt.',
+  L:{q:'Dãy số: 3, 5, 9, 17, 33, ?',o:['49','65','66','64'],a:1,e:'×2 − 1: 33×2 − 1 = 65.'},
+  M:{q:'Dấu Murphy dương tính (đau, ngưng thở khi ấn hạ sườn phải lúc hít vào) gợi ý?',o:['Viêm ruột thừa','Viêm túi mật','Viêm phổi trái','Sỏi thận trái'],a:1,e:'Murphy-Zeichen → Cholezystitis. Siêu âm là thăm dò đầu tay.'},
+  m:'"5F": Female, Fat, Forty, Fertile, Fair. Túi mật ghét đồ chiên như người yêu cũ ghét bạn.'},
+ {t:'Status epilepticus (Trạng thái động kinh)', p:'Bạn Vy, 23t, co giật toàn thân liên tục 6 phút chưa dứt.',
+  L:{q:'Auge (mắt) : sehen (nhìn) = Ohr (tai) : ?',o:['riechen (ngửi)','hören (nghe)','schmecken (nếm)','sprechen (nói)'],a:1,e:'Cơ quan : chức năng → tai : nghe = hören.'},
+  M:{q:'Thuốc đầu tay cắt cơn co giật kéo dài?',o:['Benzodiazepin (Lorazepam IV / Midazolam)','Paracetamol','Haloperidol','Insulin'],a:0,e:'Benzodiazepin là bậc 1; không cắt cơn → Levetiracetam/Valproat/Phenytoin; rồi gây mê.'},
+  m:'Co giật > 5 phút = "não đang mở bar". Benzo là bảo vệ đến tắt nhạc: "ZE-PAM ĐI!"'},
+ {t:'Aortendissektion (Bóc tách động mạch chủ)', p:'Ông Kiệt, 60t, THA không điều trị. Đau ngực "như bị xé" lan ra lưng, HA 2 tay chênh 30 mmHg.',
+  L:{q:'Dãy số: 64, 32, 48, 24, 36, ?',o:['18','12','54','72'],a:0,e:'Xen kẽ ÷2 và ×1,5: 36 ÷ 2 = 18.'},
+  M:{q:'Khi nghi bóc tách ĐMC, thuốc nào CHỐNG CHỈ ĐỊNH?',o:['Tiêu sợi huyết (Lyse)','Beta-blocker','Thuốc giảm đau opioid','Thuốc hạ áp tĩnh mạch'],a:0,e:'Lyse có thể gây chảy máu chết người. Xử trí: giảm đau, beta-blocker hạ nhịp & HA, CT mạch, mổ cấp nếu type A (Stanford).'},
+  m:'Đau "xé" = động mạch chủ bị xé như vé số trúng 2 nghìn. Tuyệt đối không cho Lyse làm "loãng" thêm drama.'},
+ {t:'Extrauteringravidität (Thai ngoài tử cung)', p:'Chị Hằng, 27t, trễ kinh 7 tuần, đau bụng dưới dữ dội, chóng mặt.',
+  L:{q:'Lan cao hơn Minh. Tú cao hơn Minh. Lan cao hơn Tú. Ai cao nhất?',o:['Minh','Tú','Lan','Không xác định được'],a:2,e:'Lan > Tú > Minh → Lan cao nhất.'},
+  M:{q:'Phụ nữ tuổi sinh đẻ đau bụng cấp — xét nghiệm nào PHẢI làm sớm?',o:['β-hCG (thử thai)','Lipase','Troponin','HbA1c'],a:0,e:'Luôn loại trừ thai (ngoài tử cung). β-hCG + siêu âm đầu dò âm đạo. Vỡ → cấp cứu ngoại khoa.'},
+  m:'Quy tắc cấp cứu: "Mọi phụ nữ tuổi sinh đẻ đều có thai cho tới khi chứng minh điều ngược lại." Kể cả khi cô ấy thề là độc thân.'},
+ {t:'Präeklampsie (Tiền sản giật)', p:'Chị Nhung, 31t, thai 34 tuần. HA 165/110, phù mặt, đau đầu, nhìn mờ.',
+  L:{q:'Dãy số: 7, 10, 8, 11, 9, 12, ?',o:['10','13','14','11'],a:0,e:'Xen kẽ +3 rồi −2: 12 − 2 = 10.'},
+  M:{q:'Thuốc dự phòng/điều trị co giật (sản giật) trong tiền sản giật nặng?',o:['Magnesiumsulfat (MgSO₄)','Diazepam uống','Aspirin liều cao','Furosemid'],a:0,e:'MgSO₄ IV. Theo dõi phản xạ gân xương, nhịp thở (ngộ độc Mg). Điều trị triệt để = cho sinh.'},
+  m:'Tiền sản giật: "Huyết áp cao + Protein niệu sau tuần 20". MAGIE = "MA GIẾT co giật".'},
+ {t:'Eisenmangelanämie (Thiếu máu thiếu sắt)', p:'Bạn Linh, 21t, ăn chay, kinh nguyệt nhiều. Mệt, da xanh, thèm nhai đá.',
+  L:{q:'3 con mèo bắt 3 con chuột trong 3 phút. Cần bao nhiêu mèo để bắt 100 chuột trong 100 phút?',o:['100','33','3','10'],a:2,e:'Mỗi mèo bắt 1 chuột/3 phút → 1 mèo bắt ~33,3 chuột/100 phút → 3 mèo bắt 100 chuột.'},
+  M:{q:'Xét nghiệm phản ánh tốt nhất dự trữ sắt của cơ thể?',o:['Ferritin','Bilirubin','CRP','Creatinin'],a:0,e:'Ferritin thấp = kho sắt cạn. Thiếu máu hồng cầu nhỏ nhược sắc (mikrozytär, hypochrom). Lưu ý: Ferritin tăng giả khi viêm.'},
+  m:'FERRITIN = "Phe Rít Tin": phe rít lại tin nhắn khi ví (kho sắt) trống rỗng. Thèm nhai đá (Pica) = cơ thể đòi sắt mà nhầm địa chỉ.'},
+ {t:'Hypertensiver Notfall (Tăng huyết áp cấp cứu)', p:'Ông Thành, 62t, HA 230/130, đau đầu, khó thở, ECG thiếu máu cơ tim.',
+  L:{q:'Dãy số: 1, 3, 7, 15, 31, ?',o:['47','62','63','64'],a:2,e:'×2 + 1: 31×2 + 1 = 63.'},
+  M:{q:'Trong tăng HA cấp cứu (có tổn thương cơ quan), giờ đầu nên hạ HA khoảng bao nhiêu?',o:['Về 120/80 ngay lập tức','Không quá ~25%','Không hạ, chờ tự xuống','Hạ 70%'],a:1,e:'Hạ quá nhanh → thiếu máu não/tim/thận. Mục tiêu giờ đầu giảm ≤25% (ngoại lệ: bóc tách ĐMC, phù phổi cấp...).'},
+  m:'Hạ áp như chia tay người yêu lâu năm: từ từ thôi, cắt một phát là cả hệ thống sụp.'},
+ {t:'Cushing-Syndrom (Hội chứng Cushing)', p:'Cô Thu, 38t, dùng prednisolon 1 năm. Mặt tròn như trăng rằm, bụng to, chân tay khẳng khiu, vết rạn tím.',
+  L:{q:'warm (ấm) : kalt (lạnh) = hell (sáng) : ?',o:['dunkel (tối)','heiß (nóng)','laut (ồn)','klein (nhỏ)'],a:0,e:'Quan hệ trái nghĩa: hell ↔ dunkel.'},
+  M:{q:'Nguyên nhân thường gặp nhất của hội chứng Cushing?',o:['U tuyến yên','Dùng glucocorticoid ngoại sinh (do thuốc)','U phổi tiết ACTH','U tuyến thượng thận'],a:1,e:'Iatrogen (do thuốc corticoid) là phổ biến nhất. Trong nhóm nội sinh: bệnh Cushing (u tuyến yên) hay gặp nhất.'},
+  m:'Cushing = "CỤC SƯNG": mặt trăng, gù trâu, bụng phệ — cơ thể biến thành con lật đật vì corticoid.'},
+ {t:'Vorhofflimmern (Rung nhĩ)', p:'Bà Sương, 78t. Tim đập loạn xạ, mạch không đều hoàn toàn. ECG: không có sóng P.',
+  L:{q:'Dãy số: 2, 5, 11, 23, 47, ?',o:['94','95','96','93'],a:1,e:'×2 + 1: 47×2 + 1 = 95.'},
+  M:{q:'Thang điểm đánh giá nguy cơ đột quỵ trong rung nhĩ để quyết định chống đông?',o:['CHA₂DS₂-VASc','Glasgow Coma Scale','APGAR','Wells-Score'],a:0,e:'CHA₂DS₂-VASc: Congestive HF, Hypertension, Age≥75 (2đ), Diabetes, Stroke (2đ), Vascular, Age 65-74, Sex (nữ). Biến chứng sợ nhất: đột quỵ do huyết khối nhĩ trái.'},
+  m:'Nhĩ "flimmern" = rung rinh như đèn nhấp nháy quán karaoke. Máu đứng im nhảy không theo nhạc → vón cục → bay lên não.'},
+ {t:'Polytrauma & hämorrhagischer Schock (FINAL BOSS)', p:'Anh Shipper, 25t, tai nạn xe máy. Máu phun ồ ạt từ đùi, mạch 140, HA 70/40, lơ mơ.',
+  L:{q:'Mọi người học TestAS đều mất ngủ. Ai mất ngủ cũng uống cà phê. Bạn học TestAS. Kết luận?',o:['Bạn uống cà phê','Bạn không mất ngủ','Ai uống cà phê cũng học TestAS','Không kết luận được'],a:0,e:'Chuỗi suy luận: TestAS → mất ngủ → cà phê. Bạn học TestAS → bạn uống cà phê. (Đáp án C là đảo ngược sai.)'},
+  M:{q:'Theo sơ đồ cABCDE, ưu tiên ĐẦU TIÊN ở bệnh nhân này?',o:['Cầm máu nguy kịch ngay (c = critical bleeding: ép, garô)','Chụp X-quang chân','Đo đường huyết','Hỏi tiền sử dị ứng'],a:0,e:'c (critical bleeding) → A (Airway) → B (Breathing) → C (Circulation) → D (Disability) → E (Exposure). Chảy máu ồ ạt giết người trong vài phút.'},
+  m:'cABCDE: chữ "c" nhỏ đứng đầu = "Cầm máu cái đã rồi hãy khoe ABC". Máu là tiền, đừng để chảy hết tài khoản.'}
+];
+
+// Daily focus plan (Kernmodul subtests rotation + Amboss article = ER level)
+const KERN_FOCUS = [
+  'Zahlenreihen / Zahlenmatrizen (dãy & ma trận số)',
+  'Quantitative Probleme lösen (toán đố định lượng)',
+  'Beziehungen erschließen (suy luận quan hệ / từ tương đồng)',
+  'Figurenfolgen / Muster ergänzen (chuỗi & ma trận hình)',
+  'Mathematische Gleichungen (phương trình toán học)',
+  'Lateinische Quadrate (ô vuông Latin – logic sắp xếp)'
+];
+const FACH_FOCUS = [
+  'Đọc hiểu đoạn văn y sinh (Texte verstehen)',
+  'Phân tích biểu đồ/bảng số liệu y học (Diagramme & Tabellen)',
+  'Hiểu mối quan hệ khoa học y-sinh (naturwissenschaftliche Zusammenhänge)'
+];
+
+/* =====================================================================
+   4. ANATOMY DATING SIM DATA
+   ===================================================================== */
+const ORGANS = [
+ {id:'heart',name:'Miss Heart',de:'das Herz',emoji:'❤️',color:'#ff2e63',
+  bio:'4 phòng ngủ, đập 100.000 lần/ngày, cực nhạy cảm với Kali. Tiếng Đức gọi cô là "das" (giống TRUNG) nên cô đang khủng hoảng danh tính.',
+  hello:'Chào cưng... nhịp của em đang 72 lần/phút. Làm nó tăng lên đi 💓',
+  win:['Ôi... nhịp em vừa lên 120. Nhưng là vì vui, không phải rung nhĩ đâu 😳','Anh/em nói chuyện y như sóng sin vậy... đều và đẹp.','Em vừa tiết thêm ANP vì hồi hộp đấy (ANP = hormone tim tiết ra khi căng giãn).'],
+  lose:['Ew. Em vừa bị ngoại tâm thu vì câu trả lời đó.','Câu đó làm em muốn tự ngừng tim (Herzstillstand).','Đồ thiếu máu cơ tim cảm xúc.'],
+  rounds:[
+   {q:'Anh có biết em có mấy ngăn không? 💕',o:['4 ngăn: 2 tâm nhĩ (Vorhöfe) + 2 tâm thất (Kammern)','3 ngăn như con ếch','2 ngăn như cái tủ lạnh nhà anh'],e:'Tim người có 4 buồng: nhĩ phải, thất phải, nhĩ trái, thất trái.'},
+   {q:'Máu nghèo oxy từ tâm thất phải của em đi đâu?',o:['Thân động mạch phổi (Truncus pulmonalis) lên phổi','Động mạch chủ (Aorta)','Đi thẳng lên não'],e:'Thất phải → động mạch phổi → phổi lấy oxy (tuần hoàn nhỏ).'},
+   {q:'Ai là người "tạo nhịp" cho em?',o:['Nút xoang (Sinusknoten)','Nút nhĩ thất (AV-Knoten)','Anh, chỉ anh thôi 😏'],e:'Nút xoang là máy tạo nhịp sinh lý (60–80 lần/phút).'},
+   {q:'Cánh cửa giữa nhĩ trái và thất trái của em tên gì?',o:['Van hai lá (Mitralklappe)','Van ba lá (Trikuspidalklappe)','Van động mạch chủ (Aortenklappe)'],e:'Trái = hai lá (Mitral); phải = ba lá (Trikuspidal).'}
+  ]},
+ {id:'liver',name:'Mr. Liver',de:'die Leber',emoji:'🍺',color:'#c2410c',
+  bio:'Nhà máy hoá chất 1,5 kg, lọc rượu cho cả cơ thể. Tiếng Đức gọi anh là "die Leber" (giống CÁI) — anh không phản đối, anh bận giải độc.',
+  hello:'Hey. Anh vừa chuyển hoá xong 3 lon bia của em đêm qua. Nói chuyện tử tế đi.',
+  win:['Ôi, câu đó làm men gan anh... tăng vì hạnh phúc.','Em thông minh như tế bào Kupffer vậy (đại thực bào của gan).','Anh tái tạo được, nhưng trái tim anh dành cho em thì không cần tái tạo 😎'],
+  lose:['Câu đó độc hơn Paracetamol quá liều.','Anh vừa bị gan nhiễm mỡ vì sự ngu ngơ của em.','Ê, bilirubin anh lên rồi đó. Vàng mặt luôn.'],
+  rounds:[
+   {q:'Anh sản xuất chất gì để nhũ tương hoá mỡ?',o:['Mật (Galle)','Insulin','Nước bọt'],e:'Gan tạo mật, túi mật chỉ dự trữ và cô đặc.'},
+   {q:'Máu giàu dinh dưỡng từ ruột đến anh qua mạch nào?',o:['Tĩnh mạch cửa (Pfortader / Vena portae)','Động mạch chủ','Tĩnh mạch cảnh trong'],e:'Tĩnh mạch cửa mang ~75% lượng máu đến gan.'},
+   {q:'Protein huyết tương anh tổng hợp nhiều nhất?',o:['Albumin','Hemoglobin','Keratin'],e:'Albumin giữ áp lực keo. Gan suy → albumin thấp → phù, cổ trướng.'},
+   {q:'Đơn vị cấu trúc–chức năng của anh?',o:['Tiểu thuỳ gan (Leberläppchen)','Nephron','Phế nang'],e:'Tiểu thuỳ gan hình lục giác, tĩnh mạch trung tâm ở giữa.'}
+  ]},
+ {id:'lung',name:'Lady Lung',de:'die Lunge',emoji:'🫁',color:'#38bdf8',
+  bio:'Diện tích bề mặt ~100 m² — rộng hơn căn hộ của bạn. Thở 20.000 lần/ngày mà chưa than một câu.',
+  hello:'Hít vào... thở ra... Anh làm em hụt hơi rồi đó 🌬️',
+  win:['Câu trả lời làm em giãn nở như lúc hít vào sâu nhất.','Em thấy SpO₂ của mình lên 100%.','Ôi, surfactant của em đang tan chảy.'],
+  lose:['Em bị co thắt phế quản vì câu đó.','Câu đó độc như khói thuốc của ông Bảy.','Thôi, em xẹp phổi (Atelektase) rồi.'],
+  rounds:[
+   {q:'Nơi trao đổi khí của em gọi là gì?',o:['Phế nang (Alveolen)','Khí quản (Trachea)','Thanh quản (Kehlkopf)'],e:'~300 triệu phế nang trao đổi O₂/CO₂ với mao mạch.'},
+   {q:'Phổi PHẢI của em có mấy thuỳ?',o:['3 thuỳ','2 thuỳ','5 thuỳ'],e:'Phải 3 thuỳ, trái 2 thuỳ (chừa chỗ cho tim).'},
+   {q:'Chất giúp phế nang em không bị xẹp?',o:['Surfactant','Mucus (chất nhầy)','Bilirubin'],e:'Surfactant (do phế bào type II) giảm sức căng bề mặt.'},
+   {q:'Cơ hô hấp chính giúp em hít vào?',o:['Cơ hoành (Zwerchfell)','Cơ tim','Cơ mông lớn'],e:'Cơ hoành co → hạ xuống → lồng ngực giãn → hít vào.'}
+  ]},
+ {id:'kidney',name:'Sir Kidney',de:'die Niere',emoji:'🫘',color:'#a855f7',
+  bio:'Song sinh hình hạt đậu, lọc 180 lít dịch/ngày. Ghét bạn uống ít nước và lạm dụng Ibuprofen.',
+  hello:'Ta lọc 180 lít mỗi ngày. Để xem ngươi có đáng được ta tái hấp thu không.',
+  win:['Hừm. Ngươi được tái hấp thu vào trái tim ta.','Câu đó trong như nước tiểu người uống đủ 2 lít/ngày.','Độ lọc cầu thận (GFR) tình cảm của ta vừa tăng.'],
+  lose:['Ta sẽ bài tiết ngươi ra ngoài.','Câu đó làm ta muốn bị sỏi.','Creatinin của ta tăng vì stress đó.'],
+  rounds:[
+   {q:'Đơn vị chức năng của ta tên gì?',o:['Nephron','Neuron','Alveole'],e:'Mỗi thận ~1 triệu nephron.'},
+   {q:'Hormone ta tiết ra để kích thích tạo hồng cầu?',o:['Erythropoetin (EPO)','Insulin','Adrenalin'],e:'EPO — suy thận mạn → thiếu máu. (Adrenalin là của tuyến thượng thận nằm TRÊN thận.)'},
+   {q:'ADH tác động lên ta để làm gì?',o:['Tăng tái hấp thu nước ở ống góp','Tăng thải nước','Tăng tiết mật'],e:'ADH (Vasopressin) gắn aquaporin → giữ nước → nước tiểu cô đặc.'},
+   {q:'Cuộn mao mạch lọc máu của ta gọi là?',o:['Cầu thận (Glomerulus)','Quai Henle','Bể thận (Nierenbecken)'],e:'Glomerulus lọc máu thành nước tiểu đầu.'}
+  ]},
+ {id:'brain',name:'Brain-sama',de:'das Gehirn',emoji:'🧠',color:'#f472b6',
+  bio:'Nặng 1,4 kg, dùng 20% năng lượng cơ thể, và vẫn quên mật khẩu wifi. Cực kỳ khó tán.',
+  hello:'Ta có 86 tỷ neuron. Ngươi có bao nhiêu? Chứng minh đi.',
+  win:['Hmm... dopamine của ta vừa tăng. Đừng có tự đắc.','Ngươi làm ta tiết oxytocin. Đáng ghét.','Synapse của ta vừa kết nối với ngươi.'],
+  lose:['Ngươi gây chấn động não cho ta.','Câu đó là lý do hàng rào máu não tồn tại.','Ta sẽ xoá ngươi khỏi hồi hải mã (Hippocampus).'],
+  rounds:[
+   {q:'Vùng não giúp ta SẢN XUẤT lời nói?',o:['Vùng Broca','Vùng Wernicke','Tiểu não'],e:'Broca (thuỳ trán) = nói ra; Wernicke (thuỳ thái dương) = hiểu lời.'},
+   {q:'Thuỳ nào xử lý thị giác?',o:['Thuỳ chẩm (Okzipitallappen)','Thuỳ trán (Frontallappen)','Thuỳ thái dương (Temporallappen)'],e:'Vỏ thị giác nằm ở thuỳ chẩm (phía sau đầu).'},
+   {q:'Ai giữ thăng bằng và phối hợp vận động?',o:['Tiểu não (Kleinhirn)','Tuyến yên','Hạch hạnh nhân (Amygdala)'],e:'Tiểu não tổn thương → đi loạng choạng (Ataxie).'},
+   {q:'Bức tường bảo vệ ta khỏi chất lạ trong máu?',o:['Hàng rào máu não (Blut-Hirn-Schranke)','Màng phổi','Bao Bowman'],e:'Tế bào nội mô liên kết chặt + tế bào hình sao.'}
+  ]},
+ {id:'pancreas',name:'Pancreas-kun',de:'die Bauchspeicheldrüse',emoji:'🍬',color:'#facc15',
+  bio:'Tên tiếng Đức dịch từng chữ: Bauch (bụng) + Speichel (nước bọt) + Drüse (tuyến) = "tuyến nước bọt của bụng". Cậu ấy ghét cái tên này.',
+  hello:'Đường huyết của cậu đang bao nhiêu? Tớ quan tâm thôi... không phải thích đâu. B-baka!',
+  win:['T-tớ tiết insulin vì cậu đấy... không phải vì đường huyết cao đâu!','Câu trả lời ngọt hơn glucose.','Tế bào beta của tớ đang rung rinh.'],
+  lose:['Tớ tự tiêu hoá bản thân (viêm tụy) vì câu đó.','Lipase của tớ tăng gấp 3 rồi đấy!','Hứ. Tiểu đường tình cảm.'],
+  rounds:[
+   {q:'Tớ tiết hormone gì để HẠ đường huyết?',o:['Insulin (từ tế bào β / Betazellen)','Glucagon','Cortisol'],e:'Insulin hạ đường huyết; glucagon (tế bào α) tăng đường huyết.'},
+   {q:'Tế bào nào của tớ tiết glucagon?',o:['Tế bào α (Alphazellen)','Tế bào β','Tế bào δ'],e:'α → glucagon, β → insulin, δ → somatostatin.'},
+   {q:'Enzyme tớ tiết ra để tiêu hoá MỠ?',o:['Lipase','Pepsin','Lactase'],e:'Lipase tụy. Pepsin là của dạ dày.'},
+   {q:'Ống tụy của tớ đổ vào đâu?',o:['Tá tràng (Duodenum) qua nhú Vater','Dạ dày','Đại tràng'],e:'Ống tụy chính + ống mật chủ đổ vào tá tràng tại nhú Vater.'}
+  ]}
+];
+
+/* =====================================================================
+   5. MOCK "BỰA" LECTURES (fallback when no API key)
+   ===================================================================== */
+const MOCK_LECTURES = {
+ heart: {
+  title:'4 Van Tim: Drama Tình Ái Toxic Của Gia Đình Tim (Herzklappen)',
+  intro:'Ngồi xuống. Hôm nay BS. Mỏ Hỗn kể bạn nghe chuyện tình tay tư độc hại nhất cơ thể bạn. Mỗi van tim là một người yêu cũ: chỉ cho máu đi MỘT chiều, quay lại là đóng sầm cửa. Giống bạn bị block ấy.',
+  sections:[
+   {heading:'Van ba lá (Trikuspidalklappe) — Đứa trả lời tin nhắn bằng 3 chữ',explanation:'Nằm giữa nhĩ PHẢI và thất PHẢI. Có 3 lá van. Khi thất phải co, nó đóng lại để máu không chảy ngược về nhĩ.',mnemonic:'"BÊN PHẢI là ba lá" → đọc nhanh: "PHẢI BA" = "phải bà": bà ngoại nhiều chuyện có 3 cái miệng. Tri- (Latin) = 3, như "tri-ple kill" lúc bạn thi trượt 3 lần.'},
+   {heading:'Van động mạch phổi (Pulmonalklappe) — Đứa đuổi máu lên phổi "đi hít thở không khí đi"',explanation:'Cửa ra của thất phải lên động mạch phổi. Mở khi thất phải co, đóng khi thất giãn.',mnemonic:'Pulmo = phổi. Nó giống bà mẹ đuổi con ra khỏi nhà: "Đi lên phổi lấy oxy rồi hẵng về!"'},
+   {heading:'Van hai lá (Mitralklappe) — Hai người yêu cũ đứng chặn cửa',explanation:'Nằm giữa nhĩ TRÁI và thất TRÁI, 2 lá van. Hở van hai lá (Mitralinsuffizienz) → máu trào ngược lên nhĩ trái → nhĩ to → dễ rung nhĩ.',mnemonic:'"Mitra" = mũ giám mục có 2 vạt. Tưởng tượng 2 ông giám mục đứng gác cửa, ôm nhau khóc mỗi khi tâm thất co bóp. Hở van = 2 ông cãi nhau quên đóng cửa, máu chạy ngược về như người yêu cũ quay lại xin tiền.'},
+   {heading:'Van động mạch chủ (Aortenklappe) — Cổng soát vé lên cao tốc',explanation:'Cửa ra của thất trái vào động mạch chủ. Hẹp van ĐMC (Aortenstenose) ở người già: bộ ba ngất – đau ngực – khó thở khi gắng sức.',mnemonic:'Hẹp van ĐMC = "SAD": Synkope (ngất), Angina pectoris (đau thắt ngực), Dyspnoe (khó thở). Đúng, bệnh nhân SAD, bạn cũng SAD khi học cái này.'},
+   {heading:'Tiếng tim "LUB-DUB" — Tiếng cửa đóng sầm của cuộc cãi vã',explanation:'S1 (LUB) = van nhĩ–thất (ba lá + hai lá) đóng, bắt đầu tâm thu. S2 (DUB) = van bán nguyệt (ĐMC + ĐM phổi) đóng, bắt đầu tâm trương.',mnemonic:'Thứ tự máu đi qua van: "BA – PHỔI – HAI – CHỦ" → đọc thành "BÀ PHỔI HAI CHỦ": bà chủ nhà trọ có 2 cái phổi và luôn đòi tiền. "Try before you Buy": TRI(cuspid) trước, BI(cuspid = hai lá) sau.'}
+  ],
+  cards:[
+   {front:'Van nằm giữa nhĩ phải và thất phải?',back:'Van ba lá (Trikuspidalklappe). Mẹo: "PHẢI BA" = bà ngoại 3 miệng.'},
+   {front:'Van nằm giữa nhĩ trái và thất trái?',back:'Van hai lá (Mitralklappe). Mẹo: 2 ông giám mục (Mitra) gác cửa.'},
+   {front:'Thứ tự máu đi qua 4 van tim?',back:'Ba lá → ĐM phổi → Hai lá → ĐM chủ. Mẹo: "BÀ PHỔI HAI CHỦ".'},
+   {front:'Bộ ba triệu chứng hẹp van động mạch chủ?',back:'Ngất – Đau thắt ngực – Khó thở (SAD: Synkope, Angina, Dyspnoe).'},
+   {front:'Tiếng tim S1 do đâu?',back:'Đóng van nhĩ–thất (ba lá + hai lá) — "LUB", đầu tâm thu.'},
+   {front:'Tiếng tim S2 do đâu?',back:'Đóng van bán nguyệt (ĐMC + ĐM phổi) — "DUB", đầu tâm trương.'},
+   {front:'Hở van hai lá gây hậu quả gì cho nhĩ trái?',back:'Máu trào ngược → nhĩ trái giãn → dễ rung nhĩ. Mẹo: người yêu cũ quay lại xin tiền.'}
+  ],
+  outro:'Hết bài. Nếu vẫn chưa nhớ, hãy tưởng tượng 2 ông giám mục cãi nhau trong tim bạn mỗi đêm. Bạn sẽ không bao giờ quên. Và cũng không bao giờ ngủ ngon.'
+ },
+ kidney: {
+  title:'Nephron: Nhà Máy Lọc Nước Mắt Của Cơ Thể (Das Nephron)',
+  intro:'Thận của bạn lọc 180 lít mỗi ngày, trong khi bạn còn lười lọc tin nhắn rác. Hôm nay ta mổ xẻ cái nhà máy nước này bằng phương pháp... bựa.',
+  sections:[
+   {heading:'Cầu thận (Glomerulus) — Cái lưới bắt cá lủng lỗ',explanation:'Cuộn mao mạch lọc máu thành nước tiểu đầu (~180 l/ngày). Tế bào máu và protein lớn bị giữ lại.',mnemonic:'GLOMERULUS = "GỌI LỘN MẸ RU LÚ": mẹ ru cả 180 lít máu đi qua cái lưới mỗi ngày đến lú luôn. Có protein trong nước tiểu = lưới bị thủng, cá to lọt ra.'},
+   {heading:'Ống lượn gần — Đứa tham lam nhặt lại mọi thứ',explanation:'Tái hấp thu ~65% Na⁺ và nước, gần như 100% glucose và amino acid.',mnemonic:'Như bạn đi buffet: thấy gì ngon (glucose, amino acid) nhặt lại hết. Glucose xuất hiện trong nước tiểu = bạn ăn nhiều đến mức không nhặt nổi nữa (đường huyết > ~180 mg/dl, ngưỡng thận).'},
+   {heading:'Quai Henle — Cầu trượt nước tạo áp lực thẩm thấu',explanation:'Nhánh xuống thấm nước, nhánh lên dày không thấm nước nhưng bơm muối ra (NKCC2). Lợi tiểu quai (Furosemid) chặn chỗ này.',mnemonic:'"Henle" nghe như "Hên lè": nhánh xuống thả nước, nhánh lên thả muối — hên lè thì giữ được nước. Furosemid = kẻ phá hoại cầu trượt → đi tiểu như vòi rồng.'},
+   {heading:'Ống góp + ADH — Ông bảo vệ quyết định giữ hay xả nước',explanation:'ADH (Vasopressin) gắn aquaporin-2 vào ống góp → tái hấp thu nước → nước tiểu cô đặc. Uống bia ức chế ADH → đi tiểu liên tục.',mnemonic:'ADH = "Anh Đừng Hở": giữ nước lại đừng cho đi. Uống bia → ADH ngủ quên → bạn chạy toilet 7 lần một đêm nhậu.'}
+  ],
+  cards:[
+   {front:'Đơn vị chức năng của thận?',back:'Nephron (~1 triệu/thận).'},
+   {front:'Lượng dịch lọc qua cầu thận mỗi ngày?',back:'~180 lít. Mẹo: "GỌI LỘN MẸ RU LÚ" ru 180 lít/ngày.'},
+   {front:'Nơi tái hấp thu gần hết glucose?',back:'Ống lượn gần. Mẹo: đứa ăn buffet nhặt hết đồ ngon.'},
+   {front:'Furosemid tác động ở đâu?',back:'Nhánh lên dày quai Henle (chặn NKCC2). Mẹo: kẻ phá cầu trượt "Hên lè".'},
+   {front:'ADH làm gì ở thận?',back:'Gắn aquaporin ở ống góp → giữ nước. Mẹo: "Anh Đừng Hở". Bia ức chế ADH.'}
+  ],
+  outro:'Xong. Giờ đi uống 1 cốc nước đi, thận bạn đang khóc. Không phải bia.'
+ },
+ logic: {
+  title:'Zahlenreihen: Đọc Vị Tâm Lý Của Dãy Số Tâm Thần (Kernmodul)',
+  intro:'Dãy số trong TestAS không ngẫu nhiên. Chúng là những kẻ thao túng tâm lý có đúng vài chiêu trò. Học thuộc chiêu là bắt bài được.',
+  sections:[
+   {heading:'Chiêu 1: Cộng/trừ đều — Đứa nhàm chán',explanation:'Hiệu số giữa các số liền kề không đổi. Vd: 5, 9, 13, 17 (+4).',mnemonic:'Như người yêu nhắn "ừ" mỗi ngày đúng giờ. Nhàm, nhưng dễ đoán.'},
+   {heading:'Chiêu 2: Hiệu số tăng dần — Đứa bậc thang',explanation:'Viết hiệu số ra hàng 2: 4, 7, 12, 19, 28 → hiệu 3, 5, 7, 9 → tiếp theo +11 = 39.',mnemonic:'Luôn VIẾT HÀNG HIỆU SỐ ra giấy. "Hiệu số" = "hiệu thuốc": bí là ghé hiệu thuốc.'},
+   {heading:'Chiêu 3: Nhân/chia — Đứa tăng trưởng như nợ thẻ tín dụng',explanation:'Số tăng/giảm cực nhanh → thử ×2, ×3 hoặc ×2+1. Vd: 2, 5, 11, 23 (×2+1).',mnemonic:'Tăng nhanh bất thường = nợ thẻ tín dụng lãi kép. Nghi ngay phép nhân.'},
+   {heading:'Chiêu 4: Xen kẽ — Đứa hai mặt',explanation:'Hai quy luật luân phiên: 3, 6, 5, 10, 9, 18 (×2, −1). Hoặc 2 dãy con lồng nhau ở vị trí chẵn/lẻ.',mnemonic:'"Đứa hai mặt": sáng ×2 dễ thương, tối −1 toxic. Thấy dãy lên xuống thất thường như crush thì tách vị trí chẵn/lẻ.'},
+   {heading:'Chiêu 5: Dãy nổi tiếng — Celebrity',explanation:'Bình phương (1,4,9,16), lập phương (1,8,27), số nguyên tố (2,3,5,7,11), Fibonacci (1,1,2,3,5,8), giai thừa (1,2,6,24,120).',mnemonic:'Học thuộc "hội người nổi tiếng" như thuộc tên idol. Fibonacci = "Phi-bô-na-xi": phi công cộng 2 đời bạn gái trước lại.'}
+  ],
+  cards:[
+   {front:'Bước đầu tiên khi gặp dãy số khó?',back:'Viết hàng hiệu số. Mẹo: bí thì ghé "hiệu thuốc".'},
+   {front:'Dãy tăng cực nhanh thì nghĩ gì?',back:'Phép nhân (×2, ×3, ×2+1). Mẹo: nợ thẻ tín dụng lãi kép.'},
+   {front:'Dãy lên xuống thất thường?',back:'Quy luật xen kẽ / 2 dãy con. Mẹo: đứa hai mặt.'},
+   {front:'1, 2, 6, 24, 120, ?',back:'720 (giai thừa: ×2, ×3, ×4, ×5, ×6).'},
+   {front:'1, 1, 2, 3, 5, 8, ?',back:'13 (Fibonacci). Mẹo: phi công cộng 2 đời bạn gái trước.'}
+  ],
+  outro:'Bây giờ mỗi khi thấy dãy số, hãy hỏi nó: "Mày là đứa nhàm chán, bậc thang, nợ nần, hai mặt hay celebrity?" Nó sẽ khai ngay.'
+ }
+};
+
+/* =====================================================================
+   6. NAV + STATS
+   ===================================================================== */
+const TABS = [
+  ['dash','🏥 Tổng quan'],['er','🚑 ER Survival'],['dating','💘 Dating Sim'],
+  ['lecture','🧪 Giảng bài bựa'],['hub','📚 Study Hub'],['settings','⚙️ Cài đặt']
+];
+let currentTab = 'dash';
+function renderTabs() {
+  $('#tabs').innerHTML = TABS.map(([id, label]) =>
+    `<button class="tab ${id === currentTab ? 'active' : ''}" onclick="go('${id}')">${label}</button>`).join('');
+}
+function renderStats() {
+  const items = [
+    ['NGÀY', `${dayNumber()}/30`, 'text-cyan-300'],
+    ['XP', S.xp, 'text-emerald-300'],
+    ['STREAK', `${S.streak}🔥`, 'text-orange-300'],
+    ['CỨU SỐNG', `${S.cleared.length}/30`, 'text-emerald-300'],
+    ['GIẾT NHẦM', S.deaths, 'text-red-400'],
+    ['BÀI BỰA', S.lectures.length, 'text-pink-300']
+  ];
+  $('#statbar').innerHTML = items.map(([k, v, c]) =>
+    `<div class="panel px-2 py-1.5"><div class="text-[10px] text-slate-500 mono">${k}</div><div class="font-bold ${c}">${v}</div></div>`).join('');
+}
+function go(tab) {
+  if (ER.timer) { clearInterval(ER.timer); ER.timer = null; }
+  currentTab = tab; renderTabs();
+  const v = $('#view'); v.classList.remove('fade-in'); void v.offsetWidth; v.classList.add('fade-in');
+  ({ dash: renderDash, er: renderER, dating: renderDating, lecture: renderLectureTab, hub: renderHub, settings: renderSettings })[tab]();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* =====================================================================
+   7. DASHBOARD + DEADMAN'S SWITCH
+   ===================================================================== */
+const checkedToday = () => S.checkins.includes(todayStr());
+function msToMidnight() { const n = new Date(); const m = new Date(n); m.setHours(24, 0, 0, 0); return m - n; }
+function fmtHMS(ms) { const s = Math.max(0, Math.floor(ms / 1000)); return `${pad(Math.floor(s / 3600))}:${pad(Math.floor(s % 3600 / 60))}:${pad(s % 60)}`; }
+
+function renderDash() {
+  const d = dayNumber(); const lvl = LEVELS[d - 1];
+  const done = checkedToday();
+  const cells = Array.from({ length: 30 }, (_, i) => {
+    const ds = addDays(S.startDate, i); const t = todayStr();
+    let cls = 'text-slate-600', bg = 'transparent', label = i + 1;
+    if (S.checkins.includes(ds)) { bg = 'rgba(0,255,163,.18)'; cls = 'text-emerald-300'; label = '✓'; }
+    else if (ds < t) { bg = 'rgba(255,31,61,.18)'; cls = 'text-red-400'; label = '☠'; }
+    else if (ds === t) { bg = 'rgba(0,229,255,.12)'; cls = 'text-cyan-300 pulse-neon'; }
+    return `<div class="daycell ${cls}" style="background:${bg}" title="Ngày ${i + 1}: ${ds}">${label}</div>`;
+  }).join('');
+  $('#view').innerHTML = `
+  <div class="grid md:grid-cols-3 gap-4">
+    <section class="panel ${done ? 'neon' : 'danger'} p-5 md:col-span-2">
+      <span class="tape">DEADMAN'S SWITCH</span>
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mt-2">
+        <div>
+          <div class="text-xs text-slate-400 mono">${done ? 'CÔNG TẮC ĐÃ ĐƯỢC NHẤN HÔM NAY' : 'THỜI GIAN CÒN LẠI TRƯỚC KHI KÍCH HOẠT HÌNH PHẠT'}</div>
+          <div id="deadman-clock" class="mono text-4xl md:text-5xl font-bold ${done ? 'text-emerald-300' : 'text-red-400'}">${done ? 'AN TOÀN ✓' : fmtHMS(msToMidnight())}</div>
+          <div class="text-sm text-slate-400 mt-1">${done ? 'Hôm nay bạn sống sót. Mai lại phải chứng minh.' : 'Không check-in trước 00:00:00 → Punishment Protocol. Check-in = trả lời đúng 1 câu hỏi.'}</div>
+        </div>
+        <button class="btn ${done ? 'btn-ghost' : 'btn-red heartbeat'} text-lg" ${done ? 'disabled' : ''} onclick="startCheckin()">${done ? 'Đã điểm danh' : '☠ ĐIỂM DANH NGAY'}</button>
+      </div>
+    </section>
+    <section class="panel p-5">
+      <div class="text-xs text-slate-400 mono">CẤP BẬC</div>
+      <div class="text-xl font-bold text-pink-300">${esc(rankOf(S.xp))}</div>
+      <div class="text-xs text-slate-500 mt-2">Kỷ lục streak: ${S.bestStreak}🔥 · Đã bị phạt: ${S.punishments} lần</div>
+      <div class="text-xs text-slate-500">Bắt đầu: ${S.startDate} · Kết thúc: ${addDays(S.startDate, 29)}</div>
+      <div class="bar mt-3"><div style="width:${Math.min(100, S.cleared.length / 30 * 100)}%;background:linear-gradient(90deg,var(--neon),var(--cyan))"></div></div>
+      <div class="text-[11px] text-slate-500 mt-1">Tiến độ cứu bệnh nhân</div>
+    </section>
+  </div>
+
+  <div class="grid md:grid-cols-3 gap-4 mt-4">
+    <section class="panel p-5 md:col-span-2">
+      <span class="tape" style="background:var(--cyan)">NHIỆM VỤ NGÀY ${d}</span>
+      <ul class="space-y-3 mt-2 text-sm">
+        <li>🧠 <b class="text-cyan-300">Kernmodul:</b> ${esc(KERN_FOCUS[(d - 1) % KERN_FOCUS.length])} — 45 phút luyện đề bấm giờ.</li>
+        <li>🩺 <b class="text-pink-300">Amboss:</b> đọc bài <b>${esc(lvl.t)}</b>, rồi vào ER Level ${d}.</li>
+        <li>📊 <b class="text-yellow-300">Fachmodul Medizin:</b> ${esc(FACH_FOCUS[(d - 1) % FACH_FOCUS.length])} — 30 phút.</li>
+        <li>🧪 Dán note Amboss vào <b>Giảng bài bựa</b> → xuất Anki → ôn 20 thẻ.</li>
+        <li>💘 Hẹn hò 1 nội tạng cho vui (và cho nhớ thuật ngữ tiếng Đức).</li>
+      </ul>
+      <div class="flex flex-wrap gap-2 mt-4">
+        <button class="btn btn-neon" onclick="go('er')">🚑 Vào phòng cấp cứu</button>
+        <button class="btn btn-pink" onclick="go('lecture')">🧪 Giảng bài bựa</button>
+        <button class="btn btn-ghost" onclick="go('dating')">💘 Hẹn hò nội tạng</button>
+      </div>
+    </section>
+    <section class="panel p-5">
+      <div class="text-xs text-slate-400 mono mb-2">LỊCH 30 NGÀY (✓ có mặt · ☠ bỏ trốn)</div>
+      <div class="grid grid-cols-6 gap-1.5">${cells}</div>
+    </section>
+  </div>`;
+}
+
+// live clock — also detects midnight crossing while app is open
+let lastSeenDay = todayStr();
+setInterval(() => {
+  const el = $('#deadman-clock');
+  if (el && !checkedToday()) el.textContent = fmtHMS(msToMidnight());
+  const t = todayStr();
+  if (t !== lastSeenDay) { lastSeenDay = t; checkDeadman(); renderStats(); if (currentTab === 'dash') renderDash(); }
+}, 1000);
+
+function checkDeadman() {
+  const t = todayStr();
+  if (S.lastDeadmanCheck !== t) {
+    const last = S.checkins.length ? S.checkins[S.checkins.length - 1] : addDays(S.startDate, -1);
+    const gap = daysBetween(last, t);
+    S.lastDeadmanCheck = t;
+    if (gap >= 2) { S.pendingPunishment = true; S.streak = 0; S.missedDays = gap - 1; }
+    save();
+  }
+  if (S.pendingPunishment) startPunishment();
+}
+
+// Check-in: must answer a random question correctly
+let CHK = null;
+function allQuestions() {
+  const q = [];
+  LEVELS.forEach(l => { q.push({ q: l.M.q, o: l.M.o, a: l.M.a, e: l.M.e }); q.push({ q: l.L.q, o: l.L.o, a: l.L.a, e: l.L.e }); });
+  ORGANS.forEach(o => o.rounds.forEach(r => q.push({ q: r.q, o: r.o, a: 0, e: r.e })));
+  return q;
+}
+function startCheckin() {
+  const q = pick(allQuestions());
+  CHK = { opts: shuffle(q.o.map((t, i) => ({ t, ok: i === q.a }))), q };
+  showModal(`
+    <div class="text-xs mono text-red-400">XÁC MINH SINH TRẮC HỌC NÃO BỘ</div>
+    <h3 class="text-lg font-bold mt-1">Chứng minh bạn chưa chết não:</h3>
+    <p class="mt-3">${esc(q.q)}</p>
+    <div class="space-y-2 mt-4">${CHK.opts.map((o, i) => `<button class="opt" onclick="answerCheckin(${i})"><span class="k">${'ABCD'[i]}</span>${esc(o.t)}</button>`).join('')}</div>`);
+  tutorSay('Điểm danh à? Trả lời đúng thì mới tính. Ở đây không có "điểm danh hộ" như ở giảng đường đâu.');
+}
+function answerCheckin(i) {
+  if (!CHK.opts[i].ok) {
+    roast('Sai rồi, câu khác. Tôi không cho điểm danh người chết não.');
+    $('#modal-card').classList.add('shake');
+    setTimeout(startCheckin, 900); return;
+  }
+  const t = todayStr(); const last = S.checkins[S.checkins.length - 1];
+  S.streak = last === addDays(t, -1) ? S.streak + 1 : 1;
+  S.bestStreak = Math.max(S.bestStreak, S.streak);
+  if (!S.checkins.includes(t)) S.checkins.push(t);
+  S.checkins.sort();
+  closeModal(); addXP(50);
+  praise(`Điểm danh xong. Streak ${S.streak}🔥. ${CHK.q.e}`);
+  renderDash();
+}
+
+/* ---------- PUNISHMENT PROTOCOL (fake hacking lock screen) ---------- */
+const CONFESSION = 'Tôi hứa học TestAS mỗi ngày, xin tha cho tôi';
+function startPunishment() {
+  if ($('#punish')) return;
+  const missed = S.missedDays || 1;
+  const lines = [
+    '> PUNISHMENT_PROTOCOL v6.6.6 khởi động...',
+    `> Phát hiện: bỏ điểm danh ${missed} ngày. Streak đã bị TIÊU HUỶ.`,
+    '> Đang kết nối camera trước... 📸 phát hiện khuôn mặt lười biếng (độ tin cậy 99,7%)',
+    '> Đang gửi lịch sử tìm kiếm cho mẹ bạn... 12%... 48%... 87%... 100% ✔',
+    '> Đang đổi hình nền thành ảnh Mr. Liver bị xơ gan... ✔',
+    '> Đang đăng ký cho bạn 47 khoá học "Tiếng Đức cho người mất gốc"... ✔',
+    '> Đang gửi email cho Uni-Assist: "Ứng viên này lười"... ✔',
+    '> Đang khoá ứng dụng. Trừ 100 XP.',
+    '> (Bình tĩnh: tất cả là FAKE. Nhưng cảm giác tội lỗi là THẬT.)',
+    `> Để mở khoá: đợi hết giờ phạt, rồi gõ CHÍNH XÁC câu sám hối:`,
+    `> "${CONFESSION}"`
+  ];
+  const el = document.createElement('div');
+  el.id = 'punish';
+  el.className = 'fixed inset-0 z-[100] terminal p-4 md:p-10 overflow-auto';
+  el.innerHTML = `<div class="max-w-3xl mx-auto">
+    <div class="text-red-500 text-2xl md:text-4xl font-bold mb-4" style="text-shadow:0 0 18px red">⚠ SYSTEM COMPROMISED ⚠</div>
+    <pre id="punish-log" class="whitespace-pre-wrap text-sm md:text-base leading-relaxed"></pre>
+    <div id="punish-ui" class="mt-6 hidden">
+      <div class="text-yellow-300">Thời gian chịu phạt: <span id="punish-timer">30</span>s</div>
+      <input id="confess" class="mt-3 terminal" style="border-color:#18ff6d" placeholder="Gõ câu sám hối ở đây..." disabled oninput="checkConfession()">
+      <div class="text-xs text-green-700 mt-2">Gợi ý: không phân biệt hoa/thường, có thể gõ không dấu.</div>
+    </div></div>`;
+  document.body.appendChild(el);
+  tutorSay('Bạn bỏ điểm danh. Đây là hậu quả. Tiếng Đức: "Strafe muss sein" = "Phạt là phải có".', 'panic');
+  const log = $('#punish-log'); let i = 0;
+  (function next() {
+    if (i < lines.length) { log.textContent += lines[i++] + '\n'; setTimeout(next, 650); }
+    else {
+      $('#punish-ui').classList.remove('hidden'); let s = 30;
+      const iv = setInterval(() => {
+        s--; $('#punish-timer').textContent = s;
+        if (s <= 0) { clearInterval(iv); const c = $('#confess'); c.disabled = false; c.focus(); $('#punish-timer').textContent = '0 — giờ thì gõ đi'; }
+      }, 1000);
+    }
+  })();
+}
+function checkConfession() {
+  if (stripVN($('#confess').value) === stripVN(CONFESSION)) {
+    $('#punish').remove();
+    S.pendingPunishment = false; S.punishments++; S.xp = Math.max(0, S.xp - 100); save();
+    renderStats(); if (currentTab === 'dash') renderDash();
+    tutorSay('Được rồi, tha. Lần sau tôi gửi thật đấy (không, tôi không làm được, nhưng bạn đâu biết chắc 😈). Đi điểm danh hôm nay ngay!', 'roast');
+  }
+}
+
+/* =====================================================================
+   8. ER SURVIVAL MODE
+   ===================================================================== */
+const ER = { lvl: null, phase: 0, time: 0, max: 0, timer: null, opts: [] };
+const isUnlocked = n => n === 1 || S.cleared.includes(n - 1) || S.cleared.includes(n);
+const ECG_PATH = (() => { let d = 'M0 30'; for (let k = 0; k < 8; k++) { const x = k * 100; d += ` L${x + 20} 30 L${x + 25} 25 L${x + 30} 30 L${x + 40} 30 L${x + 43} 36 L${x + 47} 4 L${x + 51} 46 L${x + 55} 30 L${x + 70} 30 L${x + 78} 22 L${x + 86} 30 L${x + 100} 30`; } return d; })();
+const ecgSVG = (flat = false) => `<div class="ecg-wrap"><svg class="ecg ${flat ? 'flat' : ''}" viewBox="0 0 800 60" preserveAspectRatio="none"><path d="${flat ? 'M0 30 L800 30' : ECG_PATH}"/></svg></div>`;
+
+function renderER() {
+  const nodes = LEVELS.map((l, i) => {
+    const n = i + 1, done = S.cleared.includes(n), open = isUnlocked(n);
+    const style = done ? 'background:rgba(0,255,163,.12);border-color:rgba(0,255,163,.5);color:#6ee7b7'
+      : open ? 'background:rgba(0,229,255,.08);border-color:rgba(0,229,255,.6);color:#67e8f9' : 'opacity:.45;color:#64748b';
+    return `<div class="node ${open && !done ? 'pulse-neon' : ''}" style="${style}" onclick="${open ? `startLevel(${n})` : `roast('Level ${n} còn khoá. Cứu bệnh nhân trước đã, đừng nhảy cóc như ếch.')`}" title="${esc(l.t)}">
+      <div class="text-lg">${done ? '✓' : open ? '🩺' : '🔒'}</div><div class="text-xs">LV ${n}</div>
+      <div class="text-[9px] font-normal leading-tight mt-0.5 line-clamp-2 hidden sm:block">${esc(l.t.split(' (')[0])}</div></div>`;
+  }).join('');
+  $('#view').innerHTML = `
+    <section class="panel danger p-5">
+      <span class="tape" style="background:var(--red);color:#fff">ER SURVIVAL MODE</span>
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mt-1">
+        <div><h2 class="text-2xl font-bold">Phòng Cấp Cứu Sinh Tử 🚑</h2>
+          <p class="text-sm text-slate-400">30 bệnh nhân = 30 bài Amboss. Mỗi ca: 1 câu logic Kernmodul (để chứng minh não bạn còn chạy) + 1 câu y khoa. Sai 1 câu hoặc hết giờ → bệnh nhân CHẾT.</p></div>
+        <div class="text-right mono text-sm"><div class="text-emerald-300">Đã cứu: ${S.cleared.length}</div><div class="text-red-400">Đã giết: ${S.deaths}</div></div>
+      </div>
+      ${ecgSVG()}
+    </section>
+    <div class="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-10 gap-2 mt-4">${nodes}</div>`;
+}
+
+function startLevel(n) {
+  const l = LEVELS[n - 1];
+  ER.lvl = n; ER.phase = 0; ER.max = Math.max(60, 120 - (n - 1) * 2); ER.time = ER.max;
+  $('#view').innerHTML = `
+    <section class="panel danger p-5">
+      <div class="flex items-center justify-between gap-2">
+        <button class="btn btn-ghost text-sm" onclick="go('er')">← Bỏ chạy</button>
+        <div class="mono text-sm text-slate-400">LEVEL ${n}/30 · ${n === 30 ? '👹 FINAL BOSS' : 'CA CẤP CỨU'}</div>
+        <div class="mono text-3xl font-bold text-red-400" id="er-time">${ER.time}s</div>
+      </div>
+      <div class="bar mt-3"><div id="er-bar" style="width:100%;background:linear-gradient(90deg,#ff1f3d,#ffe14d)"></div></div>
+      <div class="grid md:grid-cols-3 gap-4 mt-4">
+        <div class="md:col-span-1 panel p-4">
+          <div class="text-xs mono text-pink-400">HỒ SƠ BỆNH NHÂN</div>
+          <div class="font-bold mt-1">${esc(l.t)}</div>
+          <p class="text-sm text-slate-300 mt-2">${esc(l.p)}</p>
+          <div class="grid grid-cols-2 gap-2 mt-3 mono text-xs">
+            <div class="panel p-2">HR <span id="er-hr" class="text-emerald-300 text-lg font-bold">--</span></div>
+            <div class="panel p-2">SpO₂ <span id="er-spo2" class="text-cyan-300 text-lg font-bold">--</span></div>
+          </div>
+          ${ecgSVG()}
+        </div>
+        <div class="md:col-span-2" id="er-q"></div>
+      </div>
+    </section>`;
+  renderERQuestion();
+  tutorSay(pick(['Bệnh nhân đây. Đừng giết người ta nhé, tôi lười viết giấy chứng tử.', 'Đồng hồ chạy rồi. Mỗi giây bạn ngập ngừng là một tế bào của bệnh nhân bốc hơi.', 'Ca này dễ. Nếu bạn sai, tôi sẽ nhắc lại chuyện này suốt 30 ngày.']));
+  clearInterval(ER.timer);
+  ER.timer = setInterval(erTick, 1000); erTick(true);
+}
+function erTick(first) {
+  if (first !== true) ER.time--;
+  const t = $('#er-time'); if (!t) { clearInterval(ER.timer); return; }
+  t.textContent = ER.time + 's';
+  const frac = ER.time / ER.max;
+  $('#er-bar').style.width = (frac * 100) + '%';
+  $('#er-hr').textContent = Math.round(80 + (1 - frac) * 90 + Math.random() * 6);
+  $('#er-spo2').textContent = Math.round(97 - (1 - frac) * 22 - Math.random() * 2) + '%';
+  if (ER.time === 10) tutorSay('10 GIÂY! Bệnh nhân đang nhìn thấy ánh sáng cuối đường hầm rồi kìa!', 'panic');
+  if (ER.time <= 0) erDie('timeout');
+}
+function renderERQuestion() {
+  const l = LEVELS[ER.lvl - 1]; const q = ER.phase === 0 ? l.L : l.M;
+  ER.opts = shuffle(q.o.map((t, i) => ({ t, ok: i === q.a })));
+  $('#er-q').innerHTML = `<div class="panel ${ER.phase === 0 ? 'neon' : ''} p-5 fade-in">
+    <div class="text-xs mono ${ER.phase === 0 ? 'text-cyan-300' : 'text-pink-400'}">${ER.phase === 0 ? 'BƯỚC 1/2 · KERNMODUL — Kiểm tra não bác sĩ trước khi cho chạm vào bệnh nhân' : 'BƯỚC 2/2 · AMBOSS — Chẩn đoán / xử trí'}</div>
+    <p class="text-lg mt-2">${esc(q.q)}</p>
+    <div class="space-y-2 mt-4">${ER.opts.map((o, i) => `<button class="opt" onclick="erAnswer(${i})"><span class="k">${'ABCD'[i]}</span>${esc(o.t)}</button>`).join('')}</div></div>`;
+}
+function erAnswer(i) {
+  if (!ER.opts[i].ok) return erDie(ER.phase === 0 ? 'logic' : 'med');
+  if (ER.phase === 0) { ER.phase = 1; praise('Não còn chạy. Giờ cứu người đi.'); renderERQuestion(); }
+  else erWin();
+}
+function erDie(reason) {
+  clearInterval(ER.timer); ER.timer = null;
+  S.deaths++; save(); renderStats();
+  const l = LEVELS[ER.lvl - 1]; const q = reason === 'logic' ? l.L : l.M;
+  const cause = { timeout: 'Bác sĩ đứng suy nghĩ quá lâu (tử vong do chần chừ)', logic: 'Bác sĩ trượt bài kiểm tra logic → não không đủ điều kiện hành nghề', med: 'Chẩn đoán/xử trí SAI' }[reason];
+  roast(reason === 'timeout' ? 'Hết giờ. Bệnh nhân chết vì chờ bạn suy nghĩ. Lần sau nghĩ nhanh hơn con ốc sên nhé.' : '');
+  showOverlay(`
+    <div class="max-w-2xl w-full text-center">
+      <div class="died-title">PATIENT DIED</div>
+      <div class="mono text-red-300 text-sm">Giờ tử vong: ${new Date().toLocaleTimeString('vi-VN')} · ${esc(l.p.split(',')[0])}</div>
+      ${ecgSVG(true)}
+      <div class="panel danger p-4 text-left mt-3">
+        <div class="text-sm"><b class="text-red-400">Nguyên nhân tử vong:</b> ${cause}</div>
+        ${reason === 'timeout' ? '' : `<div class="text-sm mt-2"><b class="text-emerald-300">Đáp án đúng:</b> ${esc(q.o[q.a])}</div><div class="text-sm text-slate-300 mt-1">${esc(q.e)}</div>`}
+        <div class="mnemo text-sm"><b class="text-pink-300">Mẹo bựa để lần sau khỏi giết người:</b> ${esc(l.m)}</div>
+      </div>
+      <div class="flex justify-center gap-2 mt-4">
+        <button class="btn btn-red" onclick="closeOverlay();startLevel(${ER.lvl})">⚡ Sốc điện & thử lại</button>
+        <button class="btn btn-ghost" onclick="closeOverlay();go('er')">Về bản đồ (đi viết giấy chứng tử)</button>
+      </div>
+    </div>`);
+}
+function erWin() {
+  clearInterval(ER.timer); ER.timer = null;
+  const l = LEVELS[ER.lvl - 1]; const first = !S.cleared.includes(ER.lvl);
+  const gain = first ? 100 + ER.time : 10;
+  if (first) S.cleared.push(ER.lvl);
+  addXP(gain);
+  praise(ER.lvl === 30 ? 'BẠN ĐÃ HẠ FINAL BOSS. Tôi... tôi không có lời nào để roast. Ghê thật. Đi thi đi!' : '');
+  showOverlay(`
+    <div class="max-w-2xl w-full text-center">
+      <div class="text-5xl md:text-7xl font-bold text-emerald-300" style="text-shadow:0 0 30px rgba(0,255,163,.7)">PATIENT SAVED</div>
+      <div class="mono text-emerald-200 text-sm mt-1">+${gain} XP · còn ${ER.time}s · ${first ? 'Mở khoá level tiếp theo' : 'Đã cứu ca này trước đó'}</div>
+      ${ecgSVG()}
+      <div class="panel neon p-4 text-left mt-3">
+        <div class="text-sm text-slate-300">${esc(l.M.e)}</div>
+        <div class="mnemo text-sm"><b class="text-pink-300">Mẹo bựa:</b> ${esc(l.m)}</div>
+      </div>
+      <div class="flex justify-center gap-2 mt-4">
+        ${ER.lvl < 30 ? `<button class="btn btn-neon" onclick="closeOverlay();startLevel(${ER.lvl + 1})">Ca tiếp theo →</button>` : ''}
+        <button class="btn btn-ghost" onclick="closeOverlay();go('er')">Về bản đồ</button>
+      </div>
+    </div>`);
+}
+
+/* =====================================================================
+   9. ANATOMY DATING SIM
+   ===================================================================== */
+const DATE = { organ: null, round: 0, love: 30, opts: [], answered: false };
+function renderDating() {
+  $('#view').innerHTML = `
+    <section class="panel p-5" style="border-color:rgba(255,46,136,.45)">
+      <span class="tape" style="background:var(--pink);color:#fff">ANATOMY DATING SIM</span>
+      <h2 class="text-2xl font-bold mt-1">Tán Tỉnh Nội Tạng 💘</h2>
+      <p class="text-sm text-slate-400">Chọn đúng thuật ngữ giải phẫu/sinh lý để làm crush rung động. Sai thuật ngữ = bị block. Mỗi nội tạng kèm tên tiếng Đức + giống (der/die/das) để bạn học luôn.</p>
+    </section>
+    <div class="grid sm:grid-cols-2 md:grid-cols-3 gap-4 mt-4">
+      ${ORGANS.map(o => { const r = S.dating[o.id]; return `
+        <div class="panel p-5 cursor-pointer hover:-translate-y-1 transition" style="border-color:${o.color}55" onclick="startDate('${o.id}')">
+          <div class="text-5xl">${o.emoji}</div>
+          <div class="text-xl font-bold mt-2" style="color:${o.color}">${o.name}</div>
+          <div class="text-xs mono text-slate-400">${esc(o.de)}</div>
+          <p class="text-sm text-slate-300 mt-2">${esc(o.bio)}</p>
+          <div class="text-xs mt-3 ${r && r.married ? 'text-emerald-300' : 'text-slate-500'}">${r ? (r.married ? '💍 Đã cưới · ' : '💔 Từng bị block · ') + 'Kỷ lục ' + r.best + '%' : 'Chưa hẹn hò'}</div>
+        </div>`; }).join('')}
+    </div>`;
+}
+function startDate(id) {
+  const o = ORGANS.find(x => x.id === id);
+  Object.assign(DATE, { organ: o, round: 0, love: 30, answered: false });
+  renderDateScene(o.hello, 'neutral');
+}
+function renderDateScene(line, mood) {
+  const o = DATE.organ; const done = DATE.round >= o.rounds.length;
+  const r = done ? null : o.rounds[DATE.round];
+  if (!done && !DATE.answered) DATE.opts = shuffle(r.o.map((t, i) => ({ t, ok: i === 0 })));
+  $('#view').innerHTML = `
+    <section class="panel p-5" style="border-color:${o.color}88;box-shadow:0 0 40px ${o.color}22 inset">
+      <div class="flex items-center justify-between">
+        <button class="btn btn-ghost text-sm" onclick="go('dating')">← Bỏ về (ghost)</button>
+        <div class="text-xs mono text-slate-400">Buổi hẹn ${Math.min(DATE.round + 1, o.rounds.length)}/${o.rounds.length}</div>
+      </div>
+      <div class="flex flex-col md:flex-row gap-6 items-center mt-4">
+        <div class="text-center">
+          <div class="text-8xl ${mood === 'win' ? 'heartbeat' : mood === 'lose' ? 'shake' : ''}">${o.emoji}</div>
+          <div class="font-bold text-xl mt-2" style="color:${o.color}">${o.name}</div>
+          <div class="text-xs mono text-slate-400">${esc(o.de)}</div>
+        </div>
+        <div class="flex-1 w-full">
+          <div class="text-xs text-slate-400 mb-1">Độ rung động 💗 ${DATE.love}%</div>
+          <div class="bar"><div style="width:${DATE.love}%;background:linear-gradient(90deg,${o.color},#fff)"></div></div>
+          <div class="bubble mt-4 text-base" style="border-color:${o.color}88">${esc(line)}</div>
+          ${done ? '' : `<div class="mt-4 text-sm text-slate-300"><b style="color:${o.color}">${o.name}:</b> ${esc(r.q)}</div>
+          <div class="space-y-2 mt-3">${DATE.opts.map((x, i) => `<button class="opt" ${DATE.answered ? 'disabled' : ''} onclick="dateAnswer(${i})"><span class="k">${'ABC'[i]}</span>${esc(x.t)}</button>`).join('')}</div>`}
+          <div id="date-next" class="mt-4"></div>
+        </div>
+      </div>
+    </section>`;
+  if (done) dateEnd();
+}
+function dateAnswer(i) {
+  if (DATE.answered) return;
+  const o = DATE.organ; const r = o.rounds[DATE.round]; const ok = DATE.opts[i].ok;
+  DATE.love = Math.max(0, Math.min(100, DATE.love + (ok ? 20 : -15)));
+  DATE.answered = true;
+  ok ? praise('Ừ, flirt bằng kiến thức thì được. Ngoài đời bạn chắc vẫn ế.') : roast('Đến nội tạng cũng không thèm bạn. Đáp án: ' + r.o[0]);
+  renderDateScene((ok ? pick(o.win) : pick(o.lose)) + '  — ' + r.e, ok ? 'win' : 'lose');
+  $('#date-next').innerHTML = `<button class="btn btn-pink" onclick="DATE.round++;DATE.answered=false;renderDateScene('${ok ? '…tiếp tục nói chuyện đi 😳' : '…thôi được, cho thêm 1 cơ hội.'}','neutral')">Tiếp →</button>`;
+}
+function dateEnd() {
+  const o = DATE.organ; const married = DATE.love >= 80;
+  const prev = S.dating[o.id] || { best: 0, married: false };
+  S.dating[o.id] = { best: Math.max(prev.best, DATE.love), married: prev.married || married };
+  if (married) addXP(80); else save();
+  $('#date-next').innerHTML = `<div class="panel ${married ? 'neon' : 'danger'} p-4 mt-2">
+    <div class="text-2xl font-bold ${married ? 'text-emerald-300' : 'text-red-400'}">${married ? '💍 ENDING: KẾT HÔN (Verheiratet)!' : DATE.love >= 50 ? '🫤 ENDING: FRIENDZONE' : '💔 ENDING: BỊ BLOCK'}</div>
+    <p class="text-sm text-slate-300 mt-1">${married ? `${o.name} đồng ý cưới bạn. Đám cưới tổ chức trong khoang bụng, khách mời là hệ vi sinh đường ruột. +80 XP.` : `${o.name} nói: "Mình chỉ coi bạn là... tế bào chết." Học lại thuật ngữ rồi quay lại nhé.`}</p>
+    <div class="flex gap-2 mt-3"><button class="btn btn-pink" onclick="startDate('${o.id}')">Hẹn lại</button><button class="btn btn-ghost" onclick="go('dating')">Chọn nội tạng khác</button></div></div>`;
+  married ? praise(`Bạn cưới được ${o.name}. Ít nhất cũng có thứ chịu yêu bạn.`) : roast('Bị nội tạng từ chối. Một thành tựu hiếm có.');
+}
+
+/* =====================================================================
+   10. "BỰA" LECTURE GENERATOR (+ API settings)
+   ===================================================================== */
+const LEC = { files: [], busy: false };
+const DEFAULT_MODELS = { openai: 'gpt-4o-mini', gemini: 'gemini-2.5-flash', anthropic: 'claude-sonnet-5-5' };
+const LOADING_STEPS = [
+  'Đang tiêm caffein vào GPU...', 'Đang đọc tài liệu bằng 1 mắt, mắt kia xem TikTok...',
+  'Đang hỏi ý kiến Mr. Liver...', 'Đang dịch tiếng Đức sang tiếng Việt sang tiếng... bựa...',
+  'Đang nghĩ mẹo nhớ xàm nhất vũ trụ...', 'Đang kiểm tra kiến thức y khoa (phần này nghiêm túc thật)...',
+  'Đang thêm 30% dark humor...', 'Đang xin phép Amboss (không ai trả lời)...'
+];
+
+function renderLectureTab() {
+  const hasKey = !!S.settings.apiKey;
+  $('#view').innerHTML = `
+    <div class="grid md:grid-cols-5 gap-4">
+      <section class="panel p-5 md:col-span-3" style="border-color:rgba(255,46,136,.45)">
+        <span class="tape" style="background:var(--pink);color:#fff">"BỰA" LECTURE GENERATOR</span>
+        <h2 class="text-2xl font-bold mt-1">Giảng Bài Siêu Bựa 🧪</h2>
+        <p class="text-sm text-slate-400">Dán text Amboss/Kernmodul hoặc upload ảnh/PDF. AI sẽ giảng lại bằng TIẾNG VIỆT với mẹo nhớ xàm xí nhất có thể. Thuật ngữ Đức được giữ lại + dịch nghĩa.</p>
+        <div class="mt-3 text-xs ${hasKey ? 'text-emerald-300' : 'text-yellow-300'}">${hasKey ? `● Đang dùng: ${esc(S.settings.provider)} / ${esc(S.settings.model || DEFAULT_MODELS[S.settings.provider])}` : '● Chưa có API key → chế độ MOCK (bài giảng mẫu có sẵn). Vào ⚙️ Cài đặt để nhập key.'}</div>
+        <textarea id="lec-text" rows="9" class="mt-3" placeholder="Dán nội dung ở đây... vd: 'Herzinsuffizienz: Definition, Ätiologie, NYHA-Klassifikation...' hoặc ghi chú tiếng Việt."></textarea>
+        <label class="block mt-3 panel p-4 text-center cursor-pointer hover:border-cyan-400" style="border-style:dashed">
+          <input type="file" id="lec-files" class="hidden" multiple accept="image/*,application/pdf,.txt,.md" onchange="addLecFiles(this.files)">
+          📎 <b>Upload ảnh / PDF / .txt</b><div class="text-xs text-slate-500">Ảnh chụp slide, trang Amboss, đề Kernmodul... (≤ 15MB/file)</div>
+        </label>
+        <div id="lec-filelist" class="mt-2 space-y-1"></div>
+        <div class="mt-3">
+          <label class="text-xs text-slate-400">Độ bựa: <b id="bua-val" class="text-pink-300">8</b>/10</label>
+          <input type="range" id="bua" min="1" max="10" value="8" class="!p-0" oninput="$('#bua-val').textContent=this.value">
+        </div>
+        <button id="lec-go" class="btn btn-pink w-full mt-4 text-lg" onclick="generateLecture()">🧠💥 GIẢNG ĐI ĐỒ MỎ HỖN</button>
+      </section>
+      <section class="panel p-5 md:col-span-2">
+        <div class="text-xs mono text-slate-400">GỢI Ý DÙNG</div>
+        <ul class="text-sm text-slate-300 space-y-2 mt-2 list-disc pl-5">
+          <li>Dán 1 mục Amboss (1–3 trang) mỗi lần → mẹo nhớ tập trung hơn.</li>
+          <li>Ảnh chụp đề Kernmodul → AI giải thích cách giải + mẹo nhớ dạng bài.</li>
+          <li>Mỗi bài tự lưu vào <b>Study Hub</b> (localStorage) và có nút <b>Export to Anki</b>.</li>
+          <li>Không có key? Thử gõ "Niere" hoặc "Zahlenreihe" để xem bài mock khác.</li>
+        </ul>
+      </section>
+    </div>
+    <div id="lec-out" class="mt-4"></div>`;
+  renderFileList();
+}
+function addLecFiles(list) {
+  [...list].forEach(f => {
+    if (f.size > 15 * 1024 * 1024) { roast(`File "${f.name}" to quá (>15MB). Bạn upload cả cái bệnh viện à?`); return; }
+    const kind = f.type.startsWith('image/') ? 'image' : f.type === 'application/pdf' ? 'pdf' : 'text';
+    const rd = new FileReader();
+    rd.onload = () => {
+      const entry = { name: f.name, mime: f.type || 'text/plain', kind };
+      if (kind === 'text') entry.text = rd.result;
+      else { entry.dataUrl = rd.result; entry.b64 = rd.result.split(',')[1]; }
+      LEC.files.push(entry); renderFileList();
+    };
+    kind === 'text' ? rd.readAsText(f) : rd.readAsDataURL(f);
+  });
+  $('#lec-files').value = '';
+}
+function renderFileList() {
+  const el = $('#lec-filelist'); if (!el) return;
+  el.innerHTML = LEC.files.map((f, i) => `<div class="flex items-center justify-between text-sm panel px-3 py-1.5">
+    <span>${f.kind === 'image' ? '🖼️' : f.kind === 'pdf' ? '📄' : '📝'} ${esc(f.name)}</span>
+    <button class="text-red-400 text-xs" onclick="LEC.files.splice(${i},1);renderFileList()">xoá</button></div>`).join('');
+}
+
+function buildSystemPrompt(level) {
+  return `Bạn là "BS. Mỏ Hỗn" — gia sư luyện thi TestAS (Kernmodul + Fachmodul Medizin) cực kỳ bựa, mỏ hỗn, nhưng kiến thức phải CHÍNH XÁC.
+NGƯỜI HỌC: người Việt, tiếng Đức còn yếu. Vì vậy:
+- Giảng HOÀN TOÀN bằng TIẾNG VIỆT.
+- Thuật ngữ tiếng Đức/Latin giữ nguyên kèm nghĩa tiếng Việt trong ngoặc, vd: "Herzinsuffizienz (suy tim)".
+- Nếu đùa bằng tiếng Đức thì PHẢI giải thích nghĩa tiếng Việt ngay sau đó.
+NHIỆM VỤ: giảng lại nội dung người dùng cung cấp (text/ảnh/PDF). Với mỗi khái niệm chính, tạo 1 mẹo nhớ (Eselsbrücke) CỰC KỲ xàm xí, liên tưởng kỳ quặc, chơi chữ tiếng Việt, dark humor nhẹ — càng lạ càng dễ nhớ. Không xúc phạm nhóm người thật (tôn giáo, sắc tộc, giới tính...). Độ bựa: ${level}/10.
+Nếu là bài logic Kernmodul: giải thích cách giải từng bước + mẹo nhận dạng dạng bài.
+Kiến thức y khoa phải đúng; nếu tài liệu gốc mơ hồ hoặc bạn không chắc, ghi rõ "(cần kiểm tra lại)".
+ĐỊNH DẠNG: Trả về DUY NHẤT một object JSON hợp lệ, không markdown, không \`\`\`, theo schema:
+{"title":"tiêu đề bựa","intro":"câu mở đầu mỏ hỗn","sections":[{"heading":"khái niệm","explanation":"giải thích chính xác, dễ hiểu","mnemonic":"mẹo nhớ bựa"}],"cards":[{"front":"câu hỏi / khái niệm (ngắn)","back":"đáp án ngắn + mẹo nhớ bựa"}],"outro":"câu chốt cà khịa"}
+Tạo 3–8 sections và 6–15 cards dạng flashcard Anki.`;
+}
+
+async function callAI(text, files, level) {
+  const { provider, apiKey } = S.settings;
+  const model = S.settings.model || DEFAULT_MODELS[provider];
+  const sys = buildSystemPrompt(level);
+  const extraText = files.filter(f => f.kind === 'text').map(f => `\n--- FILE ${f.name} ---\n${f.text}`).join('');
+  const user = `NỘI DUNG CẦN GIẢNG:\n${text || '(xem file đính kèm)'}${extraText}`;
+  const bin = files.filter(f => f.kind !== 'text');
+  let r, j;
+  if (provider === 'openai') {
+    const content = [{ type: 'text', text: user }];
+    bin.forEach(f => content.push(f.kind === 'image'
+      ? { type: 'image_url', image_url: { url: f.dataUrl } }
+      : { type: 'file', file: { filename: f.name, file_data: f.dataUrl } }));
+    r = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+      body: JSON.stringify({ model, messages: [{ role: 'system', content: sys }, { role: 'user', content }], response_format: { type: 'json_object' } })
+    });
+    j = await r.json(); if (!r.ok) throw new Error(j.error?.message || 'HTTP ' + r.status);
+    return j.choices[0].message.content;
+  }
+  if (provider === 'gemini') {
+    const parts = [{ text: user }, ...bin.map(f => ({ inline_data: { mime_type: f.mime, data: f.b64 } }))];
+    r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ system_instruction: { parts: [{ text: sys }] }, contents: [{ role: 'user', parts }], generationConfig: { responseMimeType: 'application/json', temperature: 1.1 } })
+    });
+    j = await r.json(); if (!r.ok) throw new Error(j.error?.message || 'HTTP ' + r.status);
+    return (j.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('');
+  }
+  if (provider === 'anthropic') {
+    const content = [...bin.map(f => f.kind === 'image'
+      ? { type: 'image', source: { type: 'base64', media_type: f.mime, data: f.b64 } }
+      : { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: f.b64 } }), { type: 'text', text: user }];
+    r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+      body: JSON.stringify({ model, max_tokens: 8000, system: sys, messages: [{ role: 'user', content }] })
+    });
+    j = await r.json(); if (!r.ok) throw new Error(j.error?.message || 'HTTP ' + r.status);
+    return j.content.filter(b => b.type === 'text').map(b => b.text).join('');
+  }
+  throw new Error('Provider không hợp lệ');
+}
+
+function parseLecture(raw) {
+  try {
+    const s = raw.replace(/```(json)?/gi, '');
+    const obj = JSON.parse(s.slice(s.indexOf('{'), s.lastIndexOf('}') + 1));
+    return {
+      title: String(obj.title || 'Bài giảng bựa không tên'),
+      intro: String(obj.intro || ''),
+      sections: (obj.sections || []).map(x => ({ heading: String(x.heading || ''), explanation: String(x.explanation || ''), mnemonic: String(x.mnemonic || '') })),
+      cards: (obj.cards || []).map(x => ({ front: String(x.front || ''), back: String(x.back || '') })).filter(c => c.front && c.back),
+      outro: String(obj.outro || '')
+    };
+  } catch (e) {
+    // AI didn't return JSON — keep raw text, scrape "Q:/A:" pairs if any
+    const cards = []; const re = /(?:^|\n)\s*(?:Q|Hỏi)\s*[:：]\s*(.+)\n\s*(?:A|Đáp)\s*[:：]\s*(.+)/gi; let m;
+    while ((m = re.exec(raw))) cards.push({ front: m[1].trim(), back: m[2].trim() });
+    return { title: 'Bài giảng bựa (AI quên format JSON)', intro: '', sections: [{ heading: 'Nội dung', explanation: raw, mnemonic: '' }], cards, outro: '' };
+  }
+}
+
+function pickMock(text) {
+  const t = (text + ' ' + LEC.files.map(f => f.name).join(' ')).toLowerCase();
+  if (/niere|nephron|thận|kidney|harn|glomer/.test(t)) return MOCK_LECTURES.kidney;
+  if (/zahl|logik|reihe|dãy|kernmodul|number|series|logic/.test(t)) return MOCK_LECTURES.logic;
+  return MOCK_LECTURES.heart;
+}
+
+async function generateLecture() {
+  if (LEC.busy) return;
+  const text = $('#lec-text').value.trim(); const level = +$('#bua').value;
+  if (!text && !LEC.files.length) { roast('Bạn bảo tôi giảng... cái không khí à? Dán nội dung hoặc upload file đi.'); return; }
+  LEC.busy = true; const btn = $('#lec-go'); btn.disabled = true;
+  const out = $('#lec-out'); let step = 0;
+  out.innerHTML = `<div class="panel p-6 text-center"><div class="text-5xl heartbeat">🧠</div><div id="lec-step" class="mono text-cyan-300 mt-3">${LOADING_STEPS[0]}</div></div>`;
+  const iv = setInterval(() => { const el = $('#lec-step'); if (el) el.textContent = LOADING_STEPS[++step % LOADING_STEPS.length]; }, 1200);
+  tutorSay('Đang soạn bài. Ngồi yên, đừng lướt điện thoại. Tôi biết đấy.');
+  let lec, source;
+  try {
+    if (S.settings.apiKey) {
+      const raw = await callAI(text, LEC.files, level);
+      lec = parseLecture(raw); source = S.settings.provider;
+    } else {
+      await new Promise(r => setTimeout(r, 3600));
+      lec = JSON.parse(JSON.stringify(pickMock(text))); source = 'mock';
+    }
+    lec = Object.assign(lec, { id: uid(), createdAt: new Date().toISOString(), source, input: text.slice(0, 300), files: LEC.files.map(f => f.name) });
+    S.lectures.unshift(lec); save(); renderStats(); addXP(30);
+    out.innerHTML = lectureHTML(lec);
+    LEC.files = []; renderFileList();
+    tutorSay(source === 'mock' ? 'Đây là bài MOCK vì bạn chưa nhập API key. Nghèo cũng được, nhưng phải học. Đã tự lưu vào Study Hub.' : 'Bài giảng xong, đã tự lưu vào Study Hub. Bấm "Export to Anki" đi, đừng chỉ đọc rồi quên như mọi khi.', 'praise');
+  } catch (e) {
+    out.innerHTML = `<div class="panel danger p-5"><b class="text-red-400">Lỗi API:</b> <span class="mono text-sm">${esc(e.message)}</span>
+      <div class="text-sm text-slate-400 mt-2">Kiểm tra lại API key / tên model trong ⚙️ Cài đặt. Hoặc xoá key để dùng chế độ mock.</div></div>`;
+    roast('API từ chối bạn. Đến máy chủ cũng không muốn nói chuyện với bạn.');
+  } finally { clearInterval(iv); LEC.busy = false; btn.disabled = false; }
+}
+
+function lectureHTML(lec, inHub = false) {
+  return `<article class="panel neon p-5 lecture-body fade-in">
+    <div class="flex flex-col md:flex-row md:items-start justify-between gap-3">
+      <div>
+        <div class="text-xs mono text-slate-500">${new Date(lec.createdAt).toLocaleString('vi-VN')} · nguồn: ${esc(lec.source)}${lec.files?.length ? ' · 📎 ' + esc(lec.files.join(', ')) : ''}</div>
+        <h2 class="text-2xl font-bold text-pink-300 mt-1">${esc(lec.title)}</h2>
+      </div>
+      <div class="flex gap-2 shrink-0">
+        <button class="btn btn-neon" onclick="exportAnki('${lec.id}')">⬇ Export to Anki</button>
+        ${inHub ? `<button class="btn btn-ghost text-red-300" onclick="deleteLecture('${lec.id}')">🗑</button>` : ''}
+      </div>
+    </div>
+    ${lec.intro ? `<p class="mt-3 text-slate-300 italic">${md(lec.intro)}</p>` : ''}
+    ${lec.sections.map(s => `<h3>▸ ${esc(s.heading)}</h3><p class="text-slate-200 mt-1">${md(s.explanation)}</p>${s.mnemonic ? `<div class="mnemo"><b class="text-pink-300">🤪 Mẹo bựa:</b> ${md(s.mnemonic)}</div>` : ''}`).join('')}
+    ${lec.cards.length ? `<h3>🃏 Flashcards (${lec.cards.length})</h3>
+      <div class="grid sm:grid-cols-2 gap-2 mt-2">${lec.cards.map(c => `
+        <details class="panel p-3 cursor-pointer"><summary class="font-semibold">${esc(c.front)}</summary><div class="text-sm text-emerald-200 mt-2">${md(c.back)}</div></details>`).join('')}</div>` : ''}
+    ${lec.outro ? `<p class="mt-4 text-yellow-200">💀 ${md(lec.outro)}</p>` : ''}
+  </article>`;
+}
+
+/* =====================================================================
+   11. ANKI CSV EXPORT
+   ===================================================================== */
+// Anki text import: header lines (#separator, #html, #columns) + one note per row.
+// Fields are HTML (newline -> <br>), CSV-quoted, UTF-8 (Anki's default encoding, keeps Vietnamese diacritics).
+const ankiEsc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const ankiField = s => '"' + ankiEsc(s).replace(/\r?\n/g, '<br>').replace(/"/g, '""') + '"';
+function lectureToRows(lec) {
+  const rows = lec.cards.map(c => [c.front, c.back]);
+  lec.sections.forEach(s => {
+    if (s.heading) rows.push([`${s.heading}`, `${s.explanation}${s.mnemonic ? '\n\n🤪 Mẹo bựa: ' + s.mnemonic : ''}`]);
+  });
+  return rows;
+}
+function downloadCSV(rows, filename) {
+  const header = '#separator:Comma\n#html:true\n#columns:Front,Back\n';
+  const body = rows.map(([f, b]) => ankiField(f) + ',' + ankiField(b)).join('\n');
+  const blob = new Blob([header + body + '\n'], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+const slug = s => stripVN(s).replace(/ /g, '-').slice(0, 50) || 'bai-giang';
+function exportAnki(id) {
+  const lec = S.lectures.find(l => l.id === id); if (!lec) return;
+  const rows = lectureToRows(lec);
+  if (!rows.length) { roast('Bài này không có gì để xuất. Trống rỗng như ví bạn cuối tháng.'); return; }
+  downloadCSV(rows, `anki-${slug(lec.title)}.csv`);
+  tutorSay(`Đã xuất ${rows.length} thẻ. Trong Anki: File → Import → chọn file .csv. Cột 1 = Front, cột 2 = Back. Giờ thì ôn đi chứ đừng sưu tầm thẻ như sưu tầm crush.`, 'praise');
+}
+function exportAllAnki() {
+  const rows = S.lectures.flatMap(lectureToRows);
+  if (!rows.length) { roast('Chưa có bài nào. Xuất cái gì? Xuất sự lười biếng à?'); return; }
+  downloadCSV(rows, `anki-testas-deathmatch-all-${todayStr()}.csv`);
+  tutorSay(`Xuất ${rows.length} thẻ từ ${S.lectures.length} bài. Ôn 20 thẻ/ngày là đủ chết rồi.`, 'praise');
+}
+
+/* =====================================================================
+   12. STUDY HUB (saved lectures)
+   ===================================================================== */
+let hubOpen = null, hubQuery = '';
+function renderHub() {
+  const q = stripVN(hubQuery);
+  const list = S.lectures.filter(l => !q || stripVN(l.title + ' ' + l.sections.map(s => s.heading).join(' ')).includes(q));
+  $('#view').innerHTML = `
+    <section class="panel p-5">
+      <span class="tape" style="background:var(--cyan)">SAVED BIZARRE LECTURES</span>
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mt-1">
+        <div><h2 class="text-2xl font-bold">Study Hub 📚</h2><p class="text-sm text-slate-400">${S.lectures.length} bài · lưu trong localStorage của trình duyệt này (tải lại trang vẫn còn).</p></div>
+        <div class="flex gap-2"><button class="btn btn-neon" onclick="exportAllAnki()">⬇ Export tất cả → Anki</button></div>
+      </div>
+      <input class="mt-3" placeholder="🔍 Tìm bài (gõ không dấu cũng được)..." value="${esc(hubQuery)}" oninput="hubQuery=this.value;renderHubList()">
+    </section>
+    <div id="hub-list" class="mt-4 space-y-3"></div>`;
+  renderHubList(list);
+}
+function renderHubList(list) {
+  if (!list) { const q = stripVN(hubQuery); list = S.lectures.filter(l => !q || stripVN(l.title + ' ' + l.sections.map(s => s.heading).join(' ')).includes(q)); }
+  $('#hub-list').innerHTML = list.length ? list.map(l => hubOpen === l.id ? lectureHTML(l, true) + `<button class="btn btn-ghost text-sm mt-2" onclick="hubOpen=null;renderHubList()">▲ Thu gọn</button>` : `
+    <div class="panel p-4 flex items-center justify-between gap-3 cursor-pointer hover:border-cyan-400" onclick="hubOpen='${l.id}';renderHubList()">
+      <div class="min-w-0"><div class="font-bold text-pink-300 truncate">${esc(l.title)}</div>
+        <div class="text-xs text-slate-500">${new Date(l.createdAt).toLocaleString('vi-VN')} · ${l.sections.length} mục · ${l.cards.length} thẻ · ${esc(l.source)}</div></div>
+      <div class="flex gap-2 shrink-0" onclick="event.stopPropagation()">
+        <button class="btn btn-neon text-sm" onclick="exportAnki('${l.id}')">⬇ Anki</button>
+        <button class="btn btn-ghost text-sm text-red-300" onclick="deleteLecture('${l.id}')">🗑</button>
+      </div></div>`).join('')
+    : `<div class="panel p-8 text-center text-slate-400">Trống trơn. Giống não bạn trước khi mở app này. <button class="btn btn-pink ml-2" onclick="go('lecture')">Tạo bài đầu tiên</button></div>`;
+}
+function deleteLecture(id) {
+  if (!confirm('Xoá bài giảng này vĩnh viễn?')) return;
+  S.lectures = S.lectures.filter(l => l.id !== id); save(); renderStats();
+  if (currentTab === 'hub') renderHubList(); else go('hub');
+  tutorSay('Xoá rồi. Hy vọng bạn đã nhớ nó, vì nó không còn nhớ bạn nữa.');
+}
+
+/* =====================================================================
+   13. SETTINGS
+   ===================================================================== */
+function renderSettings() {
+  const st = S.settings;
+  $('#view').innerHTML = `
+    <div class="grid md:grid-cols-2 gap-4">
+      <section class="panel neon p-5">
+        <span class="tape">API KEY</span>
+        <h2 class="text-xl font-bold mt-1">Kết nối não AI 🔌</h2>
+        <label class="text-xs text-slate-400 mt-3 block">Nhà cung cấp</label>
+        <select id="set-provider" onchange="$('#set-model').placeholder='mặc định: '+DEFAULT_MODELS[this.value]">
+          <option value="openai" ${st.provider === 'openai' ? 'selected' : ''}>OpenAI (ChatGPT)</option>
+          <option value="gemini" ${st.provider === 'gemini' ? 'selected' : ''}>Google Gemini</option>
+          <option value="anthropic" ${st.provider === 'anthropic' ? 'selected' : ''}>Anthropic (Claude)</option>
+        </select>
+        <label class="text-xs text-slate-400 mt-3 block">API Key</label>
+        <input id="set-key" type="password" value="${esc(st.apiKey)}" placeholder="sk-... / AIza... / sk-ant-...">
+        <label class="text-xs text-slate-400 mt-3 block">Model (để trống = mặc định)</label>
+        <input id="set-model" value="${esc(st.model)}" placeholder="mặc định: ${DEFAULT_MODELS[st.provider]}">
+        <div class="flex gap-2 mt-4">
+          <button class="btn btn-neon" onclick="saveSettings()">💾 Lưu</button>
+          <button class="btn btn-ghost" onclick="$('#set-key').value='';saveSettings()">Xoá key (dùng mock)</button>
+        </div>
+        <p class="text-xs text-yellow-300/80 mt-3">⚠️ Key được lưu dạng văn bản thường trong localStorage của trình duyệt này và gửi thẳng từ trình duyệt đến nhà cung cấp. Chỉ dùng trên máy cá nhân; nên đặt giới hạn chi tiêu cho key.</p>
+      </section>
+      <section class="panel p-5">
+        <span class="tape" style="background:var(--cyan)">HỆ THỐNG</span>
+        <h2 class="text-xl font-bold mt-1">Bảng điều khiển hành xác ⚙️</h2>
+        <label class="text-xs text-slate-400 mt-3 block">Ngày bắt đầu 30 ngày</label>
+        <div class="flex gap-2"><input id="set-start" type="date" value="${S.startDate}"><button class="btn btn-ghost" onclick="setStart()">Đặt</button></div>
+        <div class="flex flex-wrap gap-2 mt-4">
+          <button class="btn btn-red" onclick="S.missedDays=1;startPunishment()">☠ Thử Punishment Protocol</button>
+          <button class="btn btn-ghost" onclick="backup()">⬇ Sao lưu JSON</button>
+          <label class="btn btn-ghost">⬆ Khôi phục JSON<input type="file" accept="application/json" class="hidden" onchange="restore(this.files[0])"></label>
+          <button class="btn btn-ghost text-red-300" onclick="wipe()">💣 Xoá toàn bộ dữ liệu</button>
+        </div>
+        <p class="text-xs text-slate-500 mt-3">Dữ liệu (tiến độ, bài giảng, key) chỉ nằm trong trình duyệt này. Đổi máy/trình duyệt → dùng Sao lưu/Khôi phục.</p>
+      </section>
+    </div>`;
+}
+function saveSettings() {
+  S.settings = { provider: $('#set-provider').value, apiKey: $('#set-key').value.trim(), model: $('#set-model').value.trim() };
+  save(); tutorSay(S.settings.apiKey ? 'Đã lưu key. Giờ tôi có não thật rồi, chuẩn bị bị roast bằng AI xịn.' : 'Không có key → chế độ mock. Tiết kiệm tiền, tiêu hao danh dự.', 'praise');
+}
+function setStart() {
+  const v = $('#set-start').value; if (!v) return;
+  S.startDate = v; S.lastDeadmanCheck = ''; save(); renderStats();
+  tutorSay('Đã đổi ngày bắt đầu. Đừng có lùi ngày để né hình phạt, tôi thấy hết.');
+}
+function backup() {
+  const blob = new Blob([JSON.stringify(S, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob); const a = document.createElement('a');
+  a.href = url; a.download = `testas-deathmatch-backup-${todayStr()}.json`; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+function restore(file) {
+  if (!file) return; const rd = new FileReader();
+  rd.onload = () => {
+    try { const d = JSON.parse(rd.result); S = Object.assign(DEFAULT_STATE(), d); S.settings = Object.assign(DEFAULT_STATE().settings, d.settings || {}); save(); renderStats(); go('dash'); praise('Khôi phục xong. Ký ức đã trở về như người yêu cũ.'); }
+    catch (e) { roast('File hỏng. Giống kế hoạch học tập của bạn.'); }
+  };
+  rd.readAsText(file);
+}
+function wipe() {
+  if (!confirm('Xoá SẠCH mọi tiến độ, bài giảng và API key?')) return;
+  S = DEFAULT_STATE(); save(); renderStats(); go('dash'); tutorSay('Reset xong. Sinh ra lần nữa, vẫn lười như cũ.');
+}
+
+/* =====================================================================
+   14. MODAL / OVERLAY HELPERS
+   ===================================================================== */
+function showModal(html) {
+  $('#modal-root').innerHTML = `<div class="overlay" onclick="if(event.target===this)closeModal()">
+    <div id="modal-card" class="panel neon p-6 max-w-lg w-full fade-in">${html}
+    <button class="btn btn-ghost text-xs mt-4" onclick="closeModal()">Đóng</button></div></div>`;
+}
+const closeModal = () => { $('#modal-root').innerHTML = ''; };
+const showOverlay = html => { $('#overlay-root').innerHTML = `<div class="overlay" style="background:rgba(10,0,2,.92)">${html}</div>`; };
+const closeOverlay = () => { $('#overlay-root').innerHTML = ''; };
+
+/* =====================================================================
+   15. BOOT
+   ===================================================================== */
+renderTabs(); renderStats(); go('dash');
+if (S.tutorMin) toggleTutor(true);
+tutorSay(checkedToday()
+  ? 'Lại là bạn à. Hôm nay điểm danh rồi, giờ đi cứu bệnh nhân hay để họ tự khỏi?'
+  : `Ngày ${dayNumber()}/30. Bạn CHƯA điểm danh. Đồng hồ đang chạy về 00:00:00... tick tock 😈`);
+checkDeadman();
+</script>
+</body>
+</html>
