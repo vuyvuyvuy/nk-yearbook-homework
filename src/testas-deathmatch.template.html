@@ -186,6 +186,8 @@ function askConfirm(msg, fn) {
    2. STATE + localStorage
    ===================================================================== */
 const LS_KEY = 'testas_deathmatch_v2';
+// each device counts its own study time, so merging two devices never double-counts
+const DEVICE_ID = (() => { try { let d = localStorage.getItem('tdm_device'); if (!d) { d = uid(); localStorage.setItem('tdm_device', d); } return d; } catch (e) { return 'dev-' + uid(); } })();
 const DEFAULT_STATE = () => ({
   version: 2,
   startDate: todayStr(),
@@ -197,7 +199,8 @@ const DEFAULT_STATE = () => ({
   dating: {},
   settings: { provider: 'openai', apiKey: '', model: '' },
   pendingPunishment: false, lastDeadmanCheck: '', punishments: 0, missedDays: 0,
-  time: {},                                 // 'YYYY-MM-DD' -> {kern: seconds, fach: seconds}
+  timeDev: {},                              // deviceId -> 'YYYY-MM-DD' -> {kern: seconds, fach: seconds}
+  startDateSetAt: 0,                        // when the start date was last chosen (newest wins across devices)
   tutorMin: false
 });
 function loadState() {
@@ -206,6 +209,7 @@ function loadState() {
     const raw = localStorage.getItem(LS_KEY);
     if (raw) {
       const d = JSON.parse(raw);
+      if (d.time && !d.timeDev) { d.timeDev = { [DEVICE_ID]: d.time }; delete d.time; }
       return Object.assign(base, d, { settings: Object.assign(base.settings, d.settings || {}), kern: Object.assign(base.kern, d.kern || {}) });
     }
     // migrate streak/XP/settings from v1 (its made-up lessons are dropped)
@@ -236,7 +240,7 @@ function scheduleSync() {
 }
 async function pushSync() {
   try {
-    const { fach, settings, ...rest } = S;
+    const { fach, settings, tutorMin, ...rest } = S;
     await userCol().doc('state').set(JSON.parse(JSON.stringify(rest)));
     const live = new Set();
     for (const L of S.fach) {
@@ -246,23 +250,75 @@ async function pushSync() {
     for (const key of [...SYNC.sent.keys()]) if (!live.has(key)) { await userCol().doc(key).delete(); SYNC.sent.delete(key); }
   } catch (e) { console.warn('sync failed', e); }
 }
-async function pullSync() {
+// Merge two copies of the progress (this device + the server copy) field by field,
+// so studying on the laptop and then on the iPad never loses either side.
+function streakFrom(checkins) {
+  if (!checkins.length) return 0;
+  const last = checkins[checkins.length - 1];
+  if (last < addDays(todayStr(), -1)) return 0;   // the run was broken
+  let n = 1;
+  for (let i = checkins.length - 1; i > 0 && daysBetween(checkins[i - 1], checkins[i]) === 1; i--) n++;
+  return n;
+}
+function mergeLesson(a, b) {
+  const [hi, lo] = (b.rev || 0) > (a.rev || 0) ? [b, a] : [a, b];
+  const q = Object.assign({}, JSON.stringify(hi.testas) === JSON.stringify(lo.testas) ? lo.quizzes : {}, hi.quizzes);
+  if (JSON.stringify(hi.testas) === JSON.stringify(lo.testas)) Object.keys(lo.quizzes || {}).forEach(k => {
+    const x = lo.quizzes[k], y = (hi.quizzes || {})[k];
+    q[k] = !y || (x.date || '') > (y.date || '') ? x : y;
+  });
+  return Object.assign({}, hi, { quizzes: q });
+}
+function mergeState(a, r) {
+  const m = Object.assign({}, a);
+  m.checkins = [...new Set([...(a.checkins || []), ...(r.checkins || [])])].sort();
+  m.streak = streakFrom(m.checkins);
+  m.bestStreak = Math.max(a.bestStreak || 0, r.bestStreak || 0, m.streak);
+  ['xp', 'deaths', 'punishments'].forEach(k => { m[k] = Math.max(a[k] || 0, r[k] || 0); });
+  if ((r.startDateSetAt || 0) > (a.startDateSetAt || 0)) { m.startDate = r.startDate; m.startDateSetAt = r.startDateSetAt; }
+  else if (!a.startDateSetAt && !r.startDateSetAt && r.startDate < a.startDate) m.startDate = r.startDate;   // neither chose: earliest first-use wins
+  m.erCleared = [...new Set([...(a.erCleared || []), ...(r.erCleared || [])])].sort((x, y) => x - y);
+  m.kern = {};
+  BOOK_IDS.forEach(b => {
+    const x = (a.kern || {})[b] || {}, y = (r.kern || {})[b] || {}; m.kern[b] = Object.assign({}, x);
+    Object.keys(y).forEach(id => { if (!x[id] || (y[id].last || '') > (x[id].last || '') || ((y[id].last || '') === (x[id].last || '') && y[id].n > x[id].n)) m.kern[b][id] = y[id]; });
+  });
+  const ek = e => [e.bid, e.pruef, e.date, e.score, e.secs].join('|');
+  m.exams = [...new Map([...(r.exams || []), ...(a.exams || [])].map(e => [ek(e), e])).values()];
+  m.dating = Object.assign({}, r.dating, a.dating);
+  Object.keys(r.dating || {}).forEach(k => { const x = (a.dating || {})[k], y = r.dating[k]; if (x) m.dating[k] = { best: Math.max(x.best, y.best), married: x.married || y.married }; });
+  m.timeDev = JSON.parse(JSON.stringify(a.timeDev || {}));
+  Object.entries(r.timeDev || {}).forEach(([dev, days]) => {
+    const t = m.timeDev[dev] || (m.timeDev[dev] = {});
+    Object.entries(days).forEach(([d, v]) => { const o = t[d] || {}; t[d] = { kern: Math.max(o.kern || 0, v.kern || 0), fach: Math.max(o.fach || 0, v.fach || 0) }; });
+  });
+  const covered = m.checkins.includes(todayStr()) || m.checkins.includes(addDays(todayStr(), -1));
+  m.pendingPunishment = !covered && !!(a.pendingPunishment || r.pendingPunishment);
+  m.hintMode = Object.assign({}, r.hintMode, a.hintMode);
+  return m;
+}
+async function pullSync(quiet) {
   await capReady;
   if (!CAP.db || !CAP.user) return;
   try {
-    SYNC.uid = await CAP.user.id();
+    SYNC.uid = SYNC.uid || await CAP.user.id();
     const snap = await userCol().get();
     let remote = null; const lessons = [];
-    snap.docs.forEach(d => { if (d.id === 'state') remote = d.data(); else if (d.id.startsWith('fach-')) { lessons.push(d.data()); SYNC.sent.set(d.id, JSON.stringify(d.data())); } });
-    if (remote && (remote.updatedAt || 0) > (S.updatedAt || 0)) {
-      const b = DEFAULT_STATE();
-      S = Object.assign(b, remote, { settings: S.settings, kern: Object.assign(b.kern, remote.kern || {}), fach: S.fach });
+    snap.docs.forEach(d => { if (d.id === 'state') remote = d.data(); else if (d.id.startsWith('fach-')) lessons.push(d.data()); });
+    const before = JSON.stringify([S.checkins, S.xp, S.kern, S.timeDev, S.fach.length]);
+    if (remote) S = Object.assign(mergeState(S, remote), { fach: S.fach, settings: S.settings, tutorMin: S.tutorMin });
+    lessons.forEach(L => { const i = S.fach.findIndex(x => x.id === L.id); if (i < 0) S.fach.push(L); else S.fach[i] = mergeLesson(S.fach[i], L); });
+    if (!S.pendingPunishment && $('#punish')) { $('#punish').remove(); }
+    SYNC.sent.clear(); SYNC.ready = true; save();
+    if (before !== JSON.stringify([S.checkins, S.xp, S.kern, S.timeDev, S.fach.length])) {
+      renderStats(); if (currentTab === 'dash') renderDash();
+      if (!quiet) tutorSay('Đã đồng bộ tiến độ từ máy khác. Học ở đâu tôi cũng thấy hết 👀');
     }
-    lessons.forEach(L => { if (!S.fach.some(x => x.id === L.id)) S.fach.push(L); });
-    SYNC.ready = true; save();
-    renderStats(); if (currentTab === 'dash') renderDash();
   } catch (e) { console.warn('pull failed', e); }
 }
+// pick up progress made on another device when coming back to this one
+addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') pullSync(true); });
+setInterval(() => { if (document.visibilityState === 'visible') pullSync(true); }, 120000);
 function addXP(n) { S.xp = Math.max(0, S.xp + n); save(); renderStats(); }
 // merge lessons shipped inside the file (prepared from the user's material);
 // a higher `rev` replaces an older copy; scores survive only if the questions are unchanged
@@ -523,9 +579,12 @@ function renderDash() {
 /* ---------- study-time chart: stacked bars per plan day (Kern + Fach) ---------- */
 const TIME_COLORS = { kern: '#0ea5c6', fach: '#db2777' };   // validated for the dark surface (CVD ΔE 11.9)
 const TIME_LABEL = { kern: 'Kernmodul', fach: 'Fachmodul' };
-function timeOfDay(i) { const r = S.time[addDays(S.startDate, i)] || {}; return { kern: r.kern || 0, fach: r.fach || 0 }; }
+function timeOn(date) {   // summed over devices
+  return Object.values(S.timeDev || {}).reduce((a, dev) => { const r = dev[date] || {}; return { kern: a.kern + (r.kern || 0), fach: a.fach + (r.fach || 0) }; }, { kern: 0, fach: 0 });
+}
+function timeOfDay(i) { return timeOn(addDays(S.startDate, i)); }
 function todayTimeHTML() {
-  const r = S.time[todayStr()] || { kern: 0, fach: 0 };
+  const r = timeOn(todayStr());
   return ['kern', 'fach'].map(k => `<span class="inline-flex items-center gap-1.5 mr-4"><span style="width:10px;height:10px;border-radius:3px;background:${TIME_COLORS[k]}"></span>${TIME_LABEL[k]} <b class="text-white">${fmtDur(r[k] || 0)}</b></span>`).join('')
     + `<span>Tổng <b class="text-white">${fmtDur((r.kern || 0) + (r.fach || 0))}</b></span>`;
 }
@@ -595,7 +654,8 @@ function studyModule() {
 function tickStudyTime() {
   const m = studyModule();
   if (!m || document.visibilityState !== 'visible' || Date.now() - lastActive > IDLE_MS) return;
-  const r = S.time[todayStr()] || (S.time[todayStr()] = { kern: 0, fach: 0 });
+  const mine = S.timeDev[DEVICE_ID] || (S.timeDev[DEVICE_ID] = {});
+  const r = mine[todayStr()] || (mine[todayStr()] = { kern: 0, fach: 0 });
   r[m]++;
   if (++timeTicks % 30 === 0) save();
   const el = $('#time-today'); if (el) el.innerHTML = todayTimeHTML();
@@ -1565,7 +1625,7 @@ function saveSettings() {
 }
 function setStart() {
   const v = $('#set-start').value; if (!v) return;
-  S.startDate = v; S.lastDeadmanCheck = ''; save(); renderStats();
+  S.startDate = v; S.startDateSetAt = Date.now(); S.lastDeadmanCheck = ''; save(); renderStats();
   tutorSay('Đã đổi ngày bắt đầu. Đừng lùi ngày để né hình phạt, tôi thấy hết.');
 }
 function backup() { downloadBlob(JSON.stringify(S, null, 2), 'application/json', `testas-deathmatch-backup-${todayStr()}.json`); }
