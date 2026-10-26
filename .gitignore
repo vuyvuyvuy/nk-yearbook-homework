@@ -1,3 +1,4 @@
 build/
 *.pdf
 kern.json
+__pycache__/
