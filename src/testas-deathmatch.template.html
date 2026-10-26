@@ -1,0 +1,1293 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TestAS 30-Day Deathmatch</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#05060a; --panel:#0c0f17; --line:#1c2333;
+    --neon:#00ffa3; --cyan:#00e5ff; --pink:#ff2e88; --red:#ff1f3d; --yellow:#ffe14d;
+    --text:#d7e3f4; --muted:#7d8aa3;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--text);font-family:'Chakra Petch',system-ui,sans-serif;}
+  body{
+    min-height:100vh;
+    background-image:
+      linear-gradient(rgba(0,255,163,.035) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(0,255,163,.035) 1px,transparent 1px),
+      radial-gradient(ellipse at top,rgba(255,46,136,.12),transparent 60%),
+      radial-gradient(ellipse at bottom right,rgba(0,229,255,.10),transparent 60%);
+    background-size:32px 32px,32px 32px,100% 100%,100% 100%;
+  }
+  body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:90;background:repeating-linear-gradient(0deg,rgba(0,0,0,.18) 0 1px,transparent 1px 3px);mix-blend-mode:multiply}
+  .mono{font-family:'JetBrains Mono',ui-monospace,monospace}
+  .panel{background:linear-gradient(180deg,rgba(18,22,34,.92),rgba(10,12,19,.92));border:1px solid var(--line);border-radius:14px;position:relative;}
+  .panel.neon{border-color:rgba(0,255,163,.35);box-shadow:0 0 0 1px rgba(0,255,163,.08),0 0 24px rgba(0,255,163,.07) inset}
+  .panel.danger{border-color:rgba(255,31,61,.45);box-shadow:0 0 24px rgba(255,31,61,.12) inset}
+  .tape{position:absolute;top:-10px;left:18px;background:var(--yellow);color:#000;font-weight:700;font-size:11px;padding:2px 10px;transform:rotate(-2deg);letter-spacing:.08em}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:.4rem;padding:.6rem 1rem;border-radius:10px;font-weight:700;letter-spacing:.03em;border:1px solid transparent;cursor:pointer;transition:transform .08s,box-shadow .2s,background .2s;user-select:none}
+  .btn:active{transform:translateY(1px) scale(.98)}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .btn-neon{background:var(--neon);color:#001a10;box-shadow:0 0 18px rgba(0,255,163,.35)}
+  .btn-pink{background:var(--pink);color:#fff;box-shadow:0 0 18px rgba(255,46,136,.35)}
+  .btn-red{background:var(--red);color:#fff;box-shadow:0 0 18px rgba(255,31,61,.4)}
+  .btn-ghost{background:transparent;border-color:var(--line);color:var(--text)}
+  .btn-ghost:hover{border-color:var(--cyan);color:var(--cyan)}
+  .opt{width:100%;text-align:left;padding:.75rem 1rem;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.02);cursor:pointer;transition:.15s;color:var(--text)}
+  .opt:hover{border-color:var(--cyan);background:rgba(0,229,255,.07)}
+  .opt.on,.optbtn.on{border-color:var(--neon);background:rgba(0,255,163,.16);color:#fff}
+  .opt.good{border-color:var(--neon);background:rgba(0,255,163,.12)}
+  .opt.bad{border-color:var(--red);background:rgba(255,31,61,.12)}
+  .opt .k{display:inline-block;width:1.8rem;color:var(--cyan);font-family:'JetBrains Mono',monospace}
+  .optbtn{padding:.55rem .8rem;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.03);font-weight:700;cursor:pointer;color:var(--text)}
+  .optbtn:hover{border-color:var(--cyan)}
+  .tab{padding:.55rem .9rem;border-radius:9px;color:var(--muted);font-weight:600;white-space:nowrap;cursor:pointer}
+  .tab:hover{color:var(--text)}
+  .tab.active{color:#001a10;background:var(--neon);box-shadow:0 0 16px rgba(0,255,163,.45)}
+  input,textarea,select{background:#070910;border:1px solid var(--line);color:var(--text);border-radius:10px;padding:.65rem .8rem;width:100%;font-family:inherit}
+  input:focus,textarea:focus,select:focus{outline:none;border-color:var(--cyan);box-shadow:0 0 0 3px rgba(0,229,255,.15)}
+  .glitch{position:relative;color:#fff;text-shadow:0 0 12px rgba(0,255,163,.5)}
+  .glitch::before,.glitch::after{content:attr(data-text);position:absolute;inset:0;overflow:hidden}
+  .glitch::before{color:var(--pink);clip-path:inset(0 0 60% 0);animation:gl1 2.8s infinite steps(2)}
+  .glitch::after{color:var(--cyan);clip-path:inset(55% 0 0 0);animation:gl2 3.3s infinite steps(2)}
+  @keyframes gl1{0%,92%{transform:translate(0)}93%{transform:translate(-4px,-1px)}96%{transform:translate(4px,1px)}}
+  @keyframes gl2{0%,88%{transform:translate(0)}90%{transform:translate(5px,1px)}94%{transform:translate(-3px,0)}}
+  .pulse-neon{animation:pn 1.6s infinite}
+  @keyframes pn{0%,100%{box-shadow:0 0 0 0 rgba(0,229,255,.55)}50%{box-shadow:0 0 0 8px rgba(0,229,255,0)}}
+  .shake{animation:shake .45s}
+  @keyframes shake{20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
+  .ecg-wrap{overflow:hidden;height:56px;position:relative}
+  .ecg{width:200%;height:56px;animation:ecg 2.2s linear infinite}
+  .ecg path{fill:none;stroke:var(--neon);stroke-width:2;filter:drop-shadow(0 0 4px var(--neon))}
+  @keyframes ecg{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+  .flat path{stroke:var(--red);filter:drop-shadow(0 0 6px var(--red))}
+  .overlay{position:fixed;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;padding:1rem;background:rgba(0,0,0,.82);backdrop-filter:blur(3px);overflow:auto}
+  .died-title{font-size:clamp(2.4rem,9vw,5.5rem);font-weight:700;color:var(--red);text-shadow:0 0 30px rgba(255,31,61,.8);letter-spacing:.05em;animation:flick 1.2s infinite}
+  @keyframes flick{0%,100%{opacity:1}45%{opacity:.85}50%{opacity:.35}55%{opacity:.9}}
+  .terminal{background:#000;color:#18ff6d;font-family:'JetBrains Mono',monospace;text-shadow:0 0 6px rgba(24,255,109,.6)}
+  .bubble{position:relative;background:#0b0f19;border:1px solid rgba(255,46,136,.45);border-radius:14px;padding:.75rem .9rem}
+  .bar{height:10px;background:#111725;border-radius:99px;overflow:hidden;border:1px solid var(--line)}
+  .bar>div{height:100%;transition:width .4s}
+  .daycell{aspect-ratio:1/1;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;border:1px solid var(--line)}
+  .node{aspect-ratio:1/1;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;border:1px solid var(--line);cursor:pointer;transition:.15s;font-weight:700;padding:4px;text-align:center}
+  .node:hover{transform:translateY(-2px)}
+  .exnum{border-radius:8px;border:1px solid var(--line);padding:.35rem 0;text-align:center;font-size:12px;font-weight:700;cursor:pointer}
+  .lecture-body h3{color:var(--cyan);font-weight:700;font-size:1.1rem;margin-top:1rem}
+  .mnemo{border-left:3px solid var(--pink);background:rgba(255,46,136,.07);padding:.6rem .8rem;border-radius:0 10px 10px 0;margin-top:.5rem}
+  .sheet{background:#fff;border-radius:10px;padding:6px}
+  .sheet img{display:block;width:100%;height:auto}
+  .sol{border-left:3px solid var(--cyan);background:rgba(0,229,255,.06);padding:.7rem .9rem;border-radius:0 10px 10px 0;font-size:.92rem;line-height:1.55}
+  .detext p{margin:.55rem 0;line-height:1.65}
+  ::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-thumb{background:#1c2333;border-radius:10px}
+  .fade-in{animation:fi .35s ease}
+  @keyframes fi{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .heartbeat{animation:hb 1s infinite}
+  @keyframes hb{0%,100%{transform:scale(1)}15%{transform:scale(1.18)}30%{transform:scale(1)}45%{transform:scale(1.12)}}
+</style>
+</head>
+<body>
+
+<header class="max-w-6xl mx-auto px-4 pt-6">
+  <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
+    <div>
+      <div class="text-xs mono text-pink-400 tracking-widest">NEO-SÀI GÒN GENERAL HOSPITAL // KHOA HỒI SỨC NÃO BỘ // TẦNG -6</div>
+      <h1 class="glitch text-3xl md:text-5xl font-bold tracking-tight" data-text="TESTAS 30-DAY DEATHMATCH">TESTAS 30-DAY DEATHMATCH</h1>
+      <div class="text-sm text-slate-400 mt-1">Kernmodul (3 quyển của bạn) + Fachmodul Medizin (bài bạn nạp mỗi ngày) · 0 lòng thương xót</div>
+    </div>
+    <div id="statbar" class="grid grid-cols-3 md:grid-cols-6 gap-2 text-center text-xs"></div>
+  </div>
+  <nav id="tabs" class="flex gap-1 overflow-x-auto mt-5 p-1 panel"></nav>
+</header>
+
+<main id="view" class="max-w-6xl mx-auto px-4 py-6 pb-48"></main>
+
+<footer class="max-w-6xl mx-auto px-4 pb-40 text-xs text-slate-500">
+  Đề, đáp án và lời giải Kernmodul lấy từ 3 quyển bạn soạn (Quyển 1–3). Bài Fachmodul chỉ có khi bạn nạp tài liệu. Mọi "hình phạt" đều là FAKE.
+</footer>
+
+<aside id="tutor" class="fixed bottom-3 right-3 left-3 md:left-auto md:w-[420px] z-[70]">
+  <div class="panel p-3 flex gap-3 items-start" style="border-color:rgba(255,46,136,.5);box-shadow:0 0 30px rgba(255,46,136,.18)">
+    <div id="tutor-face" class="text-4xl select-none cursor-pointer" title="Chọc tức gia sư" onclick="pokeTutor()">🤖</div>
+    <div class="flex-1 min-w-0">
+      <div class="flex items-center justify-between">
+        <div class="text-xs font-bold text-pink-400">BS. MỎ HỖN <span class="text-slate-500 font-normal">(Dr. Giftzunge — "lưỡi độc")</span></div>
+        <button class="text-slate-500 hover:text-white text-xs" onclick="toggleTutor()" id="tutor-toggle">thu nhỏ ▾</button>
+      </div>
+      <div id="tutor-bubble-wrap"><div id="tutor-text" class="bubble text-sm mt-1 min-h-[44px]"></div></div>
+    </div>
+  </div>
+</aside>
+
+<div id="modal-root"></div>
+<div id="overlay-root"></div>
+
+<script>
+/* =====================================================================
+   0. DATA — injected by src/build.py
+   KERN: the 3 Kernmodul books (tips pages, 60 exercises each with image,
+         answer and the book's solution). FACH_BUILTIN: Fachmodul lessons
+         prepared from material the user supplied.
+   ===================================================================== */
+const KERN = /*__KERN__*/null;
+const FACH_BUILTIN = /*__FACH__*/[];
+
+/* =====================================================================
+   1. UTILITIES
+   ===================================================================== */
+const $ = (s, r = document) => r.querySelector(s);
+const pick = a => a[Math.floor(Math.random() * a.length)];
+const shuffle = a => { const b = a.slice(); for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; } return b; };
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const md = s => esc(s).replace(/\*\*(.+?)\*\*/g, '<b class="text-white">$1</b>').replace(/\n/g, '<br>');
+const pad = n => String(n).padStart(2, '0');
+const todayStr = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const parseDay = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+const daysBetween = (a, b) => Math.round((parseDay(b) - parseDay(a)) / 86400000);
+const addDays = (s, n) => { const d = parseDay(s); d.setDate(d.getDate() + n); return todayStr(d); };
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const stripVN = s => String(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase().replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ').trim();
+const fmtMS = s => `${s < 0 ? '+' : ''}${pad(Math.floor(Math.abs(s) / 60))}:${pad(Math.abs(s) % 60)}`;
+
+/* =====================================================================
+   2. STATE + localStorage
+   ===================================================================== */
+const LS_KEY = 'testas_deathmatch_v2';
+const DEFAULT_STATE = () => ({
+  version: 2,
+  startDate: todayStr(),
+  checkins: [], xp: 0, streak: 0, bestStreak: 0,
+  kern: { fig: {}, math: {}, latin: {} },   // book -> exerciseId -> {ok, n}
+  exams: [],                                // {bid, pruef, score, date}
+  erCleared: [], deaths: 0,
+  fach: [],                                 // Fachmodul lessons
+  dating: {},
+  settings: { provider: 'openai', apiKey: '', model: '' },
+  pendingPunishment: false, lastDeadmanCheck: '', punishments: 0, missedDays: 0,
+  tutorMin: false
+});
+function loadState() {
+  const base = DEFAULT_STATE();
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (raw) {
+      const d = JSON.parse(raw);
+      return Object.assign(base, d, { settings: Object.assign(base.settings, d.settings || {}), kern: Object.assign(base.kern, d.kern || {}) });
+    }
+    // migrate streak/XP/settings from v1 (its made-up lessons are dropped)
+    const old = localStorage.getItem('testas_deathmatch_v1');
+    if (old) {
+      const d = JSON.parse(old);
+      ['startDate', 'checkins', 'xp', 'streak', 'bestStreak', 'punishments'].forEach(k => { if (d[k] !== undefined) base[k] = d[k]; });
+      if (d.settings) base.settings = Object.assign(base.settings, d.settings);
+    }
+  } catch (e) { console.warn('State load failed', e); }
+  return base;
+}
+let S = loadState();
+function save() {
+  try { localStorage.setItem(LS_KEY, JSON.stringify(S)); }
+  catch (e) { tutorSay('localStorage đầy rồi! Xoá bớt bài Fach cũ trong Study Hub hoặc sao lưu JSON rồi dọn.', 'roast'); }
+}
+function addXP(n) { S.xp = Math.max(0, S.xp + n); save(); renderStats(); }
+// merge lessons shipped inside the file (prepared from the user's material)
+FACH_BUILTIN.forEach(l => { if (!S.fach.some(x => x.id === l.id)) S.fach.push(l); });
+save();
+
+const RANKS = [
+  [0, 'Phôi thai (Embryo)'], [300, 'Thí sinh mất ngủ'], [800, 'Famulant (thực tập) bị sai vặt'],
+  [1500, 'Assistenzarzt khóc trong toilet'], [2500, 'Oberarzt mỏ hỗn'], [4000, 'Chefarzt của sự hỗn loạn']
+];
+const rankOf = xp => RANKS.filter(r => xp >= r[0]).pop()[1];
+const dayNumber = () => Math.min(30, Math.max(1, daysBetween(S.startDate, todayStr()) + 1));
+
+/* =====================================================================
+   3. TOXIC TUTOR
+   ===================================================================== */
+const ROASTS = [
+  'Trả lời vậy mà cũng đòi đi Đức? Chắc định bay sang bằng niềm tin à 🤡',
+  'Não bạn đang bật chế độ máy bay hả? Tắt đi, sóng kiến thức không vào được.',
+  'Sai rồi má ơi. Con mèo nhà tôi bấm bừa còn có 33% trúng.',
+  'Câu này sách giải trong 3 dòng mà bạn làm như đang giải mã máy Enigma.',
+  'Alo? Neuron của bạn đang đình công đòi tăng lương à?',
+  'Tiếng Đức có từ "Dummkopf" (nghĩa: đồ đầu đất). Hôm nay tặng bạn, học thuộc luôn đi.',
+  'Sai một ly đi một dặm. Bạn sai nguyên cây số, đi luôn sang Ba Lan.',
+  'Bạn chọn đáp án như đi chợ mua rau: thấy cái nào xanh xanh là lấy.',
+  '"Na toll." — tiếng Đức nghĩa là "Ồ hay ghê", nhưng dùng để MỈA MAI. Đúng rồi, đang nói bạn đó.',
+  'Sai một cách tự tin như vậy, tôi suýt tin theo luôn.',
+  '"Ach du Scheiße!" — tiếng Đức nghĩa là "Ôi trời đất ơi!" (bản thô). Đó là phản ứng của tôi lúc này.',
+  'Cứ đà này TestAS không test bạn nữa, nó test sức chịu đựng của TÔI.',
+  'Câu trả lời của bạn có mùi... mùi của người lướt TikTok đến 3h sáng.',
+  'Bạn đang học TestAS hay đang chơi xổ số vậy?',
+  '"Übung macht den Meister" = luyện tập tạo nên bậc thầy. Bạn thì luyện tập tạo nên... thảm hoạ.',
+  'Đọc lại lời giải đi. Chính bạn soạn cuốn sách này đấy, đừng để nó khóc.'
+];
+const PRAISES = [
+  'Đúng rồi. Bất ngờ chưa? Chính tôi cũng bất ngờ.',
+  'Ủa đúng hả? Chắc ăn may như trúng vé số Vietlott.',
+  'Ờ, giỏi. Giỏi kiểu đồng hồ hỏng mỗi ngày đúng 2 lần ấy.',
+  'Đúng. Tôi sẽ không khen đâu, kẻo bạn lại kiêu rồi lười.',
+  '"Nicht schlecht" — tiếng Đức nghĩa là "không tệ". Với người Đức, đó là lời khen cao nhất rồi, đừng đòi hơn.',
+  'Chính xác! Bố mẹ bạn có thể bớt lo khoảng 0,5%.',
+  'Ổn đấy. Neuron số 2 của bạn cuối cùng cũng chịu kết nối với neuron số 1.',
+  'Đúng. Hôm nay chắc bạn uống đúng loại cà phê.',
+  '"Gut gemacht" (làm tốt lắm)... là tôi nói với may mắn của bạn, không phải bạn.',
+  'Đúng! Tôi định roast mà bạn không cho cơ hội. Bực ghê.'
+];
+const IDLE = [
+  'Còn ngồi đó à? 60 bài Lateinische Quadrate không tự giải đâu.',
+  'Mẹo: "Lernen" là học, "Lärm" là tiếng ồn. Bạn đang tạo ra cái thứ hai nhiều hơn.',
+  'Tôi là gia sư, không phải bảo mẫu. Bấm vào cái gì đó đi.',
+  'Đề thật: 20 câu / 25 phút. Bạn vừa mất 25 phút nhìn tôi.',
+  'Chọc tôi lần nữa xem, tôi gửi lịch sử tìm kiếm cho mẹ bạn (đùa thôi... chắc vậy).'
+];
+let tutorToken = 0;
+function tutorSay(text, mood = 'neutral') {
+  const el = $('#tutor-text'); const face = $('#tutor-face');
+  face.textContent = mood === 'roast' ? '😈' : mood === 'praise' ? '😒' : mood === 'panic' ? '🚨' : '🤖';
+  face.classList.remove('shake'); void face.offsetWidth; if (mood === 'roast') face.classList.add('shake');
+  el.style.borderColor = mood === 'roast' ? 'rgba(255,31,61,.7)' : mood === 'praise' ? 'rgba(0,255,163,.6)' : 'rgba(255,46,136,.45)';
+  const my = ++tutorToken; el.textContent = ''; let i = 0;
+  (function type() { if (my !== tutorToken) return; el.textContent = text.slice(0, ++i); if (i < text.length) setTimeout(type, 14); })();
+  if (S.tutorMin) toggleTutor(false);
+}
+const roast = (extra = '') => tutorSay(pick(ROASTS) + (extra ? ' ' + extra : ''), 'roast');
+const praise = (extra = '') => tutorSay(pick(PRAISES) + (extra ? ' ' + extra : ''), 'praise');
+let pokes = 0;
+function pokeTutor() {
+  pokes++;
+  if (pokes % 5 === 0) tutorSay('Bạn chọc tôi ' + pokes + ' lần rồi. "die Zeitverschwendung" = sự lãng phí thời gian. Như bạn.', 'roast');
+  else tutorSay(pick(IDLE));
+}
+function toggleTutor(force) {
+  S.tutorMin = typeof force === 'boolean' ? force : !S.tutorMin; save();
+  $('#tutor-bubble-wrap').style.display = S.tutorMin ? 'none' : '';
+  $('#tutor-toggle').textContent = S.tutorMin ? 'mở ▴' : 'thu nhỏ ▾';
+}
+
+/* =====================================================================
+   4. NAV + STATS + shared timer
+   ===================================================================== */
+const TABS = [
+  ['dash', '🏥 Tổng quan'], ['kern', '🧠 Kernmodul'], ['er', '🚑 ER Survival'], ['fach', '🩺 Fachmodul'],
+  ['dating', '💘 Dating Sim'], ['hub', '📚 Study Hub'], ['settings', '⚙️ Cài đặt']
+];
+let currentTab = 'dash', TIMER = null;
+const stopTimer = () => { if (TIMER) { clearInterval(TIMER); TIMER = null; } };
+function renderTabs() {
+  $('#tabs').innerHTML = TABS.map(([id, label]) => `<button class="tab ${id === currentTab ? 'active' : ''}" onclick="go('${id}')">${label}</button>`).join('');
+}
+function kernDone() { return ['fig', 'math', 'latin'].reduce((n, b) => n + Object.keys(S.kern[b]).length, 0); }
+function renderStats() {
+  const items = [
+    ['NGÀY', `${dayNumber()}/30`, 'text-cyan-300'], ['XP', S.xp, 'text-emerald-300'], ['STREAK', `${S.streak}🔥`, 'text-orange-300'],
+    ['BÀI KERN', `${kernDone()}/180`, 'text-emerald-300'], ['BÀI FACH', S.fach.length, 'text-pink-300'], ['GIẾT NHẦM', S.deaths, 'text-red-400']
+  ];
+  $('#statbar').innerHTML = items.map(([k, v, c]) => `<div class="panel px-2 py-1.5"><div class="text-[10px] text-slate-500 mono">${k}</div><div class="font-bold ${c}">${v}</div></div>`).join('');
+}
+function go(tab) {
+  stopTimer();
+  currentTab = tab; renderTabs();
+  const v = $('#view'); v.classList.remove('fade-in'); void v.offsetWidth; v.classList.add('fade-in');
+  ({ dash: renderDash, kern: renderKern, er: renderER, fach: renderFach, dating: renderDating, hub: renderHub, settings: renderSettings })[tab]();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* =====================================================================
+   5. KERNMODUL ENGINE — answer widgets shared by practice, exam, ER, check-in
+   ===================================================================== */
+const BOOK_IDS = ['fig', 'math', 'latin'];
+const BOOK_ICON = { fig: '🔷', math: '➗', latin: '🔠' };
+const LETTER_COLOR = { A: '#f87171', B: '#60a5fa', C: '#4ade80', D: '#c084fc' };   // book's colour convention
+const exById = (bid, id) => KERN[bid].ex.find(e => e.id === id);
+let SEL = {};
+function answerWidget(bid, ex) {
+  SEL = {};
+  if (bid === 'fig') return [1, 2].map(b => `<div class="flex flex-wrap items-center gap-2 mt-2"><span class="w-16 text-sm text-slate-400">Bild ${b}</span>${[1, 2, 3].map(m =>
+    `<button class="optbtn" id="sel-b${b}-${m}" onclick="selPick('b${b}',${m})">Matrix ${m}</button>`).join('')}</div>`).join('');
+  if (bid === 'latin') return `<div class="text-sm text-slate-400 mt-2">Chữ nào ở ô ?</div><div class="flex gap-2 mt-1">${'ABCDE'.split('').map(c =>
+    `<button class="optbtn text-xl w-14" id="sel-l-${c}" onclick="selPick('l','${c}')">${c}</button>`).join('')}</div>`;
+  return `<div class="text-sm text-slate-400 mt-2">Điền số (1–20), tính nhẩm:</div><div class="flex flex-wrap gap-3 mt-1">${Object.keys(ex.answer).map(k =>
+    `<label class="flex items-center gap-2"><b class="text-lg" style="color:${LETTER_COLOR[k]}">${k} =</b><input type="number" inputmode="numeric" id="ans-${k}" style="width:5.5rem"></label>`).join('')}</div>`;
+}
+function selPick(k, v) {
+  SEL[k] = v;
+  document.querySelectorAll(`[id^="sel-${k}-"]`).forEach(b => b.classList.toggle('on', b.id === `sel-${k}-${v}`));
+}
+function readAnswer(bid, ex) {
+  if (bid === 'fig') return SEL.b1 && SEL.b2 ? [SEL.b1, SEL.b2] : null;
+  if (bid === 'latin') return SEL.l || null;
+  const o = {};
+  for (const k of Object.keys(ex.answer)) { const v = $('#ans-' + k).value.trim(); if (v === '') return null; o[k] = Number(v); }
+  return o;
+}
+const isCorrect = (ex, a) => JSON.stringify(a) === JSON.stringify(ex.answer);
+const fmtAnswer = (bid, a) => !a ? '(bỏ trống)' : bid === 'fig' ? `Bild 1 = Matrix ${a[0]} · Bild 2 = Matrix ${a[1]}` : bid === 'latin' ? a : Object.entries(a).map(([k, v]) => `${k} = ${v}`).join(' · ');
+function solutionHTML(ex) {
+  const lines = ex.solution.split('\n').map(l => {
+    const t = esc(l);
+    if (/^Làm nhanh:/.test(l)) return `<div class="mt-2 text-yellow-200">⚡ ${t}</div>`;
+    if (/^(Ghi chú|Kiểm tra|Lưu ý)/.test(l)) return `<div class="mt-1 text-slate-400">${t}</div>`;
+    return `<div>${t}</div>`;
+  }).join('');
+  return `<div class="sol mt-3"><div class="font-bold text-emerald-300 mb-1">Đáp án (theo sách): ${esc(ex.answerLine)}</div>${lines}</div>`;
+}
+function recordKern(bid, ex, ok) {
+  const r = S.kern[bid][ex.id] || { ok: false, n: 0, wrong: 0 };
+  r.n++; if (!ok) r.wrong = (r.wrong || 0) + 1; r.ok = ok; r.last = todayStr();
+  S.kern[bid][ex.id] = r; save(); renderStats();
+}
+const exSheet = ex => `<div class="sheet"><img src="${ex.img}" alt="Bài ${ex.id}"></div>`;
+
+/* =====================================================================
+   6. DASHBOARD + DEADMAN'S SWITCH
+   ===================================================================== */
+// Day n of the 30-day plan = 2 exercises from each book (books have 60 each, ordered easy → hard)
+const dayExercises = n => BOOK_IDS.flatMap(b => KERN[b].ex.slice((n - 1) * 2, (n - 1) * 2 + 2).map(ex => ({ bid: b, ex })));
+const fachOfDay = n => S.fach.filter(l => +l.day === n);
+const checkedToday = () => S.checkins.includes(todayStr());
+function msToMidnight() { const n = new Date(); const m = new Date(n); m.setHours(24, 0, 0, 0); return m - n; }
+function fmtHMS(ms) { const s = Math.max(0, Math.floor(ms / 1000)); return `${pad(Math.floor(s / 3600))}:${pad(Math.floor(s % 3600 / 60))}:${pad(s % 60)}`; }
+
+function renderDash() {
+  const d = dayNumber(); const done = checkedToday(); const t = todayStr();
+  const cells = Array.from({ length: 30 }, (_, i) => {
+    const ds = addDays(S.startDate, i);
+    let cls = 'text-slate-600', bg = 'transparent', label = i + 1;
+    if (S.checkins.includes(ds)) { bg = 'rgba(0,255,163,.18)'; cls = 'text-emerald-300'; label = '✓'; }
+    else if (ds < t) { bg = 'rgba(255,31,61,.18)'; cls = 'text-red-400'; label = '☠'; }
+    else if (ds === t) { bg = 'rgba(0,229,255,.12)'; cls = 'text-cyan-300 pulse-neon'; }
+    return `<div class="daycell ${cls}" style="background:${bg}" title="Ngày ${i + 1}: ${ds}">${label}</div>`;
+  }).join('');
+  const todays = dayExercises(d);
+  const fd = fachOfDay(d);
+  $('#view').innerHTML = `
+  <div class="grid md:grid-cols-3 gap-4">
+    <section class="panel ${done ? 'neon' : 'danger'} p-5 md:col-span-2">
+      <span class="tape">DEADMAN'S SWITCH</span>
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mt-2">
+        <div>
+          <div class="text-xs text-slate-400 mono">${done ? 'CÔNG TẮC ĐÃ ĐƯỢC NHẤN HÔM NAY' : 'THỜI GIAN CÒN LẠI TRƯỚC KHI KÍCH HOẠT HÌNH PHẠT'}</div>
+          <div id="deadman-clock" class="mono text-4xl md:text-5xl font-bold ${done ? 'text-emerald-300' : 'text-red-400'}">${done ? 'AN TOÀN ✓' : fmtHMS(msToMidnight())}</div>
+          <div class="text-sm text-slate-400 mt-1">${done ? 'Hôm nay bạn sống sót. Mai lại phải chứng minh.' : 'Không check-in trước 00:00:00 → Punishment Protocol. Check-in = giải đúng 1 bài trong sách của bạn.'}</div>
+        </div>
+        <button class="btn ${done ? 'btn-ghost' : 'btn-red heartbeat'} text-lg" ${done ? 'disabled' : ''} onclick="startCheckin()">${done ? 'Đã điểm danh' : '☠ ĐIỂM DANH NGAY'}</button>
+      </div>
+    </section>
+    <section class="panel p-5">
+      <div class="text-xs text-slate-400 mono">CẤP BẬC</div>
+      <div class="text-xl font-bold text-pink-300">${esc(rankOf(S.xp))}</div>
+      <div class="text-xs text-slate-500 mt-2">Kỷ lục streak: ${S.bestStreak}🔥 · Đã bị phạt: ${S.punishments} lần</div>
+      <div class="text-xs text-slate-500">Bắt đầu: ${S.startDate} · Kết thúc: ${addDays(S.startDate, 29)}</div>
+      <div class="bar mt-3"><div style="width:${kernDone() / 180 * 100}%;background:linear-gradient(90deg,var(--neon),var(--cyan))"></div></div>
+      <div class="text-[11px] text-slate-500 mt-1">Đã làm ${kernDone()}/180 bài Kernmodul</div>
+    </section>
+  </div>
+  <div class="grid md:grid-cols-3 gap-4 mt-4">
+    <section class="panel p-5 md:col-span-2">
+      <span class="tape" style="background:var(--cyan)">NHIỆM VỤ NGÀY ${d}</span>
+      <div class="text-sm mt-2 space-y-3">
+        <div>🧠 <b class="text-cyan-300">Kernmodul</b> (= ER Level ${d}):
+          <div class="flex flex-wrap gap-2 mt-2">${todays.map(({ bid, ex }) => { const r = S.kern[bid][ex.id];
+            return `<button class="optbtn text-xs ${r ? (r.ok ? 'on' : '') : ''}" style="${r && !r.ok ? 'border-color:var(--red)' : ''}" onclick="openPractice('${bid}','${ex.id}')">${BOOK_ICON[bid]} Q${BOOK_IDS.indexOf(bid) + 1} · ${ex.id}${r ? (r.ok ? ' ✓' : ' ✗') : ''}</button>`; }).join('')}</div>
+        </div>
+        <div>🩺 <b class="text-pink-300">Fachmodul:</b> ${fd.length ? fd.map(l => `<button class="optbtn text-xs" onclick="openFach('${l.id}')">${esc(l.title)}</button>`).join(' ') : '<span class="text-slate-400">chưa có bài ngày ' + d + '. Gửi tài liệu cho Claude, hoặc tự tạo trong tab 🩺 Fachmodul.</span>'}</div>
+        <div>⏱ Cuối tuần: thi thử 1 Prüfung (20 bài / 25 phút) trong tab Kernmodul.</div>
+      </div>
+      <div class="flex flex-wrap gap-2 mt-4">
+        <button class="btn btn-red" onclick="startLevel(${d})">🚑 Vào ER Level ${d}</button>
+        <button class="btn btn-ghost" onclick="go('kern')">🧠 Kernmodul</button>
+        <button class="btn btn-pink" onclick="go('fach')">🩺 Fachmodul</button>
+      </div>
+    </section>
+    <section class="panel p-5">
+      <div class="text-xs text-slate-400 mono mb-2">LỊCH 30 NGÀY (✓ có mặt · ☠ bỏ trốn)</div>
+      <div class="grid grid-cols-6 gap-1.5">${cells}</div>
+    </section>
+  </div>`;
+}
+
+let lastSeenDay = todayStr();
+setInterval(() => {
+  const el = $('#deadman-clock');
+  if (el && !checkedToday()) el.textContent = fmtHMS(msToMidnight());
+  const t = todayStr();
+  if (t !== lastSeenDay) { lastSeenDay = t; checkDeadman(); renderStats(); if (currentTab === 'dash') renderDash(); }
+}, 1000);
+
+function checkDeadman() {
+  const t = todayStr();
+  if (S.lastDeadmanCheck !== t) {
+    const last = S.checkins.length ? S.checkins[S.checkins.length - 1] : addDays(S.startDate, -1);
+    const gap = daysBetween(last, t);
+    S.lastDeadmanCheck = t;
+    if (gap >= 2) { S.pendingPunishment = true; S.streak = 0; S.missedDays = gap - 1; }
+    save();
+  }
+  if (S.pendingPunishment) startPunishment();
+}
+
+// check-in: solve one random exercise from the books
+let CHK = null;
+function startCheckin() {
+  const bid = pick(BOOK_IDS); const ex = pick(KERN[bid].ex.filter(e => /Dễ/.test(e.level || '')).length ? KERN[bid].ex.filter(e => /Dễ/.test(e.level || '')) : KERN[bid].ex);
+  CHK = { bid, ex };
+  showModal(`
+    <div class="text-xs mono text-red-400">XÁC MINH SINH TRẮC HỌC NÃO BỘ · ${esc(KERN[bid].title)} · Bài ${ex.id}</div>
+    <h3 class="text-lg font-bold mt-1">Chứng minh bạn chưa chết não:</h3>
+    <div class="mt-3">${exSheet(ex)}</div>
+    ${answerWidget(bid, ex)}
+    <button class="btn btn-neon mt-4" onclick="answerCheckin()">Chốt</button>`, true);
+  tutorSay('Điểm danh à? Giải đúng bài này mới tính. Không có "điểm danh hộ" đâu.');
+}
+function answerCheckin() {
+  const a = readAnswer(CHK.bid, CHK.ex);
+  if (!a) { tutorSay('Điền đủ đáp án đã rồi hẵng bấm. Vội đi đâu?', 'roast'); return; }
+  const ok = isCorrect(CHK.ex, a); recordKern(CHK.bid, CHK.ex, ok);
+  if (!ok) {
+    roast('Sai rồi. Đáp án sách: ' + CHK.ex.answerLine + '. Làm bài khác.');
+    $('#modal-card').classList.add('shake'); setTimeout(startCheckin, 1600); return;
+  }
+  const t = todayStr(); const last = S.checkins[S.checkins.length - 1];
+  S.streak = last === addDays(t, -1) ? S.streak + 1 : 1;
+  S.bestStreak = Math.max(S.bestStreak, S.streak);
+  if (!S.checkins.includes(t)) S.checkins.push(t);
+  S.checkins.sort();
+  closeModal(); addXP(50);
+  praise(`Điểm danh xong. Streak ${S.streak}🔥.`);
+  if (currentTab === 'dash') renderDash();
+}
+
+const CONFESSION = 'Tôi hứa học TestAS mỗi ngày, xin tha cho tôi';
+function startPunishment() {
+  if ($('#punish')) return;
+  const missed = S.missedDays || 1;
+  const lines = [
+    '> PUNISHMENT_PROTOCOL v6.6.6 khởi động...',
+    `> Phát hiện: bỏ điểm danh ${missed} ngày. Streak đã bị TIÊU HUỶ.`,
+    '> Đang kết nối camera trước... 📸 phát hiện khuôn mặt lười biếng (độ tin cậy 99,7%)',
+    '> Đang gửi lịch sử tìm kiếm cho mẹ bạn... 12%... 48%... 87%... 100% ✔',
+    '> Đang in 180 bài Kernmodul ra giấy A0 dán lên trần phòng ngủ... ✔',
+    '> Đang gửi email cho Uni-Assist: "Ứng viên này lười"... ✔',
+    '> Đang khoá ứng dụng. Trừ 100 XP.',
+    '> (Bình tĩnh: tất cả là FAKE. Nhưng cảm giác tội lỗi là THẬT.)',
+    '> Để mở khoá: đợi hết giờ phạt, rồi gõ CHÍNH XÁC câu sám hối:',
+    `> "${CONFESSION}"`
+  ];
+  const el = document.createElement('div');
+  el.id = 'punish';
+  el.className = 'fixed inset-0 z-[100] terminal p-4 md:p-10 overflow-auto';
+  el.innerHTML = `<div class="max-w-3xl mx-auto">
+    <div class="text-red-500 text-2xl md:text-4xl font-bold mb-4" style="text-shadow:0 0 18px red">⚠ SYSTEM COMPROMISED ⚠</div>
+    <pre id="punish-log" class="whitespace-pre-wrap text-sm md:text-base leading-relaxed"></pre>
+    <div id="punish-ui" class="mt-6 hidden">
+      <div class="text-yellow-300">Thời gian chịu phạt: <span id="punish-timer">30</span>s</div>
+      <input id="confess" class="mt-3 terminal" style="border-color:#18ff6d" placeholder="Gõ câu sám hối ở đây..." disabled oninput="checkConfession()">
+      <div class="text-xs text-green-700 mt-2">Không phân biệt hoa/thường, gõ không dấu cũng được.</div>
+    </div></div>`;
+  document.body.appendChild(el);
+  tutorSay('Bạn bỏ điểm danh. Đây là hậu quả. "Strafe muss sein" = "Phạt là phải có".', 'panic');
+  const log = $('#punish-log'); let i = 0;
+  (function next() {
+    if (i < lines.length) { log.textContent += lines[i++] + '\n'; setTimeout(next, 650); }
+    else {
+      $('#punish-ui').classList.remove('hidden'); let s = 30;
+      const iv = setInterval(() => {
+        s--; $('#punish-timer').textContent = s;
+        if (s <= 0) { clearInterval(iv); const c = $('#confess'); c.disabled = false; c.focus(); $('#punish-timer').textContent = '0 — giờ thì gõ đi'; }
+      }, 1000);
+    }
+  })();
+}
+function checkConfession() {
+  if (stripVN($('#confess').value) === stripVN(CONFESSION)) {
+    $('#punish').remove();
+    S.pendingPunishment = false; S.punishments++; S.xp = Math.max(0, S.xp - 100); save();
+    renderStats(); if (currentTab === 'dash') renderDash();
+    tutorSay('Được rồi, tha. Đi điểm danh hôm nay ngay!', 'roast');
+  }
+}
+
+/* =====================================================================
+   7. KERNMODUL TAB — tips, practice, mock exam
+   ===================================================================== */
+function bookStats(bid) {
+  const r = Object.values(S.kern[bid]); return { done: r.length, ok: r.filter(x => x.ok).length };
+}
+function renderKern() {
+  $('#view').innerHTML = `
+    <section class="panel neon p-5">
+      <span class="tape">KERNMODUL</span>
+      <h2 class="text-2xl font-bold mt-1">3 quyển của bạn 🧠</h2>
+      <p class="text-sm text-slate-400">Đề thật: mỗi phần 20 câu / 25 phút (~75 giây/câu), không nháp, sai không trừ điểm. Mỗi quyển: đọc Mẹo → luyện từng bài → thi thử 3 Prüfung.</p>
+    </section>
+    <div class="grid md:grid-cols-3 gap-4 mt-4">${BOOK_IDS.map(bid => { const b = KERN[bid], st = bookStats(bid); const ex = S.exams.filter(e => e.bid === bid);
+      return `<div class="panel p-5">
+        <div class="text-4xl">${BOOK_ICON[bid]}</div>
+        <div class="text-lg font-bold mt-2">${esc(b.title)}</div>
+        <div class="text-xs text-slate-400">${esc(b.vn)} · ${b.ex.length} bài · ${b.tips.length} trang mẹo</div>
+        <div class="bar mt-3"><div style="width:${st.done / b.ex.length * 100}%;background:linear-gradient(90deg,var(--neon),var(--cyan))"></div></div>
+        <div class="text-xs text-slate-400 mt-1">Đã làm ${st.done}/${b.ex.length} · đúng ${st.ok}${ex.length ? ' · thi thử tốt nhất ' + Math.max(...ex.map(e => e.score)) + '/20' : ''}</div>
+        <div class="flex flex-wrap gap-2 mt-4">
+          <button class="btn btn-ghost text-sm" onclick="openTips('${bid}')">📖 Mẹo</button>
+          <button class="btn btn-neon text-sm" onclick="openBook('${bid}')">🎯 Luyện bài</button>
+        </div>
+        <div class="flex flex-wrap gap-2 mt-2">${[1, 2, 3].map(p => `<button class="btn btn-red text-xs" onclick="startExam('${bid}',${p})">⏱ Prüfung ${p}</button>`).join('')}</div>
+      </div>`; }).join('')}</div>`;
+}
+function openTips(bid) {
+  stopTimer();
+  const b = KERN[bid];
+  $('#view').innerHTML = `
+    <div class="flex items-center justify-between gap-2 mb-3"><button class="btn btn-ghost text-sm" onclick="go('kern')">← Kernmodul</button>
+      <div class="font-bold">${BOOK_ICON[bid]} ${esc(b.title)} · Phần 1: Mẹo</div></div>
+    <div class="space-y-3">${b.tips.map((src, i) => `<div class="sheet"><img src="${src}" alt="Mẹo trang ${i + 1}" loading="lazy"></div>`).join('')}</div>
+    <div class="mt-4"><button class="btn btn-neon" onclick="openBook('${bid}')">Đọc xong → Luyện bài 🎯</button></div>`;
+  tutorSay('Đọc mẹo của chính bạn đi. Bạn mất công soạn rồi, đừng để nó nằm mốc.');
+}
+function openBook(bid) {
+  stopTimer();
+  const b = KERN[bid];
+  $('#view').innerHTML = `
+    <div class="flex items-center justify-between gap-2 mb-3"><button class="btn btn-ghost text-sm" onclick="go('kern')">← Kernmodul</button>
+      <div class="font-bold">${BOOK_ICON[bid]} ${esc(b.title)}</div></div>
+    ${[1, 2, 3].map(p => `<section class="panel p-4 mb-3"><div class="flex items-center justify-between"><div class="font-bold text-cyan-300">Prüfung ${p}</div>
+      <button class="btn btn-red text-xs" onclick="startExam('${bid}',${p})">⏱ Thi thử 25 phút</button></div>
+      <div class="grid grid-cols-5 sm:grid-cols-10 gap-1.5 mt-3">${b.ex.filter(e => e.pruef === p).map(e => { const r = S.kern[bid][e.id];
+        const st = !r ? '' : r.ok ? 'background:rgba(0,255,163,.18);border-color:rgba(0,255,163,.5);color:#6ee7b7' : 'background:rgba(255,31,61,.15);border-color:rgba(255,31,61,.5);color:#fca5a5';
+        return `<div class="exnum" style="${st}" onclick="openPractice('${bid}','${e.id}')" title="${esc(e.level || '')}">${e.id}</div>`; }).join('')}</div></section>`).join('')}
+    <div class="text-xs text-slate-500">Xanh = lần gần nhất đúng · Đỏ = lần gần nhất sai.</div>`;
+}
+
+// --- single-exercise practice (75 s soft timer, then the book's solution)
+let PR = null;
+function openPractice(bid, id) {
+  stopTimer(); if (currentTab !== 'kern') { currentTab = 'kern'; renderTabs(); }
+  const b = KERN[bid]; const i = b.ex.findIndex(e => e.id === id); const ex = b.ex[i];
+  PR = { bid, i, t: 75, done: false };
+  $('#view').innerHTML = `
+    <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+      <button class="btn btn-ghost text-sm" onclick="openBook('${bid}')">← Danh sách bài</button>
+      <div class="font-bold">${BOOK_ICON[bid]} ${esc(b.title)} · Bài ${ex.id} <span class="text-xs text-slate-400">${esc(ex.level || '')}${ex.meta ? ' · ' + esc(ex.meta) : ''}</span></div>
+      <div id="pr-time" class="mono text-2xl font-bold text-cyan-300">01:15</div>
+    </div>
+    <section class="panel p-4">${exSheet(ex)}<div id="pr-ans">${answerWidget(bid, ex)}</div>
+      <div class="flex flex-wrap gap-2 mt-4" id="pr-actions">
+        <button class="btn btn-neon" onclick="submitPractice()">Chốt đáp án</button>
+        <button class="btn btn-ghost" onclick="submitPractice(true)">Chịu, xem lời giải</button>
+      </div>
+      <div id="pr-feedback"></div>
+    </section>
+    <div class="flex justify-between mt-3">
+      <button class="btn btn-ghost text-sm" ${i === 0 ? 'disabled' : ''} onclick="openPractice('${bid}','${b.ex[Math.max(0, i - 1)].id}')">← Bài trước</button>
+      <button class="btn btn-ghost text-sm" ${i === b.ex.length - 1 ? 'disabled' : ''} onclick="openPractice('${bid}','${b.ex[Math.min(b.ex.length - 1, i + 1)].id}')">Bài sau →</button>
+    </div>`;
+  TIMER = setInterval(() => {
+    PR.t--; const el = $('#pr-time'); if (!el) return stopTimer();
+    el.textContent = fmtMS(PR.t); el.className = 'mono text-2xl font-bold ' + (PR.t < 0 ? 'text-red-400' : PR.t <= 15 ? 'text-yellow-300' : 'text-cyan-300');
+    if (PR.t === 0) tutorSay('Hết 75 giây rồi. Trong phòng thi bạn vừa mất 1 câu. Đoán đại đi!', 'panic');
+  }, 1000);
+}
+function submitPractice(giveUp) {
+  if (PR.done) return;
+  const b = KERN[PR.bid]; const ex = b.ex[PR.i];
+  const a = giveUp ? null : readAnswer(PR.bid, ex);
+  if (!giveUp && !a) { tutorSay('Điền/chọn đủ đáp án đã. Thi thật sai không trừ điểm, nhưng bỏ trống là 0 điểm chắc chắn.', 'roast'); return; }
+  PR.done = true; stopTimer();
+  const ok = !giveUp && isCorrect(ex, a);
+  recordKern(PR.bid, ex, ok);
+  if (ok) addXP(PR.t >= 0 ? 20 : 10);
+  ok ? praise(PR.t < 0 ? `Đúng, nhưng quá giờ ${-PR.t}s. Thi thật thì tiếc lắm.` : '') : roast(giveUp ? 'Đầu hàng sớm thế. Đọc lời giải rồi làm lại sau nhé.' : '');
+  $('#pr-actions').innerHTML = `${PR.i < b.ex.length - 1 ? `<button class="btn btn-neon" onclick="openPractice('${PR.bid}','${b.ex[PR.i + 1].id}')">Bài tiếp →</button>` : ''}
+    <button class="btn btn-ghost" onclick="openPractice('${PR.bid}','${ex.id}')">Làm lại</button>`;
+  $('#pr-feedback').innerHTML = `<div class="mt-3 text-lg font-bold ${ok ? 'text-emerald-300' : 'text-red-400'}">${ok ? '✓ ĐÚNG' : '✗ SAI'} <span class="text-sm font-normal text-slate-400">· bạn chọn: ${esc(fmtAnswer(PR.bid, a))} · thời gian ${fmtMS(75 - PR.t)}</span></div>${solutionHTML(ex)}`;
+}
+
+// --- mock exam: one Prüfung = 20 exercises in 25 minutes
+let EXAM = null;
+function startExam(bid, p) {
+  stopTimer(); if (currentTab !== 'kern') { currentTab = 'kern'; renderTabs(); }
+  EXAM = { bid, p, list: KERN[bid].ex.filter(e => e.pruef === p), i: 0, ans: {}, t: 25 * 60, over: false };
+  tutorSay('Thi thử 25 phút. Không nháp, không tra, không khóc. Bắt đầu!', 'panic');
+  TIMER = setInterval(() => {
+    EXAM.t--; const el = $('#ex-time'); if (el) { el.textContent = fmtMS(EXAM.t); if (EXAM.t <= 60) el.classList.add('text-red-400'); }
+    if (EXAM.t <= 0) finishExam();
+  }, 1000);
+  renderExamQ();
+}
+function renderExamQ() {
+  const { bid, list, i } = EXAM; const ex = list[i];
+  $('#view').innerHTML = `
+    <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+      <div class="font-bold">${BOOK_ICON[bid]} ${esc(KERN[bid].title)} · Prüfung ${EXAM.p} · Câu ${i + 1}/20</div>
+      <div id="ex-time" class="mono text-2xl font-bold text-cyan-300">${fmtMS(EXAM.t)}</div>
+    </div>
+    <div class="grid grid-cols-10 gap-1 mb-3">${list.map((e, k) => `<div class="exnum" style="${k === i ? 'border-color:var(--cyan);color:#67e8f9' : EXAM.ans[e.id] ? 'background:rgba(0,229,255,.12)' : ''}" onclick="examGo(${k})">${k + 1}</div>`).join('')}</div>
+    <section class="panel p-4">${exSheet(ex)}${answerWidget(bid, ex)}
+      <div class="flex flex-wrap gap-2 mt-4">
+        <button class="btn btn-neon" onclick="examSave(1)">Lưu & câu sau →</button>
+        <button class="btn btn-ghost" onclick="examSave(-1)">← Câu trước</button>
+        <button class="btn btn-red ml-auto" onclick="if(confirm('Nộp bài?')){examSave(0);finishExam()}">Nộp bài</button>
+      </div></section>`;
+  const prev = EXAM.ans[ex.id];      // restore previous answer
+  if (prev) {
+    if (bid === 'fig') { selPick('b1', prev[0]); selPick('b2', prev[1]); }
+    else if (bid === 'latin') selPick('l', prev);
+    else Object.entries(prev).forEach(([k, v]) => { $('#ans-' + k).value = v; });
+  }
+}
+function examSave(step) {
+  const ex = EXAM.list[EXAM.i]; const a = readAnswer(EXAM.bid, ex);
+  if (a) EXAM.ans[ex.id] = a;
+  if (step) examGo(Math.max(0, Math.min(19, EXAM.i + step)), true);
+}
+function examGo(k, saved) { if (!saved) examSave(0); EXAM.i = k; renderExamQ(); }
+function finishExam() {
+  if (EXAM.over) return; EXAM.over = true; stopTimer();
+  const { bid, list } = EXAM;
+  let score = 0;
+  list.forEach(ex => { const a = EXAM.ans[ex.id]; const ok = !!a && isCorrect(ex, a); if (ok) score++; recordKern(bid, ex, ok); });
+  S.exams.push({ bid, pruef: EXAM.p, score, date: todayStr(), secs: 25 * 60 - Math.max(0, EXAM.t) }); save();
+  addXP(score * 10);
+  score >= 16 ? praise(`${score}/20. Được, lần này tôi cho bạn thở.`) : roast(`${score}/20. Xem lại mấy câu đỏ ngay đi.`);
+  $('#view').innerHTML = `
+    <section class="panel ${score >= 14 ? 'neon' : 'danger'} p-5 text-center">
+      <div class="text-xs mono text-slate-400">KẾT QUẢ · ${esc(KERN[bid].title)} · Prüfung ${EXAM.p}</div>
+      <div class="text-6xl font-bold ${score >= 14 ? 'text-emerald-300' : 'text-red-400'} mt-2">${score}/20</div>
+      <div class="text-sm text-slate-400">thời gian dùng ${fmtMS(25 * 60 - Math.max(0, EXAM.t))}</div>
+    </section>
+    <div class="space-y-2 mt-4">${list.map((ex, k) => { const a = EXAM.ans[ex.id]; const ok = !!a && isCorrect(ex, a);
+      return `<details class="panel p-3"><summary class="cursor-pointer"><b class="${ok ? 'text-emerald-300' : 'text-red-400'}">${ok ? '✓' : '✗'} Câu ${k + 1} (bài ${ex.id})</b> <span class="text-xs text-slate-400">bạn: ${esc(fmtAnswer(bid, a))}</span></summary>
+        <div class="mt-3">${exSheet(ex)}${solutionHTML(ex)}</div></details>`; }).join('')}</div>
+    <div class="flex gap-2 mt-4"><button class="btn btn-neon" onclick="go('kern')">Về Kernmodul</button><button class="btn btn-ghost" onclick="exportKernWrong('${bid}')">⬇ Anki: bài sai quyển này</button></div>`;
+}
+
+/* =====================================================================
+   8. ER SURVIVAL — level n = today's 6 exercises from the books, one clock
+   ===================================================================== */
+const PATIENTS = ['Ông Hùng, chủ quán nhậu', 'Bà Lan, hàng xóm nhiều chuyện', 'Bé Tí, sinh viên năm nhất', 'Ông Bảy, cựu vô địch cờ tướng phường', 'Cô Mai, kế toán ghét số lẻ',
+  'Anh Tuấn, shipper vừa giao 200 đơn', 'Bạn Khoa, game thủ thức trắng', 'Cô Hoa, giáo viên toán về hưu', 'Bà Tư, trùm hụi', 'Bạn Nam, du học sinh tương lai'];
+const ER = { lvl: null, i: 0, time: 0, max: 0, list: [] };
+const isUnlocked = n => n === 1 || S.erCleared.includes(n - 1) || S.erCleared.includes(n);
+const ECG_PATH = (() => { let d = 'M0 30'; for (let k = 0; k < 8; k++) { const x = k * 100; d += ` L${x + 20} 30 L${x + 25} 25 L${x + 30} 30 L${x + 40} 30 L${x + 43} 36 L${x + 47} 4 L${x + 51} 46 L${x + 55} 30 L${x + 70} 30 L${x + 78} 22 L${x + 86} 30 L${x + 100} 30`; } return d; })();
+const ecgSVG = (flat = false) => `<div class="ecg-wrap"><svg class="ecg ${flat ? 'flat' : ''}" viewBox="0 0 800 60" preserveAspectRatio="none"><path d="${flat ? 'M0 30 L800 30' : ECG_PATH}"/></svg></div>`;
+
+function renderER() {
+  const nodes = Array.from({ length: 30 }, (_, i) => {
+    const n = i + 1, done = S.erCleared.includes(n), open = isUnlocked(n);
+    const style = done ? 'background:rgba(0,255,163,.12);border-color:rgba(0,255,163,.5);color:#6ee7b7' : open ? 'background:rgba(0,229,255,.08);border-color:rgba(0,229,255,.6);color:#67e8f9' : 'opacity:.45;color:#64748b';
+    return `<div class="node ${open && !done ? 'pulse-neon' : ''}" style="${style}" onclick="${open ? `startLevel(${n})` : `roast('Level ${n} còn khoá. Cứu bệnh nhân trước đã.')`}">
+      <div class="text-lg">${done ? '✓' : open ? '🩺' : '🔒'}</div><div class="text-xs">LV ${n}</div></div>`;
+  }).join('');
+  $('#view').innerHTML = `
+    <section class="panel danger p-5">
+      <span class="tape" style="background:var(--red);color:#fff">ER SURVIVAL MODE</span>
+      <h2 class="text-2xl font-bold mt-1">Phòng Cấp Cứu Sinh Tử 🚑</h2>
+      <p class="text-sm text-slate-400">Level n = nhiệm vụ ngày n: 6 bài lấy từ 3 quyển của bạn (2 bài/quyển, dễ → khó dần). Chung 1 đồng hồ ${6 * 75}s (= 75s/bài như đề thật). Sai 1 bài hoặc hết giờ → bệnh nhân CHẾT, hiện lời giải của sách.</p>
+      <div class="mono text-sm mt-2"><span class="text-emerald-300">Đã cứu: ${S.erCleared.length}</span> · <span class="text-red-400">Đã giết: ${S.deaths}</span></div>
+      ${ecgSVG()}
+    </section>
+    <div class="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-10 gap-2 mt-4">${nodes}</div>`;
+}
+function startLevel(n) {
+  stopTimer(); if (currentTab !== 'er') { currentTab = 'er'; renderTabs(); }
+  Object.assign(ER, { lvl: n, i: 0, list: dayExercises(n), max: 6 * 75, time: 6 * 75 });
+  ER.patient = PATIENTS[(n - 1) % PATIENTS.length];
+  tutorSay(pick(['Bệnh nhân đây. Đừng giết người ta, tôi lười viết giấy chứng tử.', 'Đồng hồ chạy rồi. Mỗi giây bạn ngập ngừng là một tế bào của bệnh nhân bốc hơi.']));
+  renderERQ();
+  TIMER = setInterval(erTick, 1000);
+}
+function renderERQ() {
+  const { bid, ex } = ER.list[ER.i];
+  $('#view').innerHTML = `
+    <section class="panel danger p-4">
+      <div class="flex items-center justify-between gap-2">
+        <button class="btn btn-ghost text-sm" onclick="go('er')">← Bỏ chạy</button>
+        <div class="mono text-xs sm:text-sm text-slate-400 text-center">LV ${ER.lvl} · ${esc(ER.patient)} · bài ${ER.i + 1}/6</div>
+        <div class="mono text-3xl font-bold text-red-400" id="er-time">${fmtMS(ER.time)}</div>
+      </div>
+      <div class="bar mt-3"><div id="er-bar" style="width:${ER.time / ER.max * 100}%;background:linear-gradient(90deg,#ff1f3d,#ffe14d)"></div></div>
+      <div class="flex items-center gap-3 mt-2 mono text-xs"><span>HR <b id="er-hr" class="text-emerald-300 text-base">--</b></span><span>SpO₂ <b id="er-spo2" class="text-cyan-300 text-base">--</b></span><div class="flex-1">${ecgSVG()}</div></div>
+      <div class="text-xs mono text-pink-400 mt-2">${BOOK_ICON[bid]} ${esc(KERN[bid].title)} · Bài ${ex.id} · ${esc(ex.level || '')}</div>
+      <div class="mt-2">${exSheet(ex)}</div>
+      ${answerWidget(bid, ex)}
+      <button class="btn btn-red mt-4" onclick="erAnswer()">💉 Chốt</button>
+    </section>`;
+  erVitals();
+}
+function erVitals() {
+  const frac = ER.time / ER.max;
+  const hr = $('#er-hr'); if (!hr) return;
+  $('#er-time').textContent = fmtMS(ER.time); $('#er-bar').style.width = (frac * 100) + '%';
+  hr.textContent = Math.round(80 + (1 - frac) * 90 + Math.random() * 6);
+  $('#er-spo2').textContent = Math.round(97 - (1 - frac) * 22 - Math.random() * 2) + '%';
+}
+function erTick() {
+  ER.time--; erVitals();
+  if (ER.time === 30) tutorSay('30 GIÂY! Bệnh nhân đang nhìn thấy ánh sáng cuối đường hầm!', 'panic');
+  if (ER.time <= 0) erDie(null);
+}
+function erAnswer() {
+  const { bid, ex } = ER.list[ER.i]; const a = readAnswer(bid, ex);
+  if (!a) { tutorSay('Chọn/điền đáp án đã! Bệnh nhân không chờ bạn suy nghĩ về cuộc đời.', 'roast'); return; }
+  const ok = isCorrect(ex, a); recordKern(bid, ex, ok);
+  if (!ok) return erDie(a);
+  if (++ER.i < ER.list.length) { praise('Sống thêm được một nhịp. Tiếp!'); renderERQ(); } else erWin();
+}
+function erDie(a) {
+  stopTimer(); S.deaths++; save(); renderStats();
+  const { bid, ex } = ER.list[ER.i];
+  roast(a ? '' : 'Hết giờ. Bệnh nhân chết vì chờ bạn suy nghĩ.');
+  showOverlay(`
+    <div class="max-w-3xl w-full text-center my-8">
+      <div class="died-title">PATIENT DIED</div>
+      <div class="mono text-red-300 text-sm">Giờ tử vong: ${new Date().toLocaleTimeString('vi-VN')} · ${esc(ER.patient)}</div>
+      ${ecgSVG(true)}
+      <div class="panel danger p-4 text-left mt-3">
+        <div class="text-sm"><b class="text-red-400">Nguyên nhân tử vong:</b> ${a ? `sai ${BOOK_ICON[bid]} bài ${ex.id} — bạn chọn ${esc(fmtAnswer(bid, a))}` : 'hết giờ (bác sĩ chần chừ)'}</div>
+        <div class="mt-3">${exSheet(ex)}</div>${solutionHTML(ex)}
+      </div>
+      <div class="flex justify-center gap-2 mt-4">
+        <button class="btn btn-red" onclick="closeOverlay();startLevel(${ER.lvl})">⚡ Sốc điện & thử lại</button>
+        <button class="btn btn-ghost" onclick="closeOverlay();go('er')">Về bản đồ</button>
+      </div>
+    </div>`);
+}
+function erWin() {
+  stopTimer();
+  const first = !S.erCleared.includes(ER.lvl); const gain = first ? 100 + ER.time : 10;
+  if (first) S.erCleared.push(ER.lvl);
+  addXP(gain);
+  praise(ER.lvl === 30 ? 'Bạn qua cả LEVEL 30. Tôi... không có lời nào để roast. Đi thi đi!' : '');
+  showOverlay(`
+    <div class="max-w-2xl w-full text-center">
+      <div class="text-5xl md:text-7xl font-bold text-emerald-300" style="text-shadow:0 0 30px rgba(0,255,163,.7)">PATIENT SAVED</div>
+      <div class="mono text-emerald-200 text-sm mt-1">+${gain} XP · còn ${ER.time}s · ${first ? 'Mở khoá level tiếp theo' : 'Đã cứu ca này trước đó'}</div>
+      ${ecgSVG()}
+      <div class="flex justify-center gap-2 mt-4">
+        ${ER.lvl < 30 ? `<button class="btn btn-neon" onclick="closeOverlay();startLevel(${ER.lvl + 1})">Ca tiếp theo →</button>` : ''}
+        <button class="btn btn-ghost" onclick="closeOverlay();go('er')">Về bản đồ</button>
+      </div>
+    </div>`);
+}
+
+/* =====================================================================
+   9. FACHMODUL — lessons ONLY from material the user supplies.
+   Each lesson = (1) "bựa" lecture in Vietnamese, (2) TestAS-style German
+   text + questions, (3) Anki export.
+   ===================================================================== */
+const DEFAULT_MODELS = { openai: 'gpt-4o-mini', gemini: 'gemini-2.5-flash', anthropic: 'claude-sonnet-5-5' };
+const LEC = { files: [], busy: false };
+const LOADING_STEPS = ['Đang tiêm caffein vào GPU...', 'Đang đọc tài liệu của bạn (chỉ tài liệu của bạn thôi)...', 'Đang dịch tiếng Đức sang tiếng Việt sang tiếng... bựa...',
+  'Đang nghĩ mẹo nhớ xàm nhất vũ trụ...', 'Đang soạn câu hỏi kiểu TestAS bằng tiếng Đức...', 'Đang kiểm tra lại kiến thức (phần này nghiêm túc thật)...'];
+
+function renderFach() {
+  const d = dayNumber();
+  const days = Array.from({ length: 30 }, (_, i) => i + 1);
+  $('#view').innerHTML = `
+    <section class="panel p-5" style="border-color:rgba(255,46,136,.45)">
+      <span class="tape" style="background:var(--pink);color:#fff">FACHMODUL MEDIZIN</span>
+      <h2 class="text-2xl font-bold mt-1">Bài Fachmodul theo ngày 🩺</h2>
+      <p class="text-sm text-slate-400">App KHÔNG tự bịa bài. Mỗi bài được soạn từ tài liệu bạn đưa, gồm 3 phần: 🤪 giảng bài bựa (tiếng Việt) · 📝 Fachtext + câu hỏi kiểu TestAS (tiếng Đức, 4 lựa chọn, giải thích tiếng Việt) · ⬇ file Anki.</p>
+      <div class="flex flex-wrap gap-2 mt-3">
+        <button class="btn btn-pink" onclick="openFachCreate(${d})">➕ Tạo bài ngày ${d} bằng API key</button>
+        <label class="btn btn-ghost">⬆ Nhập bài (.json từ Claude)<input type="file" accept="application/json,.json" class="hidden" onchange="importFach(this.files[0])"></label>
+      </div>
+    </section>
+    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 mt-4">${days.map(n => { const ls = fachOfDay(n);
+      return `<div class="panel p-3 ${n === d ? 'pulse-neon' : ''}" style="${ls.length ? 'border-color:rgba(255,46,136,.5)' : ''}">
+        <div class="text-xs mono text-slate-400">NGÀY ${n}</div>
+        ${ls.length ? ls.map(l => { const q = l.quiz; return `<button class="text-left text-sm font-semibold text-pink-200 hover:text-white mt-1 block" onclick="openFach('${l.id}')">${esc(l.title)}${q ? ` <span class="text-xs text-slate-400">(${q.score}/${q.total})</span>` : ''}</button>`; }).join('')
+          : `<button class="text-xs text-slate-500 hover:text-cyan-300 mt-1" onclick="openFachCreate(${n})">+ chưa có bài</button>`}
+      </div>`; }).join('')}</div>`;
+}
+
+function openFachCreate(day) {
+  stopTimer(); if (currentTab !== 'fach') { currentTab = 'fach'; renderTabs(); }
+  const hasKey = !!S.settings.apiKey;
+  $('#view').innerHTML = `
+    <div class="mb-3"><button class="btn btn-ghost text-sm" onclick="go('fach')">← Fachmodul</button></div>
+    <section class="panel p-5" style="border-color:rgba(255,46,136,.45)">
+      <span class="tape" style="background:var(--pink);color:#fff">SOẠN BÀI TỪ TÀI LIỆU CỦA BẠN</span>
+      <div class="grid sm:grid-cols-3 gap-3 mt-2">
+        <label class="text-xs text-slate-400">Ngày<select id="fc-day">${Array.from({ length: 30 }, (_, i) => `<option ${i + 1 === day ? 'selected' : ''}>${i + 1}</option>`).join('')}</select></label>
+        <label class="text-xs text-slate-400 sm:col-span-2">Độ bựa: <b id="bua-val" class="text-pink-300">8</b>/10<input type="range" id="bua" min="1" max="10" value="8" style="padding:0" oninput="$('#bua-val').textContent=this.value"></label>
+      </div>
+      <div class="mt-3 text-xs ${hasKey ? 'text-emerald-300' : 'text-yellow-300'}">${hasKey ? `● Đang dùng: ${esc(S.settings.provider)} / ${esc(S.settings.model || DEFAULT_MODELS[S.settings.provider])}`
+        : '● Chưa có API key → app không soạn được (và sẽ KHÔNG bịa bài mẫu). Nhập key ở ⚙️ Cài đặt, hoặc gửi tài liệu cho Claude trong chat rồi nhập file .json.'}</div>
+      <textarea id="lec-text" rows="8" class="mt-3" placeholder="Dán nội dung bài (Amboss, sách Medizin, ghi chú...)."></textarea>
+      <label class="block mt-3 panel p-4 text-center cursor-pointer" style="border-style:dashed">
+        <input type="file" id="lec-files" class="hidden" multiple accept="image/*,application/pdf,.txt,.md" onchange="addLecFiles(this.files)">
+        📎 <b>Upload ảnh / PDF / .txt</b><div class="text-xs text-slate-500">Mỗi lần 1 bài (PDF dài quá ~100 trang API sẽ từ chối). ≤ 15MB/file.</div>
+      </label>
+      <div id="lec-filelist" class="mt-2 space-y-1"></div>
+      <button id="lec-go" class="btn btn-pink w-full mt-4 text-lg" ${hasKey ? '' : 'disabled'} onclick="generateFach()">🧠💥 SOẠN BÀI (giảng + câu hỏi TestAS + Anki)</button>
+    </section>
+    <div id="lec-out" class="mt-4"></div>`;
+  renderFileList();
+}
+function addLecFiles(list) {
+  [...list].forEach(f => {
+    if (f.size > 15 * 1024 * 1024) { roast(`File "${f.name}" to quá (>15MB). Cắt nhỏ ra từng bài đi.`); return; }
+    const kind = f.type.startsWith('image/') ? 'image' : f.type === 'application/pdf' ? 'pdf' : 'text';
+    const rd = new FileReader();
+    rd.onload = () => {
+      const entry = { name: f.name, mime: f.type || 'text/plain', kind };
+      if (kind === 'text') entry.text = rd.result; else { entry.dataUrl = rd.result; entry.b64 = rd.result.split(',')[1]; }
+      LEC.files.push(entry); renderFileList();
+    };
+    kind === 'text' ? rd.readAsText(f) : rd.readAsDataURL(f);
+  });
+  $('#lec-files').value = '';
+}
+function renderFileList() {
+  const el = $('#lec-filelist'); if (!el) return;
+  el.innerHTML = LEC.files.map((f, i) => `<div class="flex items-center justify-between text-sm panel px-3 py-1.5">
+    <span>${f.kind === 'image' ? '🖼️' : f.kind === 'pdf' ? '📄' : '📝'} ${esc(f.name)}</span>
+    <button class="text-red-400 text-xs" onclick="LEC.files.splice(${i},1);renderFileList()">xoá</button></div>`).join('');
+}
+
+function buildSystemPrompt(level) {
+  return `Bạn là "BS. Mỏ Hỗn" — gia sư luyện thi TestAS Fachmodul Medizin cực kỳ bựa, mỏ hỗn, nhưng kiến thức phải CHÍNH XÁC.
+NGƯỜI HỌC: người Việt, tiếng Đức còn yếu.
+QUY TẮC NỘI DUNG: Chỉ dùng kiến thức có trong tài liệu người dùng cung cấp. KHÔNG thêm chủ đề/sự kiện ngoài tài liệu. Nếu tài liệu mơ hồ, ghi "(tài liệu không nói rõ)".
+Tạo 3 phần:
+(1) GIẢNG BÀI BỰA bằng TIẾNG VIỆT. Thuật ngữ tiếng Đức/Latin giữ nguyên kèm nghĩa tiếng Việt trong ngoặc. Đùa bằng tiếng Đức thì phải giải thích nghĩa tiếng Việt. Mỗi khái niệm chính có 1 mẹo nhớ (Eselsbrücke) cực kỳ xàm xí, liên tưởng kỳ quặc, chơi chữ tiếng Việt, dark humor nhẹ (không xúc phạm nhóm người thật). Độ bựa: ${level}/10.
+(2) CÂU HỎI KIỂU TESTAS bằng TIẾNG ĐỨC, đúng format Fachmodul Medizin bản digital: một Fachtext tiếng Đức (300–500 từ, văn phong sách giáo khoa tiền lâm sàng: Physiologie/Anatomie/Biochemie) viết lại từ nội dung tài liệu; 6 câu hỏi trắc nghiệm, mỗi câu 4 lựa chọn (A)–(D), chỉ 1 đáp án đúng, MỌI câu đều trả lời được chỉ bằng Fachtext (không cần kiến thức ngoài). Trộn các dạng: "Welche Aussage ist richtig?", "Welche Aussage ist falsch?", "Welche Aussage lässt sich aus dem Text ableiten?", sắp xếp trình tự/Regelkreis, suy luận khi một yếu tố thay đổi, đọc số liệu nếu tài liệu có. Đáp án đúng phân bố ngẫu nhiên A–D. Giải thích bằng tiếng Việt, trích cụm tiếng Đức then chốt trong Fachtext.
+(3) ANKI: 8–15 flashcard (front ngắn, back = đáp án + mẹo bựa) và 10–25 từ vựng tiếng Đức quan trọng của Fachtext (kèm der/die/das) với nghĩa tiếng Việt.
+ĐỊNH DẠNG: Trả về DUY NHẤT một object JSON hợp lệ (không markdown, không \`\`\`):
+{"title":"tiêu đề ngắn tiếng Việt","lecture":{"intro":"câu mở đầu mỏ hỗn","sections":[{"heading":"...","explanation":"...","mnemonic":"..."}],"outro":"câu chốt cà khịa"},"testas":{"title_de":"Text: ...","text_de":"đoạn 1\\n\\nđoạn 2...","questions":[{"q":"câu hỏi tiếng Đức","options":["A","B","C","D"],"answer":0,"explain_vi":"..."}]},"vocab":[{"de":"die Hypophyse","vi":"tuyến yên"}],"cards":[{"front":"...","back":"..."}]}`;
+}
+
+async function callAI(text, files, level) {
+  const { provider, apiKey } = S.settings;
+  const model = S.settings.model || DEFAULT_MODELS[provider];
+  const sys = buildSystemPrompt(level);
+  const extraText = files.filter(f => f.kind === 'text').map(f => `\n--- FILE ${f.name} ---\n${f.text}`).join('');
+  const user = `TÀI LIỆU CỦA NGƯỜI HỌC:\n${text || '(xem file đính kèm)'}${extraText}`;
+  const bin = files.filter(f => f.kind !== 'text');
+  let r, j;
+  if (provider === 'openai') {
+    const content = [{ type: 'text', text: user }];
+    bin.forEach(f => content.push(f.kind === 'image' ? { type: 'image_url', image_url: { url: f.dataUrl } } : { type: 'file', file: { filename: f.name, file_data: f.dataUrl } }));
+    r = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+      body: JSON.stringify({ model, messages: [{ role: 'system', content: sys }, { role: 'user', content }], response_format: { type: 'json_object' } })
+    });
+    j = await r.json(); if (!r.ok) throw new Error(j.error?.message || 'HTTP ' + r.status);
+    return j.choices[0].message.content;
+  }
+  if (provider === 'gemini') {
+    const parts = [{ text: user }, ...bin.map(f => ({ inline_data: { mime_type: f.mime, data: f.b64 } }))];
+    r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ system_instruction: { parts: [{ text: sys }] }, contents: [{ role: 'user', parts }], generationConfig: { responseMimeType: 'application/json' } })
+    });
+    j = await r.json(); if (!r.ok) throw new Error(j.error?.message || 'HTTP ' + r.status);
+    return (j.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('');
+  }
+  if (provider === 'anthropic') {
+    const content = [...bin.map(f => f.kind === 'image' ? { type: 'image', source: { type: 'base64', media_type: f.mime, data: f.b64 } }
+      : { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: f.b64 } }), { type: 'text', text: user }];
+    r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+      body: JSON.stringify({ model, max_tokens: 12000, system: sys, messages: [{ role: 'user', content }] })
+    });
+    j = await r.json(); if (!r.ok) throw new Error(j.error?.message || 'HTTP ' + r.status);
+    return j.content.filter(b => b.type === 'text').map(b => b.text).join('');
+  }
+  throw new Error('Provider không hợp lệ');
+}
+
+// normalise a lesson object (from the API or an imported .json) and validate it
+function normalizeLesson(o, day) {
+  const s = v => String(v ?? '');
+  const L = {
+    id: s(o.id) || uid(), day: +(o.day || day || dayNumber()), title: s(o.title) || 'Bài Fachmodul', createdAt: o.createdAt || new Date().toISOString(),
+    source: s(o.source) || 'import', sourceFiles: o.sourceFiles || [],
+    lecture: { intro: s(o.lecture?.intro), outro: s(o.lecture?.outro), sections: (o.lecture?.sections || []).map(x => ({ heading: s(x.heading), explanation: s(x.explanation), mnemonic: s(x.mnemonic) })) },
+    testas: { title_de: s(o.testas?.title_de), text_de: s(o.testas?.text_de),
+      questions: (o.testas?.questions || []).map(q => ({ q: s(q.q), options: (q.options || []).map(s).slice(0, 4), answer: +q.answer, explain_vi: s(q.explain_vi) }))
+        .filter(q => q.q && q.options.length === 4 && q.answer >= 0 && q.answer < 4) },
+    vocab: (o.vocab || []).map(v => ({ de: s(v.de), vi: s(v.vi) })).filter(v => v.de && v.vi),
+    cards: (o.cards || []).map(c => ({ front: s(c.front), back: s(c.back) })).filter(c => c.front && c.back),
+    quiz: o.quiz || null
+  };
+  if (!L.lecture.sections.length && !L.testas.questions.length) throw new Error('File không có nội dung bài (lecture/testas trống).');
+  return L;
+}
+function parseAI(raw) {
+  const t = raw.replace(/```(json)?/gi, '');
+  return JSON.parse(t.slice(t.indexOf('{'), t.lastIndexOf('}') + 1));
+}
+async function generateFach() {
+  if (LEC.busy) return;
+  const text = $('#lec-text').value.trim(); const level = +$('#bua').value; const day = +$('#fc-day').value;
+  if (!text && !LEC.files.length) { roast('Không có tài liệu thì tôi không soạn. Tôi không bịa bài nữa đâu.'); return; }
+  LEC.busy = true; const btn = $('#lec-go'); btn.disabled = true;
+  const out = $('#lec-out'); let step = 0;
+  out.innerHTML = `<div class="panel p-6 text-center"><div class="text-5xl heartbeat">🧠</div><div id="lec-step" class="mono text-cyan-300 mt-3">${LOADING_STEPS[0]}</div></div>`;
+  const iv = setInterval(() => { const el = $('#lec-step'); if (el) el.textContent = LOADING_STEPS[++step % LOADING_STEPS.length]; }, 1500);
+  try {
+    const raw = await callAI(text, LEC.files, level);
+    const L = normalizeLesson(Object.assign(parseAI(raw), { source: S.settings.provider, sourceFiles: LEC.files.map(f => f.name) }), day);
+    S.fach.push(L); save(); renderStats(); addXP(30);
+    LEC.files = [];
+    tutorSay('Soạn xong và đã lưu. Giờ làm phần câu hỏi tiếng Đức đi, đừng chỉ đọc phần bựa.', 'praise');
+    openFach(L.id);
+  } catch (e) {
+    out.innerHTML = `<div class="panel danger p-5"><b class="text-red-400">Lỗi:</b> <span class="mono text-sm">${esc(e.message)}</span>
+      <div class="text-sm text-slate-400 mt-2">Kiểm tra API key / tên model ở ⚙️ Cài đặt, hoặc tài liệu quá dài (chia nhỏ ra).</div></div>`;
+    roast('API từ chối bạn. Đến máy chủ cũng không muốn nói chuyện với bạn.');
+  } finally { clearInterval(iv); LEC.busy = false; if (btn) btn.disabled = false; }
+}
+function importFach(file) {
+  if (!file) return; const rd = new FileReader();
+  rd.onload = () => {
+    try {
+      const d = JSON.parse(rd.result); const arr = Array.isArray(d) ? d : d.lessons || [d];
+      let n = 0;
+      arr.forEach(o => { const L = normalizeLesson(o); S.fach = S.fach.filter(x => x.id !== L.id); S.fach.push(L); n++; });
+      save(); renderStats(); praise(`Đã nhập ${n} bài Fachmodul.`); go('fach');
+    } catch (e) { roast('File hỏng hoặc sai định dạng: ' + e.message); }
+  };
+  rd.readAsText(file);
+}
+
+// --- lesson view: lecture / TestAS quiz / Anki
+let FV = null;
+function openFach(id, part = 'lecture') {
+  stopTimer(); if (currentTab !== 'fach') { currentTab = 'fach'; renderTabs(); }
+  const L = S.fach.find(l => l.id === id); if (!L) return go('fach');
+  FV = { id, part };
+  const tab = (p, label) => `<button class="tab ${part === p ? 'active' : ''}" onclick="openFach('${id}','${p}')">${label}</button>`;
+  $('#view').innerHTML = `
+    <div class="flex flex-wrap items-center justify-between gap-2 mb-3"><button class="btn btn-ghost text-sm" onclick="go('fach')">← Fachmodul</button>
+      <div class="text-xs mono text-slate-400">NGÀY ${L.day} · ${new Date(L.createdAt).toLocaleDateString('vi-VN')} · nguồn: ${esc(L.source)}${L.sourceFiles?.length ? ' · 📎 ' + esc(L.sourceFiles.join(', ')) : ''}</div></div>
+    <h2 class="text-2xl font-bold text-pink-300">${esc(L.title)}</h2>
+    <nav class="flex gap-1 overflow-x-auto mt-3 p-1 panel">${tab('lecture', '🤪 Giảng bài bựa')}${tab('quiz', `📝 Câu hỏi TestAS (${L.testas.questions.length})`)}${tab('vocab', `🇩🇪 Từ vựng (${L.vocab.length})`)}${tab('anki', '⬇ Anki')}</nav>
+    <div id="fach-body" class="mt-4"></div>`;
+  ({ lecture: fachLecture, quiz: fachQuiz, vocab: fachVocab, anki: fachAnki })[part](L);
+}
+function fachLecture(L) {
+  const lec = L.lecture;
+  $('#fach-body').innerHTML = `<article class="panel neon p-5 lecture-body fade-in">
+    ${lec.intro ? `<p class="text-slate-300 italic">${md(lec.intro)}</p>` : ''}
+    ${lec.sections.map(s => `<h3>▸ ${esc(s.heading)}</h3><p class="text-slate-200 mt-1">${md(s.explanation)}</p>${s.mnemonic ? `<div class="mnemo"><b class="text-pink-300">🤪 Mẹo bựa:</b> ${md(s.mnemonic)}</div>` : ''}`).join('')}
+    ${L.cards.length ? `<h3>🃏 Flashcards (${L.cards.length})</h3><div class="grid sm:grid-cols-2 gap-2 mt-2">${L.cards.map(c => `
+      <details class="panel p-3"><summary class="font-semibold cursor-pointer">${esc(c.front)}</summary><div class="text-sm text-emerald-200 mt-2">${md(c.back)}</div></details>`).join('')}</div>` : ''}
+    ${lec.outro ? `<p class="mt-4 text-yellow-200">💀 ${md(lec.outro)}</p>` : ''}
+    <div class="mt-5"><button class="btn btn-pink" onclick="openFach('${L.id}','quiz')">Xong → làm câu hỏi TestAS (tiếng Đức) 📝</button></div>
+  </article>`;
+}
+let FQ = null;
+function fachQuiz(L) {
+  const qs = L.testas.questions;
+  if (!qs.length) { $('#fach-body').innerHTML = '<div class="panel p-5 text-slate-400">Bài này chưa có câu hỏi TestAS.</div>'; return; }
+  FQ = { id: L.id, sel: {}, t: qs.length * 95, done: false };   // ~1 min 35 s per question, like the real module
+  $('#fach-body').innerHTML = `
+    <div class="flex items-center justify-between mb-2"><div class="text-sm text-slate-400">Đọc Fachtext rồi trả lời. Chỉ dùng thông tin trong text. ~1:35/câu.</div>
+      <div id="fq-time" class="mono text-2xl font-bold text-cyan-300">${fmtMS(FQ.t)}</div></div>
+    <div class="grid lg:grid-cols-2 gap-4">
+      <article class="panel p-5 detext lg:max-h-[75vh] lg:overflow-auto"><h3 class="text-lg font-bold text-cyan-300">${esc(L.testas.title_de)}</h3>
+        ${L.testas.text_de.split(/\n\s*\n/).map(p => `<p>${md(p)}</p>`).join('')}</article>
+      <div class="space-y-4" id="fq-list">${qs.map((q, i) => `
+        <div class="panel p-4"><div class="font-semibold">${i + 1}. ${esc(q.q)}</div>
+          <div class="space-y-2 mt-3">${q.options.map((o, k) => `<button class="opt" id="fq-${i}-${k}" onclick="fqPick(${i},${k})"><span class="k">(${'ABCD'[k]})</span>${esc(o)}</button>`).join('')}</div>
+          <div id="fq-exp-${i}"></div></div>`).join('')}
+        <button class="btn btn-neon w-full" id="fq-submit" onclick="fqSubmit()">Nộp bài</button>
+      </div>
+    </div>`;
+  TIMER = setInterval(() => {
+    FQ.t--; const el = $('#fq-time'); if (!el) return stopTimer();
+    el.textContent = fmtMS(FQ.t); if (FQ.t <= 60) el.classList.add('text-red-400');
+    if (FQ.t <= 0) { tutorSay('Hết giờ! Nộp bài tự động.', 'panic'); fqSubmit(); }
+  }, 1000);
+}
+function fqPick(i, k) {
+  if (FQ.done) return; FQ.sel[i] = k;
+  for (let x = 0; x < 4; x++) $(`#fq-${i}-${x}`).classList.toggle('on', x === k);
+}
+function fqSubmit() {
+  if (FQ.done) return; FQ.done = true; stopTimer();
+  const L = S.fach.find(l => l.id === FQ.id); const qs = L.testas.questions; let score = 0;
+  qs.forEach((q, i) => {
+    const ok = FQ.sel[i] === q.answer; if (ok) score++;
+    for (let k = 0; k < 4; k++) { const b = $(`#fq-${i}-${k}`); b.classList.remove('on'); if (k === q.answer) b.classList.add('good'); else if (k === FQ.sel[i]) b.classList.add('bad'); }
+    $(`#fq-exp-${i}`).innerHTML = `<div class="sol mt-3"><b class="${ok ? 'text-emerald-300' : 'text-red-400'}">${ok ? '✓' : '✗'} Đáp án (${'ABCD'[q.answer]})</b><div class="mt-1">${md(q.explain_vi)}</div></div>`;
+  });
+  L.quiz = { score, total: qs.length, date: todayStr() }; save(); addXP(score * 15);
+  $('#fq-submit').outerHTML = `<div class="panel ${score / qs.length >= .7 ? 'neon' : 'danger'} p-4 text-center"><div class="text-4xl font-bold">${score}/${qs.length}</div>
+    <div class="flex justify-center gap-2 mt-3"><button class="btn btn-ghost" onclick="openFach('${L.id}','quiz')">Làm lại</button><button class="btn btn-neon" onclick="openFach('${L.id}','anki')">⬇ Xuất Anki</button></div></div>`;
+  score / qs.length >= .7 ? praise(`${score}/${qs.length}. Đọc tiếng Đức cũng không tệ. Đừng tự mãn.`) : roast(`${score}/${qs.length}. Mở mục 🇩🇪 Từ vựng ra học đi rồi đọc lại Fachtext.`);
+}
+function fachVocab(L) {
+  $('#fach-body').innerHTML = L.vocab.length ? `<div class="panel p-4"><table class="w-full text-sm"><tbody>${L.vocab.map(v =>
+    `<tr class="border-b border-slate-800"><td class="py-2 pr-3 font-semibold text-cyan-200">${esc(v.de)}</td><td class="py-2 text-slate-300">${esc(v.vi)}</td></tr>`).join('')}</tbody></table></div>`
+    : '<div class="panel p-5 text-slate-400">Bài này chưa có danh sách từ vựng.</div>';
+}
+function fachAnki(L) {
+  const n = lessonRows(L).length;
+  $('#fach-body').innerHTML = `<div class="panel neon p-5">
+    <div class="font-bold text-lg">⬇ Xuất Anki (${n} thẻ)</div>
+    <p class="text-sm text-slate-400 mt-1">Gồm: flashcard của bài giảng · mỗi mục giảng (khái niệm → giải thích + mẹo bựa) · từ vựng Đức → Việt · câu hỏi TestAS (câu hỏi + 4 lựa chọn → đáp án + giải thích).</p>
+    <p class="text-sm text-slate-400 mt-1">Trong Anki: File → Import → chọn file .csv (cột 1 = Front, cột 2 = Back).</p>
+    <button class="btn btn-neon mt-3" onclick="exportFach('${L.id}')">⬇ Tải file .csv</button>
+    <button class="btn btn-ghost mt-3" onclick="exportLessonJSON('${L.id}')">⬇ Tải bài (.json) để chép sang máy khác</button></div>`;
+}
+
+/* =====================================================================
+   10. ANKI CSV EXPORT (Blob + URL.createObjectURL)
+   ===================================================================== */
+// Anki text import: header lines (#separator/#html/#columns) + one note per row,
+// fields CSV-quoted, HTML allowed (newline -> <br>), UTF-8.
+const ankiEsc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const ankiField = s => '"' + ankiEsc(s).replace(/\r?\n/g, '<br>').replace(/"/g, '""') + '"';
+function lessonRows(L) {
+  const rows = L.cards.map(c => [c.front, c.back]);
+  L.lecture.sections.forEach(s => { if (s.heading) rows.push([s.heading, `${s.explanation}${s.mnemonic ? '\n\n🤪 Mẹo bựa: ' + s.mnemonic : ''}`]); });
+  L.vocab.forEach(v => rows.push([v.de, v.vi]));
+  L.testas.questions.forEach(q => rows.push([`${q.q}\n${q.options.map((o, k) => `(${'ABCD'[k]}) ${o}`).join('\n')}`, `(${'ABCD'[q.answer]}) ${q.options[q.answer]}\n\n${q.explain_vi}`]));
+  return rows;
+}
+function downloadBlob(content, type, filename) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+function downloadCSV(rows, filename) {
+  const header = '#separator:Comma\n#html:true\n#columns:Front,Back\n';
+  downloadBlob(header + rows.map(([f, b]) => ankiField(f) + ',' + ankiField(b)).join('\n') + '\n', 'text/csv;charset=utf-8', filename);
+}
+const slug = s => stripVN(s).replace(/ /g, '-').slice(0, 50) || 'bai';
+function exportFach(id) {
+  const L = S.fach.find(l => l.id === id); const rows = lessonRows(L);
+  if (!rows.length) { roast('Bài này không có gì để xuất.'); return; }
+  downloadCSV(rows, `anki-fach-ngay${L.day}-${slug(L.title)}.csv`);
+  tutorSay(`Đã xuất ${rows.length} thẻ. Ôn đi chứ đừng sưu tầm thẻ như sưu tầm crush.`, 'praise');
+}
+function exportLessonJSON(id) {
+  const L = S.fach.find(l => l.id === id);
+  downloadBlob(JSON.stringify(L, null, 2), 'application/json', `fach-ngay${L.day}-${slug(L.title)}.json`);
+}
+function exportAllFach() {
+  const rows = S.fach.flatMap(lessonRows);
+  if (!rows.length) { roast('Chưa có bài Fach nào. Xuất cái gì? Xuất sự lười biếng à?'); return; }
+  downloadCSV(rows, `anki-fach-tat-ca-${todayStr()}.csv`);
+}
+// Kern: exercises whose last attempt was wrong → card with the book's equations/solution
+function exportKernWrong(bid) {
+  const ids = bid ? [bid] : BOOK_IDS;
+  const rows = ids.flatMap(b => KERN[b].ex.filter(e => S.kern[b][e.id] && !S.kern[b][e.id].ok).map(e =>
+    [`${KERN[b].title} · Bài ${e.id} (${e.level || ''})${b === 'math' ? '\n' + (e.solution.match(/^\(\d\).*$/gm) || []).join('\n') : '\n(xem đề trong sách / app)'}`, `${e.answerLine}\n\n${e.solution}`]));
+  if (!rows.length) { tutorSay('Chưa có bài nào đang sai. Hoặc bạn giỏi, hoặc bạn chưa làm. Tôi đoán là vế sau.', 'roast'); return; }
+  downloadCSV(rows, `anki-kern-bai-sai-${bid || 'tat-ca'}-${todayStr()}.csv`);
+  tutorSay(`Xuất ${rows.length} bài sai. Ôn lại đến khi thuộc lời giải thì thôi.`, 'praise');
+}
+
+/* =====================================================================
+   11. DATING SIM — flirt using German vocab from YOUR Fach lessons
+   ===================================================================== */
+const ORGANS = [
+  { id: 'heart', name: 'Miss Heart', de: 'das Herz', emoji: '❤️', color: '#ff2e63', bio: 'Tiếng Đức gọi cô là "das" (giống trung), nên cô đang khủng hoảng danh tính. Dễ xúc động, dễ loạn nhịp.' },
+  { id: 'liver', name: 'Mr. Liver', de: 'die Leber', emoji: '🍺', color: '#c2410c', bio: 'Tiếng Đức gọi anh là "die" (giống cái). Anh không phản đối, anh bận giải độc cho cuộc đời bạn.' },
+  { id: 'lung', name: 'Lady Lung', de: 'die Lunge', emoji: '🫁', color: '#38bdf8', bio: 'Hít vào thở ra cả ngày mà chưa than một câu. Ghét khói thuốc và người nói chuyện không có trọng tâm.' },
+  { id: 'kidney', name: 'Sir Kidney', de: 'die Niere', emoji: '🫘', color: '#a855f7', bio: 'Song sinh hình hạt đậu, khó tính, lọc người yêu kỹ hơn lọc máu.' },
+  { id: 'brain', name: 'Brain-sama', de: 'das Gehirn', emoji: '🧠', color: '#f472b6', bio: 'Kiêu ngạo, thích người biết từ vựng. Cực kỳ khó tán.' },
+  { id: 'pancreas', name: 'Pancreas-kun', de: 'die Bauchspeicheldrüse', emoji: '🍬', color: '#facc15', bio: 'Tên tiếng Đức ghép từ Bauch (bụng) + Speichel (nước bọt) + Drüse (tuyến). Cậu ấy ghét cái tên này. Tsundere.' }
+];
+const DATE_WIN = ['Ôi... tim em vừa lỡ một nhịp 😳', 'Anh/em nói tiếng Đức nghe sexy ghê.', 'Câu đó làm em đỏ mặt (tăng tưới máu da).', 'Hmm. Đáng ghét. Nhưng đúng.'];
+const DATE_LOSE = ['Ew. Em vừa bị ngoại tâm thu vì câu đó.', 'Câu đó làm em muốn đi chạy thận.', 'Thôi, mình làm bạn thôi nhé.', 'Ngươi gây chấn động não cho ta.'];
+const DATE = { organ: null, round: 0, love: 30, qs: [], answered: false };
+const vocabPool = () => S.fach.flatMap(l => l.vocab);
+function renderDating() {
+  const pool = vocabPool();
+  $('#view').innerHTML = `
+    <section class="panel p-5" style="border-color:rgba(255,46,136,.45)">
+      <span class="tape" style="background:var(--pink);color:#fff">ANATOMY DATING SIM</span>
+      <h2 class="text-2xl font-bold mt-1">Tán Tỉnh Nội Tạng 💘</h2>
+      <p class="text-sm text-slate-400">Nội tạng chỉ rung động khi bạn hiểu đúng từ vựng tiếng Đức. Câu hỏi lấy từ danh sách từ vựng trong các bài Fachmodul bạn đã nạp (${pool.length} từ).</p>
+    </section>
+    ${pool.length < 4 ? `<div class="panel danger p-5 mt-4 text-sm">🔒 Cần ít nhất 4 từ vựng từ bài Fachmodul. Nạp bài Fach đầu tiên rồi quay lại tán tỉnh nhé. <button class="btn btn-pink ml-2" onclick="go('fach')">🩺 Fachmodul</button></div>` : ''}
+    <div class="grid sm:grid-cols-2 md:grid-cols-3 gap-4 mt-4">${ORGANS.map(o => { const r = S.dating[o.id]; return `
+      <div class="panel p-5 cursor-pointer" style="border-color:${o.color}55" onclick="startDate('${o.id}')">
+        <div class="text-5xl">${o.emoji}</div><div class="text-xl font-bold mt-2" style="color:${o.color}">${o.name}</div>
+        <div class="text-xs mono text-slate-400">${esc(o.de)}</div><p class="text-sm text-slate-300 mt-2">${esc(o.bio)}</p>
+        <div class="text-xs mt-3 ${r && r.married ? 'text-emerald-300' : 'text-slate-500'}">${r ? (r.married ? '💍 Đã cưới · ' : '💔 Từng bị block · ') + 'Kỷ lục ' + r.best + '%' : 'Chưa hẹn hò'}</div></div>`; }).join('')}</div>`;
+}
+function startDate(id) {
+  const pool = vocabPool();
+  if (pool.length < 4) { roast('Chưa có đủ từ vựng. Nội tạng không hẹn hò với người mù chữ tiếng Đức.'); return; }
+  const qs = shuffle(pool).slice(0, Math.min(5, pool.length)).map(v => {
+    const dir = Math.random() < .5;   // de→vi or vi→de
+    const wrong = shuffle(pool.filter(x => x.de !== v.de)).slice(0, 2);
+    return { prompt: dir ? `“${v.de}” nghĩa là gì?` : `Nói “${v.vi}” bằng tiếng Đức đi?`, opts: shuffle([v, ...wrong].map(x => ({ t: dir ? x.vi : x.de, ok: x === v }))), v };
+  });
+  Object.assign(DATE, { organ: ORGANS.find(x => x.id === id), round: 0, love: 30, qs, answered: false });
+  renderDateScene('Chào cưng... Nói chuyện bằng tiếng Đức với em đi 💓', '');
+}
+function renderDateScene(line, mood) {
+  const o = DATE.organ; const done = DATE.round >= DATE.qs.length; const q = DATE.qs[DATE.round];
+  $('#view').innerHTML = `
+    <section class="panel p-5" style="border-color:${o.color}88;box-shadow:0 0 40px ${o.color}22 inset">
+      <div class="flex items-center justify-between"><button class="btn btn-ghost text-sm" onclick="go('dating')">← Bỏ về (ghost)</button>
+        <div class="text-xs mono text-slate-400">Câu ${Math.min(DATE.round + 1, DATE.qs.length)}/${DATE.qs.length}</div></div>
+      <div class="flex flex-col md:flex-row gap-6 items-center mt-4">
+        <div class="text-center"><div class="text-8xl ${mood === 'win' ? 'heartbeat' : mood === 'lose' ? 'shake' : ''}">${o.emoji}</div>
+          <div class="font-bold text-xl mt-2" style="color:${o.color}">${o.name}</div><div class="text-xs mono text-slate-400">${esc(o.de)}</div></div>
+        <div class="flex-1 w-full">
+          <div class="text-xs text-slate-400 mb-1">Độ rung động 💗 ${DATE.love}%</div>
+          <div class="bar"><div style="width:${DATE.love}%;background:linear-gradient(90deg,${o.color},#fff)"></div></div>
+          <div class="bubble mt-4" style="border-color:${o.color}88">${esc(line)}</div>
+          ${done ? '' : `<div class="mt-4 text-sm"><b style="color:${o.color}">${o.name}:</b> ${esc(q.prompt)}</div>
+          <div class="space-y-2 mt-3">${q.opts.map((x, i) => `<button class="opt ${DATE.answered ? (x.ok ? 'good' : '') : ''}" ${DATE.answered ? 'disabled' : ''} onclick="dateAnswer(${i})"><span class="k">${'ABC'[i]}</span>${esc(x.t)}</button>`).join('')}</div>`}
+          <div id="date-next" class="mt-4"></div>
+        </div></div></section>`;
+  if (done) dateEnd();
+}
+function dateAnswer(i) {
+  if (DATE.answered) return;
+  const q = DATE.qs[DATE.round]; const ok = q.opts[i].ok;
+  DATE.love = Math.max(0, Math.min(100, DATE.love + (ok ? 15 : -15))); DATE.answered = true;
+  ok ? praise('Flirt bằng từ vựng thì được. Ngoài đời chắc bạn vẫn ế.') : roast(`Đến nội tạng cũng không thèm bạn. ${q.v.de} = ${q.v.vi}.`);
+  renderDateScene(`${ok ? pick(DATE_WIN) : pick(DATE_LOSE)}  (${q.v.de} = ${q.v.vi})`, ok ? 'win' : 'lose');
+  $('#date-next').innerHTML = `<button class="btn btn-pink" onclick="DATE.round++;DATE.answered=false;renderDateScene('…nói tiếp đi 😳','')">Tiếp →</button>`;
+}
+function dateEnd() {
+  const o = DATE.organ; const married = DATE.love >= 90;
+  const prev = S.dating[o.id] || { best: 0, married: false };
+  S.dating[o.id] = { best: Math.max(prev.best, DATE.love), married: prev.married || married };
+  if (married) addXP(60); else save();
+  $('#date-next').innerHTML = `<div class="panel ${married ? 'neon' : 'danger'} p-4 mt-2">
+    <div class="text-2xl font-bold ${married ? 'text-emerald-300' : 'text-red-400'}">${married ? '💍 ENDING: KẾT HÔN (Verheiratet = đã cưới)!' : DATE.love >= 50 ? '🫤 ENDING: FRIENDZONE' : '💔 ENDING: BỊ BLOCK'}</div>
+    <p class="text-sm text-slate-300 mt-1">${married ? `${o.name} đồng ý cưới bạn. Khách mời là hệ vi sinh đường ruột. +60 XP.` : `${o.name}: "Học thêm từ vựng rồi quay lại nhé."`}</p>
+    <div class="flex gap-2 mt-3"><button class="btn btn-pink" onclick="startDate('${o.id}')">Hẹn lại</button><button class="btn btn-ghost" onclick="go('dating')">Chọn nội tạng khác</button></div></div>`;
+}
+
+/* =====================================================================
+   12. STUDY HUB
+   ===================================================================== */
+let hubQuery = '';
+function renderHub() {
+  const wrong = BOOK_IDS.reduce((n, b) => n + Object.values(S.kern[b]).filter(r => !r.ok).length, 0);
+  $('#view').innerHTML = `
+    <section class="panel p-5">
+      <span class="tape" style="background:var(--cyan)">STUDY HUB</span>
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mt-1">
+        <div><h2 class="text-2xl font-bold">Kho bài đã lưu 📚</h2><p class="text-sm text-slate-400">${S.fach.length} bài Fachmodul · ${wrong} bài Kern đang sai · lưu trong trình duyệt này.</p></div>
+        <div class="flex flex-wrap gap-2"><button class="btn btn-neon" onclick="exportAllFach()">⬇ Anki: tất cả bài Fach</button><button class="btn btn-ghost" onclick="exportKernWrong()">⬇ Anki: bài Kern đang sai</button></div>
+      </div>
+      <input class="mt-3" placeholder="🔍 Tìm bài Fach (gõ không dấu cũng được)..." value="${esc(hubQuery)}" oninput="hubQuery=this.value;renderHubList()">
+    </section>
+    <div id="hub-list" class="mt-4 space-y-3"></div>
+    <section class="panel p-5 mt-4"><div class="font-bold">Lịch sử thi thử Kernmodul</div>
+      ${S.exams.length ? `<div class="text-sm mt-2 space-y-1">${S.exams.slice().reverse().map(e => `<div>${e.date} · ${BOOK_ICON[e.bid]} ${esc(KERN[e.bid].title)} · Prüfung ${e.pruef}: <b>${e.score}/20</b> (${fmtMS(e.secs || 0)})</div>`).join('')}</div>` : '<div class="text-sm text-slate-500 mt-2">Chưa thi thử lần nào.</div>'}</section>`;
+  renderHubList();
+}
+function renderHubList() {
+  const q = stripVN(hubQuery);
+  const list = S.fach.filter(l => !q || stripVN(l.title + ' ' + l.testas.title_de + ' ' + l.lecture.sections.map(s => s.heading).join(' ')).includes(q)).sort((a, b) => a.day - b.day);
+  $('#hub-list').innerHTML = list.length ? list.map(l => `
+    <div class="panel p-4 flex items-center justify-between gap-3 cursor-pointer" onclick="openFach('${l.id}')">
+      <div class="min-w-0"><div class="font-bold text-pink-300 truncate">Ngày ${l.day} · ${esc(l.title)}</div>
+        <div class="text-xs text-slate-500">${esc(l.testas.title_de)} · ${l.lecture.sections.length} mục · ${l.testas.questions.length} câu · ${l.vocab.length} từ${l.quiz ? ` · điểm ${l.quiz.score}/${l.quiz.total}` : ''}</div></div>
+      <div class="flex gap-2 shrink-0" onclick="event.stopPropagation()">
+        <button class="btn btn-neon text-sm" onclick="exportFach('${l.id}')">⬇ Anki</button>
+        <button class="btn btn-ghost text-sm text-red-300" onclick="deleteFach('${l.id}')">🗑</button></div></div>`).join('')
+    : `<div class="panel p-8 text-center text-slate-400">Chưa có bài Fachmodul nào. <button class="btn btn-pink ml-2" onclick="go('fach')">🩺 Nạp bài</button></div>`;
+}
+function deleteFach(id) {
+  if (!confirm('Xoá bài này khỏi trình duyệt?')) return;
+  S.fach = S.fach.filter(l => l.id !== id); save(); renderStats(); renderHubList();
+}
+
+/* =====================================================================
+   13. SETTINGS
+   ===================================================================== */
+function renderSettings() {
+  const st = S.settings;
+  $('#view').innerHTML = `
+    <div class="grid md:grid-cols-2 gap-4">
+      <section class="panel neon p-5">
+        <span class="tape">API KEY</span>
+        <h2 class="text-xl font-bold mt-1">Kết nối não AI 🔌</h2>
+        <p class="text-sm text-slate-400">Chỉ dùng để tự soạn bài Fachmodul từ tài liệu bạn upload. Không có key thì gửi tài liệu cho Claude trong chat rồi nhập file .json.</p>
+        <label class="text-xs text-slate-400 mt-3 block">Nhà cung cấp</label>
+        <select id="set-provider" onchange="$('#set-model').placeholder='mặc định: '+DEFAULT_MODELS[this.value]">
+          <option value="openai" ${st.provider === 'openai' ? 'selected' : ''}>OpenAI (ChatGPT)</option>
+          <option value="gemini" ${st.provider === 'gemini' ? 'selected' : ''}>Google Gemini</option>
+          <option value="anthropic" ${st.provider === 'anthropic' ? 'selected' : ''}>Anthropic (Claude)</option>
+        </select>
+        <label class="text-xs text-slate-400 mt-3 block">API Key</label>
+        <input id="set-key" type="password" value="${esc(st.apiKey)}" placeholder="sk-... / AIza... / sk-ant-...">
+        <label class="text-xs text-slate-400 mt-3 block">Model (để trống = mặc định)</label>
+        <input id="set-model" value="${esc(st.model)}" placeholder="mặc định: ${DEFAULT_MODELS[st.provider]}">
+        <div class="flex gap-2 mt-4"><button class="btn btn-neon" onclick="saveSettings()">💾 Lưu</button><button class="btn btn-ghost" onclick="$('#set-key').value='';saveSettings()">Xoá key</button></div>
+        <p class="text-xs text-yellow-300/80 mt-3">⚠️ Key lưu dạng chữ thường trong trình duyệt này và gửi thẳng tới nhà cung cấp. Chỉ dùng trên máy cá nhân; đặt giới hạn chi tiêu cho key.</p>
+      </section>
+      <section class="panel p-5">
+        <span class="tape" style="background:var(--cyan)">HỆ THỐNG</span>
+        <h2 class="text-xl font-bold mt-1">Bảng điều khiển hành xác ⚙️</h2>
+        <label class="text-xs text-slate-400 mt-3 block">Ngày bắt đầu 30 ngày</label>
+        <div class="flex gap-2"><input id="set-start" type="date" value="${S.startDate}"><button class="btn btn-ghost" onclick="setStart()">Đặt</button></div>
+        <div class="flex flex-wrap gap-2 mt-4">
+          <button class="btn btn-red" onclick="S.missedDays=1;startPunishment()">☠ Thử Punishment Protocol</button>
+          <button class="btn btn-ghost" onclick="backup()">⬇ Sao lưu tiến độ (JSON)</button>
+          <label class="btn btn-ghost">⬆ Khôi phục<input type="file" accept="application/json" class="hidden" onchange="restore(this.files[0])"></label>
+          <button class="btn btn-ghost text-red-300" onclick="wipe()">💣 Xoá toàn bộ tiến độ</button>
+        </div>
+        <p class="text-xs text-slate-500 mt-3">Tiến độ, bài Fach và key chỉ nằm trong trình duyệt này. Đổi máy/trình duyệt → Sao lưu rồi Khôi phục.</p>
+      </section>
+    </div>`;
+}
+function saveSettings() {
+  S.settings = { provider: $('#set-provider').value, apiKey: $('#set-key').value.trim(), model: $('#set-model').value.trim() };
+  save(); tutorSay(S.settings.apiKey ? 'Đã lưu key. Giờ upload tài liệu Fach là tôi soạn.' : 'Không có key. Gửi tài liệu cho Claude trong chat nhé.', 'praise');
+}
+function setStart() {
+  const v = $('#set-start').value; if (!v) return;
+  S.startDate = v; S.lastDeadmanCheck = ''; save(); renderStats();
+  tutorSay('Đã đổi ngày bắt đầu. Đừng lùi ngày để né hình phạt, tôi thấy hết.');
+}
+function backup() { downloadBlob(JSON.stringify(S, null, 2), 'application/json', `testas-deathmatch-backup-${todayStr()}.json`); }
+function restore(file) {
+  if (!file) return; const rd = new FileReader();
+  rd.onload = () => {
+    try { const d = JSON.parse(rd.result); const b = DEFAULT_STATE(); S = Object.assign(b, d, { settings: Object.assign(b.settings, d.settings || {}), kern: Object.assign(b.kern, d.kern || {}) }); save(); renderStats(); go('dash'); praise('Khôi phục xong.'); }
+    catch (e) { roast('File hỏng. Giống kế hoạch học tập của bạn.'); }
+  };
+  rd.readAsText(file);
+}
+function wipe() {
+  if (!confirm('Xoá SẠCH tiến độ, bài Fach đã lưu và API key?')) return;
+  S = DEFAULT_STATE(); FACH_BUILTIN.forEach(l => S.fach.push(l)); save(); renderStats(); go('dash'); tutorSay('Reset xong. Sinh ra lần nữa, vẫn lười như cũ.');
+}
+
+/* =====================================================================
+   14. MODAL / OVERLAY + BOOT
+   ===================================================================== */
+function showModal(html, wide) {
+  $('#modal-root').innerHTML = `<div class="overlay" onclick="if(event.target===this)closeModal()">
+    <div id="modal-card" class="panel neon p-6 ${wide ? 'max-w-3xl' : 'max-w-lg'} w-full fade-in my-auto">${html}
+    <div><button class="btn btn-ghost text-xs mt-4" onclick="closeModal()">Đóng</button></div></div></div>`;
+}
+const closeModal = () => { $('#modal-root').innerHTML = ''; };
+const showOverlay = html => { $('#overlay-root').innerHTML = `<div class="overlay" style="background:rgba(10,0,2,.94);align-items:flex-start">${html}</div>`; };
+const closeOverlay = () => { $('#overlay-root').innerHTML = ''; };
+
+renderTabs(); renderStats(); go('dash');
+if (S.tutorMin) toggleTutor(true);
+tutorSay(checkedToday() ? 'Lại là bạn à. Hôm nay điểm danh rồi, giờ đi làm 6 bài của ngày hôm nay đi.'
+  : `Ngày ${dayNumber()}/30. Bạn CHƯA điểm danh. Đồng hồ đang chạy về 00:00:00... tick tock 😈`);
+checkDeadman();
+</script>
+</body>
+</html>
