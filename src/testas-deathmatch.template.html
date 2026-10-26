@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>TestAS 30-Day Deathmatch</title>
-<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -13,6 +13,7 @@
     --bg:#05060a; --panel:#0c0f17; --line:#1c2333;
     --neon:#00ffa3; --cyan:#00e5ff; --pink:#ff2e88; --red:#ff1f3d; --yellow:#ffe14d;
     --text:#d7e3f4; --muted:#7d8aa3;
+    color-scheme:dark;
   }
   *{box-sizing:border-box}
   html,body{margin:0;background:var(--bg);color:var(--text);font-family:'Chakra Petch',system-ui,sans-serif;}
@@ -111,7 +112,7 @@
   Đề, đáp án và lời giải Kernmodul lấy từ 3 quyển bạn soạn (Quyển 1–3). Bài Fachmodul chỉ có khi bạn nạp tài liệu. Mọi "hình phạt" đều là FAKE.
 </footer>
 
-<aside id="tutor" class="fixed bottom-3 right-3 left-3 md:left-auto md:w-[420px] z-[70]">
+<aside id="tutor" class="fixed right-3 left-3 md:left-auto md:w-[420px] z-[70]" style="bottom:calc(.75rem + env(safe-area-inset-bottom, 0px))">
   <div class="panel p-3 flex gap-3 items-start" style="border-color:rgba(255,46,136,.5);box-shadow:0 0 30px rgba(255,46,136,.18)">
     <div id="tutor-face" class="text-4xl select-none cursor-pointer" title="Chọc tức gia sư" onclick="pokeTutor()">🤖</div>
     <div class="flex-1 min-w-0">
@@ -155,6 +156,27 @@ const stripVN = s => String(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').
 const fmtMS = s => `${s < 0 ? '+' : ''}${pad(Math.floor(Math.abs(s) / 60))}:${pad(Math.abs(s) % 60)}`;
 
 /* =====================================================================
+   1b. HOST CAPABILITIES — when published as a claude.ai artifact the page
+   gets: downloads (save files), sample (ask Claude), db + user (progress
+   kept server-side). Opened as a plain local file, all stay null and the
+   app falls back to <a download>, API keys and localStorage.
+   ===================================================================== */
+const CAP = { downloads: null, sample: null, db: null, user: null };
+const capReady = (async () => {
+  if (!window.claude?.use) return;
+  const [downloads, sample, db, user] = await Promise.all(['downloads', 'sample', 'db', 'user'].map(n => window.claude.use(n).catch(() => null)));
+  Object.assign(CAP, { downloads, sample, db, user });
+})();
+
+// confirm() is blocked inside the artifact viewer, so confirmations use our own modal
+let CONFIRM_FN = null;
+function askConfirm(msg, fn) {
+  CONFIRM_FN = fn;
+  showModal(`<div class="text-lg font-bold">${esc(msg)}</div>
+    <div class="flex gap-2 mt-4"><button class="btn btn-red" onclick="closeModal();CONFIRM_FN&&CONFIRM_FN()">Đồng ý</button><button class="btn btn-ghost" onclick="closeModal()">Huỷ</button></div>`);
+}
+
+/* =====================================================================
    2. STATE + localStorage
    ===================================================================== */
 const LS_KEY = 'testas_deathmatch_v2';
@@ -191,8 +213,48 @@ function loadState() {
 }
 let S = loadState();
 function save() {
+  S.updatedAt = Date.now();
   try { localStorage.setItem(LS_KEY, JSON.stringify(S)); }
   catch (e) { tutorSay('localStorage đầy rồi! Xoá bớt bài Fach cũ trong Study Hub hoặc sao lưu JSON rồi dọn.', 'roast'); }
+  scheduleSync();
+}
+
+// --- server-side copy (artifact db): private docs under data/users/<id>/
+//     "state" = progress (no API key), "fach-<lessonId>" = one lesson each
+let SYNC = { uid: null, timer: null, sent: new Map(), ready: false };
+const userCol = () => CAP.db.collection('data/users/' + SYNC.uid);
+function scheduleSync() {
+  if (!SYNC.ready) return;
+  clearTimeout(SYNC.timer); SYNC.timer = setTimeout(pushSync, 1500);
+}
+async function pushSync() {
+  try {
+    const { fach, settings, ...rest } = S;
+    await userCol().doc('state').set(JSON.parse(JSON.stringify(rest)));
+    const live = new Set();
+    for (const L of S.fach) {
+      const key = 'fach-' + L.id, body = JSON.stringify(L); live.add(key);
+      if (SYNC.sent.get(key) !== body) { await userCol().doc(key).set(JSON.parse(body)); SYNC.sent.set(key, body); }
+    }
+    for (const key of [...SYNC.sent.keys()]) if (!live.has(key)) { await userCol().doc(key).delete(); SYNC.sent.delete(key); }
+  } catch (e) { console.warn('sync failed', e); }
+}
+async function pullSync() {
+  await capReady;
+  if (!CAP.db || !CAP.user) return;
+  try {
+    SYNC.uid = await CAP.user.id();
+    const snap = await userCol().get();
+    let remote = null; const lessons = [];
+    snap.docs.forEach(d => { if (d.id === 'state') remote = d.data(); else if (d.id.startsWith('fach-')) { lessons.push(d.data()); SYNC.sent.set(d.id, JSON.stringify(d.data())); } });
+    if (remote && (remote.updatedAt || 0) > (S.updatedAt || 0)) {
+      const b = DEFAULT_STATE();
+      S = Object.assign(b, remote, { settings: S.settings, kern: Object.assign(b.kern, remote.kern || {}), fach: S.fach });
+    }
+    lessons.forEach(L => { if (!S.fach.some(x => x.id === L.id)) S.fach.push(L); });
+    SYNC.ready = true; save();
+    renderStats(); if (currentTab === 'dash') renderDash();
+  } catch (e) { console.warn('pull failed', e); }
 }
 function addXP(n) { S.xp = Math.max(0, S.xp + n); save(); renderStats(); }
 // merge lessons shipped inside the file (prepared from the user's material)
@@ -632,7 +694,7 @@ function renderExamQ() {
       <div class="flex flex-wrap gap-2 mt-4">
         <button class="btn btn-neon" onclick="examSave(1)">Lưu & câu sau →</button>
         <button class="btn btn-ghost" onclick="examSave(-1)">← Câu trước</button>
-        <button class="btn btn-red ml-auto" onclick="if(confirm('Nộp bài?')){examSave(0);finishExam()}">Nộp bài</button>
+        <button class="btn btn-red ml-auto" onclick="examSave(0);askConfirm('Nộp bài?',finishExam)">Nộp bài</button>
       </div></section>`;
   const prev = EXAM.ans[ex.id];      // restore previous answer
   if (prev) {
@@ -807,9 +869,12 @@ function renderFach() {
       </div>`; }).join('')}</div>`;
 }
 
-function openFachCreate(day) {
+// who writes the lesson: Claude through the artifact's `sample` capability, else the user's API key
+const generatorLabel = () => CAP.sample ? 'Claude (có sẵn trên claude.ai, không cần key)' : S.settings.apiKey ? `${S.settings.provider} / ${S.settings.model || DEFAULT_MODELS[S.settings.provider]}` : '';
+async function openFachCreate(day) {
   stopTimer(); if (currentTab !== 'fach') { currentTab = 'fach'; renderTabs(); }
-  const hasKey = !!S.settings.apiKey;
+  await capReady;
+  const hasKey = !!(CAP.sample || S.settings.apiKey);
   $('#view').innerHTML = `
     <div class="mb-3"><button class="btn btn-ghost text-sm" onclick="go('fach')">← Fachmodul</button></div>
     <section class="panel p-5" style="border-color:rgba(255,46,136,.45)">
@@ -818,11 +883,11 @@ function openFachCreate(day) {
         <label class="text-xs text-slate-400">Ngày<select id="fc-day">${Array.from({ length: 30 }, (_, i) => `<option ${i + 1 === day ? 'selected' : ''}>${i + 1}</option>`).join('')}</select></label>
         <label class="text-xs text-slate-400 sm:col-span-2">Độ bựa: <b id="bua-val" class="text-pink-300">8</b>/10<input type="range" id="bua" min="1" max="10" value="8" style="padding:0" oninput="$('#bua-val').textContent=this.value"></label>
       </div>
-      <div class="mt-3 text-xs ${hasKey ? 'text-emerald-300' : 'text-yellow-300'}">${hasKey ? `● Đang dùng: ${esc(S.settings.provider)} / ${esc(S.settings.model || DEFAULT_MODELS[S.settings.provider])}`
-        : '● Chưa có API key → app không soạn được (và sẽ KHÔNG bịa bài mẫu). Nhập key ở ⚙️ Cài đặt, hoặc gửi tài liệu cho Claude trong chat rồi nhập file .json.'}</div>
+      <div class="mt-3 text-xs ${hasKey ? 'text-emerald-300' : 'text-yellow-300'}">${hasKey ? `● Người soạn: ${esc(generatorLabel())}${CAP.sample ? ' · nhận ảnh và text; PDF thì dán chữ vào ô, hoặc gửi PDF cho Claude trong chat' : ''}`
+        : '● Chưa có API key → app không soạn được (và sẽ KHÔNG bịa bài mẫu). Nhập key ở ⚙️ Cài đặt, mở app trên claude.ai, hoặc gửi tài liệu cho Claude trong chat rồi nhập file .json.'}</div>
       <textarea id="lec-text" rows="8" class="mt-3" placeholder="Dán nội dung bài (Amboss, sách Medizin, ghi chú...)."></textarea>
       <label class="block mt-3 panel p-4 text-center cursor-pointer" style="border-style:dashed">
-        <input type="file" id="lec-files" class="hidden" multiple accept="image/*,application/pdf,.txt,.md" onchange="addLecFiles(this.files)">
+        <input type="file" id="lec-files" class="hidden" multiple accept="${CAP.sample ? 'image/*,.txt,.md' : 'image/*,application/pdf,.txt,.md'}" onchange="addLecFiles(this.files)">
         📎 <b>Upload ảnh / PDF / .txt</b><div class="text-xs text-slate-500">Mỗi lần 1 bài (PDF dài quá ~100 trang API sẽ từ chối). ≤ 15MB/file.</div>
       </label>
       <div id="lec-filelist" class="mt-2 space-y-1"></div>
@@ -837,7 +902,7 @@ function addLecFiles(list) {
     const kind = f.type.startsWith('image/') ? 'image' : f.type === 'application/pdf' ? 'pdf' : 'text';
     const rd = new FileReader();
     rd.onload = () => {
-      const entry = { name: f.name, mime: f.type || 'text/plain', kind };
+      const entry = { name: f.name, mime: f.type || 'text/plain', kind, blob: f };
       if (kind === 'text') entry.text = rd.result; else { entry.dataUrl = rd.result; entry.b64 = rd.result.split(',')[1]; }
       LEC.files.push(entry); renderFileList();
     };
@@ -852,7 +917,15 @@ function renderFileList() {
     <button class="text-red-400 text-xs" onclick="LEC.files.splice(${i},1);renderFileList()">xoá</button></div>`).join('');
 }
 
-function buildSystemPrompt(level) {
+function buildSystemPrompt(level, part = 'all') {
+  const P = buildSystemPromptFull(level);
+  if (part === 'all') return P;
+  const only = part === 'lecture'
+    ? 'LẦN NÀY CHỈ LÀM PHẦN (1) và (3). JSON chỉ gồm các khoá: {"title","lecture","vocab","cards"} (bỏ "testas").'
+    : 'LẦN NÀY CHỈ LÀM PHẦN (2). JSON chỉ gồm khoá: {"testas"} (bỏ các khoá khác).';
+  return P + '\n' + only;
+}
+function buildSystemPromptFull(level) {
   return `Bạn là "BS. Mỏ Hỗn" — gia sư luyện thi TestAS Fachmodul Medizin cực kỳ bựa, mỏ hỗn, nhưng kiến thức phải CHÍNH XÁC.
 NGƯỜI HỌC: người Việt, tiếng Đức còn yếu.
 QUY TẮC NỘI DUNG: Chỉ dùng kiến thức có trong tài liệu người dùng cung cấp. KHÔNG thêm chủ đề/sự kiện ngoài tài liệu. Nếu tài liệu mơ hồ, ghi "(tài liệu không nói rõ)".
@@ -862,6 +935,19 @@ Tạo 3 phần:
 (3) ANKI: 8–15 flashcard (front ngắn, back = đáp án + mẹo bựa) và 10–25 từ vựng tiếng Đức quan trọng của Fachtext (kèm der/die/das) với nghĩa tiếng Việt.
 ĐỊNH DẠNG: Trả về DUY NHẤT một object JSON hợp lệ (không markdown, không \`\`\`):
 {"title":"tiêu đề ngắn tiếng Việt","lecture":{"intro":"câu mở đầu mỏ hỗn","sections":[{"heading":"...","explanation":"...","mnemonic":"..."}],"outro":"câu chốt cà khịa"},"testas":{"title_de":"Text: ...","text_de":"đoạn 1\\n\\nđoạn 2...","questions":[{"q":"câu hỏi tiếng Đức","options":["A","B","C","D"],"answer":0,"explain_vi":"..."}]},"vocab":[{"de":"die Hypophyse","vi":"tuyến yên"}],"cards":[{"front":"...","back":"..."}]}`;
+}
+
+// Claude via the artifact's sample capability: two calls (lecture+Anki, then TestAS) to stay within the answer length
+async function callSample(text, files, level) {
+  const material = `TÀI LIỆU CỦA NGƯỜI HỌC:\n${text || '(xem ảnh đính kèm)'}` + files.filter(f => f.kind === 'text').map(f => `\n--- FILE ${f.name} ---\n${f.text}`).join('');
+  const images = files.filter(f => f.kind === 'image').map(f => f.blob);
+  if (files.some(f => f.kind === 'pdf')) throw new Error('Trên claude.ai app chưa đọc được PDF: dán chữ vào ô, chụp ảnh trang, hoặc gửi PDF cho Claude trong chat.');
+  const limits = await CAP.sample.limits().catch(() => null);
+  if (limits && new Blob([material]).size > limits.maxPromptBytes - 8000) throw new Error('Tài liệu quá dài cho một lần soạn — chia nhỏ ra từng bài.');
+  const opts = images.length ? { images, modelTier: 'complex' } : { modelTier: 'complex' };
+  const a = await CAP.sample.json(buildSystemPrompt(level, 'lecture') + '\n\n' + material, opts);
+  const b = await CAP.sample.json(buildSystemPrompt(level, 'testas') + '\n\n' + material, opts);
+  return Object.assign({}, a, { testas: b.testas || b });
 }
 
 async function callAI(text, files, level) {
@@ -935,14 +1021,14 @@ async function generateFach() {
   out.innerHTML = `<div class="panel p-6 text-center"><div class="text-5xl heartbeat">🧠</div><div id="lec-step" class="mono text-cyan-300 mt-3">${LOADING_STEPS[0]}</div></div>`;
   const iv = setInterval(() => { const el = $('#lec-step'); if (el) el.textContent = LOADING_STEPS[++step % LOADING_STEPS.length]; }, 1500);
   try {
-    const raw = await callAI(text, LEC.files, level);
-    const L = normalizeLesson(Object.assign(parseAI(raw), { source: S.settings.provider, sourceFiles: LEC.files.map(f => f.name) }), day);
+    const obj = CAP.sample ? await callSample(text, LEC.files, level) : parseAI(await callAI(text, LEC.files, level));
+    const L = normalizeLesson(Object.assign(obj, { source: CAP.sample ? 'claude' : S.settings.provider, sourceFiles: LEC.files.map(f => f.name) }), day);
     S.fach.push(L); save(); renderStats(); addXP(30);
     LEC.files = [];
     tutorSay('Soạn xong và đã lưu. Giờ làm phần câu hỏi tiếng Đức đi, đừng chỉ đọc phần bựa.', 'praise');
     openFach(L.id);
   } catch (e) {
-    out.innerHTML = `<div class="panel danger p-5"><b class="text-red-400">Lỗi:</b> <span class="mono text-sm">${esc(e.message)}</span>
+    out.innerHTML = `<div class="panel danger p-5"><b class="text-red-400">Lỗi:</b> <span class="mono text-sm">${esc(e?.message || e?.code || String(e))}</span>
       <div class="text-sm text-slate-400 mt-2">Kiểm tra API key / tên model ở ⚙️ Cài đặt, hoặc tài liệu quá dài (chia nhỏ ra).</div></div>`;
     roast('API từ chối bạn. Đến máy chủ cũng không muốn nói chuyện với bạn.');
   } finally { clearInterval(iv); LEC.busy = false; if (btn) btn.disabled = false; }
@@ -1056,7 +1142,13 @@ function lessonRows(L) {
   L.testas.questions.forEach(q => rows.push([`${q.q}\n${q.options.map((o, k) => `(${'ABCD'[k]}) ${o}`).join('\n')}`, `(${'ABCD'[q.answer]}) ${q.options[q.answer]}\n\n${q.explain_vi}`]));
   return rows;
 }
-function downloadBlob(content, type, filename) {
+async function downloadBlob(content, type, filename) {
+  await capReady;
+  if (CAP.downloads) {
+    try { await CAP.downloads.save({ filename, data: content }); }
+    catch (e) { if (e?.code !== 'declined') tutorSay('Không lưu được file (' + (e?.code || 'lỗi') + ').', 'roast'); }
+    return;
+  }
   const blob = new Blob([content], { type });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a'); a.href = url; a.download = filename;
@@ -1204,8 +1296,8 @@ function renderHubList() {
         <button class="btn btn-ghost text-sm text-red-300" onclick="deleteFach('${l.id}')">🗑</button></div></div>`).join('')
     : `<div class="panel p-8 text-center text-slate-400">Chưa có bài Fachmodul nào. <button class="btn btn-pink ml-2" onclick="go('fach')">🩺 Nạp bài</button></div>`;
 }
-function deleteFach(id) {
-  if (!confirm('Xoá bài này khỏi trình duyệt?')) return;
+function deleteFach(id) { askConfirm('Xoá bài này?', () => deleteFachNow(id)); }
+function deleteFachNow(id) {
   S.fach = S.fach.filter(l => l.id !== id); save(); renderStats(); renderHubList();
 }
 
@@ -1266,8 +1358,8 @@ function restore(file) {
   };
   rd.readAsText(file);
 }
-function wipe() {
-  if (!confirm('Xoá SẠCH tiến độ, bài Fach đã lưu và API key?')) return;
+function wipe() { askConfirm('Xoá SẠCH tiến độ, bài Fach đã lưu và API key?', wipeNow); }
+function wipeNow() {
   S = DEFAULT_STATE(); FACH_BUILTIN.forEach(l => S.fach.push(l)); save(); renderStats(); go('dash'); tutorSay('Reset xong. Sinh ra lần nữa, vẫn lười như cũ.');
 }
 
@@ -1288,6 +1380,7 @@ if (S.tutorMin) toggleTutor(true);
 tutorSay(checkedToday() ? 'Lại là bạn à. Hôm nay điểm danh rồi, giờ đi làm 6 bài của ngày hôm nay đi.'
   : `Ngày ${dayNumber()}/30. Bạn CHƯA điểm danh. Đồng hồ đang chạy về 00:00:00... tick tock 😈`);
 checkDeadman();
+pullSync();
 </script>
 </body>
 </html>
