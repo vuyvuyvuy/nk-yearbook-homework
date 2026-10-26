@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TestAS 30-Day Deathmatch</title>
+<title>TestAS 20-Day Deathmatch</title>
 <script src="https://cdn.tailwindcss.com/3.4.17"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -98,7 +98,7 @@
   <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
     <div>
       <div class="text-xs mono text-pink-400 tracking-widest">NEO-SÀI GÒN GENERAL HOSPITAL // KHOA HỒI SỨC NÃO BỘ // TẦNG -6</div>
-      <h1 class="glitch text-3xl md:text-5xl font-bold tracking-tight" data-text="TESTAS 30-DAY DEATHMATCH">TESTAS 30-DAY DEATHMATCH</h1>
+      <h1 class="glitch text-3xl md:text-5xl font-bold tracking-tight" data-text="TESTAS 20-DAY DEATHMATCH">TESTAS 20-DAY DEATHMATCH</h1>
       <div class="text-sm text-slate-400 mt-1">Kernmodul (3 quyển của bạn) + Fachmodul Medizin (bài bạn nạp mỗi ngày) · 0 lòng thương xót</div>
     </div>
     <div id="statbar" class="grid grid-cols-3 md:grid-cols-6 gap-2 text-center text-xs"></div>
@@ -191,6 +191,7 @@ const DEFAULT_STATE = () => ({
   dating: {},
   settings: { provider: 'openai', apiKey: '', model: '' },
   pendingPunishment: false, lastDeadmanCheck: '', punishments: 0, missedDays: 0,
+  time: {},                                 // 'YYYY-MM-DD' -> {kern: seconds, fach: seconds}
   tutorMin: false
 });
 function loadState() {
@@ -266,7 +267,8 @@ const RANKS = [
   [1500, 'Assistenzarzt khóc trong toilet'], [2500, 'Oberarzt mỏ hỗn'], [4000, 'Chefarzt của sự hỗn loạn']
 ];
 const rankOf = xp => RANKS.filter(r => xp >= r[0]).pop()[1];
-const dayNumber = () => Math.min(30, Math.max(1, daysBetween(S.startDate, todayStr()) + 1));
+const PLAN_DAYS = 20;
+const dayNumber = () => Math.min(PLAN_DAYS, Math.max(1, daysBetween(S.startDate, todayStr()) + 1));
 
 /* =====================================================================
    3. TOXIC TUTOR
@@ -347,7 +349,7 @@ function renderTabs() {
 function kernDone() { return ['fig', 'math', 'latin'].reduce((n, b) => n + Object.keys(S.kern[b]).length, 0); }
 function renderStats() {
   const items = [
-    ['NGÀY', `${dayNumber()}/30`, 'text-cyan-300'], ['XP', S.xp, 'text-emerald-300'], ['STREAK', `${S.streak}🔥`, 'text-orange-300'],
+    ['NGÀY', `${dayNumber()}/${PLAN_DAYS}`, 'text-cyan-300'], ['XP', S.xp, 'text-emerald-300'], ['STREAK', `${S.streak}🔥`, 'text-orange-300'],
     ['BÀI KERN', `${kernDone()}/180`, 'text-emerald-300'], ['BÀI FACH', S.fach.length, 'text-pink-300'], ['GIẾT NHẦM', S.deaths, 'text-red-400']
   ];
   $('#statbar').innerHTML = items.map(([k, v, c]) => `<div class="panel px-2 py-1.5"><div class="text-[10px] text-slate-500 mono">${k}</div><div class="font-bold ${c}">${v}</div></div>`).join('');
@@ -409,8 +411,9 @@ const exSheet = ex => `<div class="sheet"><img src="${ex.img}" alt="Bài ${ex.id
 /* =====================================================================
    6. DASHBOARD + DEADMAN'S SWITCH
    ===================================================================== */
-// Day n of the 30-day plan = 2 exercises from each book (books have 60 each, ordered easy → hard)
-const dayExercises = n => BOOK_IDS.flatMap(b => KERN[b].ex.slice((n - 1) * 2, (n - 1) * 2 + 2).map(ex => ({ bid: b, ex })));
+// Day n of the 20-day plan = 3 exercises from each book (books have 60 each, ordered easy → hard)
+const PER_BOOK = 3, PER_DAY = PER_BOOK * 3;
+const dayExercises = n => BOOK_IDS.flatMap(b => KERN[b].ex.slice((n - 1) * PER_BOOK, n * PER_BOOK).map(ex => ({ bid: b, ex })));
 const fachOfDay = n => S.fach.filter(l => +l.day === n);
 // 20-day Fachmodul plan (AMBOSS articles), ordered by the themes of the user's Medicine practice test.
 // star = the theme appeared in that practice test. Skipped on purpose: statistics/studies,
@@ -445,7 +448,7 @@ function fmtHMS(ms) { const s = Math.max(0, Math.floor(ms / 1000)); return `${pa
 
 function renderDash() {
   const d = dayNumber(); const done = checkedToday(); const t = todayStr();
-  const cells = Array.from({ length: 30 }, (_, i) => {
+  const cells = Array.from({ length: PLAN_DAYS }, (_, i) => {
     const ds = addDays(S.startDate, i);
     let cls = 'text-slate-600', bg = 'transparent', label = i + 1;
     if (S.checkins.includes(ds)) { bg = 'rgba(0,255,163,.18)'; cls = 'text-emerald-300'; label = '✓'; }
@@ -472,7 +475,7 @@ function renderDash() {
       <div class="text-xs text-slate-400 mono">CẤP BẬC</div>
       <div class="text-xl font-bold text-pink-300">${esc(rankOf(S.xp))}</div>
       <div class="text-xs text-slate-500 mt-2">Kỷ lục streak: ${S.bestStreak}🔥 · Đã bị phạt: ${S.punishments} lần</div>
-      <div class="text-xs text-slate-500">Bắt đầu: ${S.startDate} · Kết thúc: ${addDays(S.startDate, 29)}</div>
+      <div class="text-xs text-slate-500">Bắt đầu: ${S.startDate} · Kết thúc: ${addDays(S.startDate, PLAN_DAYS - 1)}</div>
       <div class="bar mt-3"><div style="width:${kernDone() / 180 * 100}%;background:linear-gradient(90deg,var(--neon),var(--cyan))"></div></div>
       <div class="text-[11px] text-slate-500 mt-1">Đã làm ${kernDone()}/180 bài Kernmodul</div>
     </section>
@@ -496,14 +499,98 @@ function renderDash() {
       </div>
     </section>
     <section class="panel p-5">
-      <div class="text-xs text-slate-400 mono mb-2">LỊCH 30 NGÀY (✓ có mặt · ☠ bỏ trốn)</div>
-      <div class="grid grid-cols-6 gap-1.5">${cells}</div>
+      <div class="text-xs text-slate-400 mono mb-2">LỊCH ${PLAN_DAYS} NGÀY (✓ có mặt · ☠ bỏ trốn)</div>
+      <div class="grid grid-cols-5 gap-1.5">${cells}</div>
     </section>
-  </div>`;
+  </div>
+  ${timePanelHTML()}`;
 }
+
+/* ---------- study-time chart: stacked bars per plan day (Kern + Fach) ---------- */
+const TIME_COLORS = { kern: '#0ea5c6', fach: '#db2777' };   // validated for the dark surface (CVD ΔE 11.9)
+const TIME_LABEL = { kern: 'Kernmodul', fach: 'Fachmodul' };
+function timeOfDay(i) { const r = S.time[addDays(S.startDate, i)] || {}; return { kern: r.kern || 0, fach: r.fach || 0 }; }
+function todayTimeHTML() {
+  const r = S.time[todayStr()] || { kern: 0, fach: 0 };
+  return ['kern', 'fach'].map(k => `<span class="inline-flex items-center gap-1.5 mr-4"><span style="width:10px;height:10px;border-radius:3px;background:${TIME_COLORS[k]}"></span>${TIME_LABEL[k]} <b class="text-white">${fmtDur(r[k] || 0)}</b></span>`).join('')
+    + `<span>Tổng <b class="text-white">${fmtDur((r.kern || 0) + (r.fach || 0))}</b></span>`;
+}
+function timePanelHTML() {
+  const days = Array.from({ length: PLAN_DAYS }, (_, i) => timeOfDay(i));
+  const tot = days.reduce((a, d) => ({ kern: a.kern + d.kern, fach: a.fach + d.fach }), { kern: 0, fach: 0 });
+  const maxSec = Math.max(...days.map(d => d.kern + d.fach), 1);
+  const stepH = maxSec <= 2 * 3600 ? 0.5 : maxSec <= 5 * 3600 ? 1 : 2;           // grid step in hours
+  const top = Math.max(stepH, Math.ceil(maxSec / 3600 / stepH) * stepH) * 3600;
+  const W = 640, H = 200, L = 40, R = 8, T = 10, B = 24, pw = W - L - R, ph = H - T - B;
+  const bw = pw / PLAN_DAYS, barW = Math.min(22, bw - 6), y = sec => T + ph - sec / top * ph;
+  const today = dayNumber() - 1;
+  let grid = '';
+  for (let h = 0; h <= top / 3600 + 1e-9; h += stepH) {
+    const yy = y(h * 3600);
+    grid += `<line x1="${L}" x2="${W - R}" y1="${yy}" y2="${yy}" stroke="#1c2333" stroke-width="1"/><text x="${L - 6}" y="${yy + 3}" text-anchor="end" font-size="10" fill="#7d8aa3">${h === 0 ? '0' : h + 'h'}</text>`;
+  }
+  const bars = days.map((d, i) => {
+    const x = L + i * bw + (bw - barW) / 2; let out = '';
+    const hk = d.kern / top * ph, hf = d.fach / top * ph;
+    if (hk > 0) out += `<rect x="${x}" y="${y(d.kern)}" width="${barW}" height="${Math.max(1, hk)}" rx="2" fill="${TIME_COLORS.kern}"/>`;
+    if (hf > 0) out += `<rect x="${x}" y="${y(d.kern + d.fach) }" width="${barW}" height="${Math.max(1, hf - (hk > 0 ? 2 : 0))}" rx="2" fill="${TIME_COLORS.fach}"/>`;
+    out += `<text x="${L + i * bw + bw / 2}" y="${H - 8}" text-anchor="middle" font-size="10" fill="${i === today ? '#67e8f9' : '#7d8aa3'}" font-weight="${i === today ? 700 : 400}">${i + 1}</text>`;
+    out += `<rect x="${L + i * bw}" y="${T}" width="${bw}" height="${ph + B}" fill="transparent" style="cursor:pointer" onmouseenter="timeTip(${i},event)" onclick="timeTip(${i},event)" onmouseleave="timeTip(-1)"/>`;
+    return out;
+  }).join('');
+  return `<section class="panel p-5 mt-4">
+    <div class="flex flex-wrap items-baseline justify-between gap-2">
+      <div><div class="text-xs text-slate-400 mono">THỜI GIAN HỌC MỖI NGÀY</div>
+        <div class="text-sm text-slate-300 mt-1">Hôm nay: <span id="time-today">${todayTimeHTML()}</span></div></div>
+      <div class="text-xs text-slate-400">Cả lộ trình: Kern <b class="text-white">${fmtDur(tot.kern)}</b> · Fach <b class="text-white">${fmtDur(tot.fach)}</b></div>
+    </div>
+    <div class="relative mt-3" id="time-chart">
+      <svg viewBox="0 0 ${W} ${H}" class="w-full h-auto" role="img" aria-label="Biểu đồ thời gian học Kern và Fach theo ngày">${grid}${bars}</svg>
+      <div id="time-tip" class="absolute hidden pointer-events-none panel px-3 py-2 text-xs" style="z-index:5"></div>
+    </div>
+    <div class="flex flex-wrap gap-4 text-xs text-slate-400 mt-2">${['kern', 'fach'].map(k => `<span class="inline-flex items-center gap-1.5"><span style="width:10px;height:10px;border-radius:3px;background:${TIME_COLORS[k]}"></span>${TIME_LABEL[k]}</span>`).join('')}
+      <span>· chỉ tính khi bạn đang mở tab Kern/ER (Kern) hoặc Fach/Dating (Fach) và có thao tác trong 5 phút gần nhất</span></div>
+    <details class="mt-2 text-sm"><summary class="cursor-pointer text-slate-400">Xem dạng bảng</summary>
+      <table class="w-full mt-2 text-xs" style="font-variant-numeric:tabular-nums"><thead><tr class="text-slate-400 text-left"><th class="py-1">Ngày</th><th>Ngày lịch</th><th>Kern</th><th>Fach</th><th>Tổng</th></tr></thead>
+      <tbody>${days.map((d, i) => `<tr class="border-t border-slate-800"><td class="py-1">${i + 1}</td><td>${addDays(S.startDate, i)}</td><td>${fmtDur(d.kern)}</td><td>${fmtDur(d.fach)}</td><td>${fmtDur(d.kern + d.fach)}</td></tr>`).join('')}</tbody></table></details>
+  </section>`;
+}
+function timeTip(i, ev) {
+  const tip = $('#time-tip'); if (!tip) return;
+  if (i < 0) { tip.classList.add('hidden'); return; }
+  const d = timeOfDay(i), box = $('#time-chart').getBoundingClientRect();
+  tip.innerHTML = `<b>Ngày ${i + 1}</b> · ${addDays(S.startDate, i)}<br>${TIME_LABEL.kern}: ${fmtDur(d.kern)}<br>${TIME_LABEL.fach}: ${fmtDur(d.fach)}<br>Tổng: ${fmtDur(d.kern + d.fach)}`;
+  tip.classList.remove('hidden');
+  const x = Math.min(ev.clientX - box.left + 12, box.width - tip.offsetWidth - 4);
+  tip.style.left = Math.max(4, x) + 'px'; tip.style.top = '8px';
+}
+
+// --- study-time tracking: a second counts when the page is visible, the viewer
+//     touched/typed/scrolled in the last 5 minutes, and a Kern or Fach screen is open
+const IDLE_MS = 5 * 60 * 1000;
+let lastActive = Date.now(), timeTicks = 0;
+['pointerdown', 'keydown', 'scroll', 'touchstart', 'wheel'].forEach(ev => addEventListener(ev, () => { lastActive = Date.now(); }, { passive: true, capture: true }));
+addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') save(); });
+function studyModule() {
+  if ($('#punish')) return null;
+  if ($('#modal-card') && CHK) return 'kern';                        // check-in exercise
+  if (currentTab === 'kern' || currentTab === 'er') return 'kern';
+  if (currentTab === 'fach' || currentTab === 'dating') return 'fach';  // dating quizzes Fach vocab
+  return null;
+}
+function tickStudyTime() {
+  const m = studyModule();
+  if (!m || document.visibilityState !== 'visible' || Date.now() - lastActive > IDLE_MS) return;
+  const r = S.time[todayStr()] || (S.time[todayStr()] = { kern: 0, fach: 0 });
+  r[m]++;
+  if (++timeTicks % 30 === 0) save();
+  const el = $('#time-today'); if (el) el.innerHTML = todayTimeHTML();
+}
+const fmtDur = sec => { const m = Math.round(sec / 60); return m < 60 ? `${m} phút` : `${Math.floor(m / 60)}h${pad(m % 60)}`; };
 
 let lastSeenDay = todayStr();
 setInterval(() => {
+  tickStudyTime();
   const el = $('#deadman-clock');
   if (el && !checkedToday()) el.textContent = fmtHMS(msToMidnight());
   const t = todayStr();
@@ -768,7 +855,7 @@ const ECG_PATH = (() => { let d = 'M0 30'; for (let k = 0; k < 8; k++) { const x
 const ecgSVG = (flat = false) => `<div class="ecg-wrap"><svg class="ecg ${flat ? 'flat' : ''}" viewBox="0 0 800 60" preserveAspectRatio="none"><path d="${flat ? 'M0 30 L800 30' : ECG_PATH}"/></svg></div>`;
 
 function renderER() {
-  const nodes = Array.from({ length: 30 }, (_, i) => {
+  const nodes = Array.from({ length: PLAN_DAYS }, (_, i) => {
     const n = i + 1, done = S.erCleared.includes(n), open = isUnlocked(n);
     const style = done ? 'background:rgba(0,255,163,.12);border-color:rgba(0,255,163,.5);color:#6ee7b7' : open ? 'background:rgba(0,229,255,.08);border-color:rgba(0,229,255,.6);color:#67e8f9' : 'opacity:.45;color:#64748b';
     return `<div class="node ${open && !done ? 'pulse-neon' : ''}" style="${style}" onclick="${open ? `startLevel(${n})` : `roast('Level ${n} còn khoá. Cứu bệnh nhân trước đã.')`}">
@@ -778,15 +865,15 @@ function renderER() {
     <section class="panel danger p-5">
       <span class="tape" style="background:var(--red);color:#fff">ER SURVIVAL MODE</span>
       <h2 class="text-2xl font-bold mt-1">Phòng Cấp Cứu Sinh Tử 🚑</h2>
-      <p class="text-sm text-slate-400">Level n = nhiệm vụ ngày n: 6 bài lấy từ 3 quyển của bạn (2 bài/quyển, dễ → khó dần). Chung 1 đồng hồ ${6 * 75}s (= 75s/bài như đề thật). Sai 1 bài hoặc hết giờ → bệnh nhân CHẾT, hiện lời giải của sách.</p>
+      <p class="text-sm text-slate-400">Level n = nhiệm vụ ngày n: ${PER_DAY} bài lấy từ 3 quyển của bạn (${PER_BOOK} bài/quyển, dễ → khó dần). Chung 1 đồng hồ ${fmtMS(PER_DAY * 75)} (= 75s/bài như đề thật). Sai 1 bài hoặc hết giờ → bệnh nhân CHẾT, hiện lời giải của sách.</p>
       <div class="mono text-sm mt-2"><span class="text-emerald-300">Đã cứu: ${S.erCleared.length}</span> · <span class="text-red-400">Đã giết: ${S.deaths}</span></div>
       ${ecgSVG()}
     </section>
-    <div class="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-10 gap-2 mt-4">${nodes}</div>`;
+    <div class="grid grid-cols-5 md:grid-cols-10 gap-2 mt-4">${nodes}</div>`;
 }
 function startLevel(n) {
   stopTimer(); if (currentTab !== 'er') { currentTab = 'er'; renderTabs(); }
-  Object.assign(ER, { lvl: n, i: 0, list: dayExercises(n), max: 6 * 75, time: 6 * 75 });
+  Object.assign(ER, { lvl: n, i: 0, list: dayExercises(n), max: PER_DAY * 75, time: PER_DAY * 75 });
   ER.patient = PATIENTS[(n - 1) % PATIENTS.length];
   tutorSay(pick(['Bệnh nhân đây. Đừng giết người ta, tôi lười viết giấy chứng tử.', 'Đồng hồ chạy rồi. Mỗi giây bạn ngập ngừng là một tế bào của bệnh nhân bốc hơi.']));
   renderERQ();
@@ -798,7 +885,7 @@ function renderERQ() {
     <section class="panel danger p-4">
       <div class="flex items-center justify-between gap-2">
         <button class="btn btn-ghost text-sm" onclick="go('er')">← Bỏ chạy</button>
-        <div class="mono text-xs sm:text-sm text-slate-400 text-center">LV ${ER.lvl} · ${esc(ER.patient)} · bài ${ER.i + 1}/6</div>
+        <div class="mono text-xs sm:text-sm text-slate-400 text-center">LV ${ER.lvl} · ${esc(ER.patient)} · bài ${ER.i + 1}/${PER_DAY}</div>
         <div class="mono text-3xl font-bold text-red-400" id="er-time">${fmtMS(ER.time)}</div>
       </div>
       <div class="bar mt-3"><div id="er-bar" style="width:${ER.time / ER.max * 100}%;background:linear-gradient(90deg,#ff1f3d,#ffe14d)"></div></div>
@@ -853,14 +940,14 @@ function erWin() {
   const first = !S.erCleared.includes(ER.lvl); const gain = first ? 100 + ER.time : 10;
   if (first) S.erCleared.push(ER.lvl);
   addXP(gain);
-  praise(ER.lvl === 30 ? 'Bạn qua cả LEVEL 30. Tôi... không có lời nào để roast. Đi thi đi!' : '');
+  praise(ER.lvl === PLAN_DAYS ? `Bạn qua cả LEVEL ${PLAN_DAYS}. Tôi... không có lời nào để roast. Đi thi đi!` : '');
   showOverlay(`
     <div class="max-w-2xl w-full text-center">
       <div class="text-5xl md:text-7xl font-bold text-emerald-300" style="text-shadow:0 0 30px rgba(0,255,163,.7)">PATIENT SAVED</div>
       <div class="mono text-emerald-200 text-sm mt-1">+${gain} XP · còn ${ER.time}s · ${first ? 'Mở khoá level tiếp theo' : 'Đã cứu ca này trước đó'}</div>
       ${ecgSVG()}
       <div class="flex justify-center gap-2 mt-4">
-        ${ER.lvl < 30 ? `<button class="btn btn-neon" onclick="closeOverlay();startLevel(${ER.lvl + 1})">Ca tiếp theo →</button>` : ''}
+        ${ER.lvl < PLAN_DAYS ? `<button class="btn btn-neon" onclick="closeOverlay();startLevel(${ER.lvl + 1})">Ca tiếp theo →</button>` : ''}
         <button class="btn btn-ghost" onclick="closeOverlay();go('er')">Về bản đồ</button>
       </div>
     </div>`);
@@ -1363,7 +1450,7 @@ function renderSettings() {
       <section class="panel p-5">
         <span class="tape" style="background:var(--cyan)">HỆ THỐNG</span>
         <h2 class="text-xl font-bold mt-1">Bảng điều khiển hành xác ⚙️</h2>
-        <label class="text-xs text-slate-400 mt-3 block">Ngày bắt đầu 30 ngày</label>
+        <label class="text-xs text-slate-400 mt-3 block">Ngày bắt đầu ${PLAN_DAYS} ngày</label>
         <div class="flex gap-2"><input id="set-start" type="date" value="${S.startDate}"><button class="btn btn-ghost" onclick="setStart()">Đặt</button></div>
         <div class="flex flex-wrap gap-2 mt-4">
           <button class="btn btn-red" onclick="S.missedDays=1;startPunishment()">☠ Thử Punishment Protocol</button>
@@ -1412,8 +1499,8 @@ const closeOverlay = () => { $('#overlay-root').innerHTML = ''; };
 
 renderTabs(); renderStats(); go('dash');
 if (S.tutorMin) toggleTutor(true);
-tutorSay(checkedToday() ? 'Lại là bạn à. Hôm nay điểm danh rồi, giờ đi làm 6 bài của ngày hôm nay đi.'
-  : `Ngày ${dayNumber()}/30. Bạn CHƯA điểm danh. Đồng hồ đang chạy về 00:00:00... tick tock 😈`);
+tutorSay(checkedToday() ? 'Lại là bạn à. Hôm nay điểm danh rồi, giờ đi làm ' + PER_DAY + ' bài Kern của ngày hôm nay đi.'
+  : `Ngày ${dayNumber()}/${PLAN_DAYS}. Bạn CHƯA điểm danh. Đồng hồ đang chạy về 00:00:00... tick tock 😈`);
 checkDeadman();
 pullSync();
 </script>
