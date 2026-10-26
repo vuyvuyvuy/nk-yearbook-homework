@@ -80,6 +80,11 @@
   .node:hover{transform:translateY(-2px)}
   .exnum{border-radius:8px;border:1px solid var(--line);padding:.35rem 0;text-align:center;font-size:12px;font-weight:700;cursor:pointer}
   .lecture-body h3{color:var(--cyan);font-weight:700;font-size:1.1rem;margin-top:1rem}
+  .gl{border-bottom:1px dotted var(--cyan);cursor:pointer}
+  .gl:hover{background:rgba(0,229,255,.1)}
+  .ks{border-left:3px solid var(--cyan);background:rgba(0,229,255,.05);padding:.5rem .8rem;border-radius:0 10px 10px 0;margin-top:.5rem}
+  .ks .vi{color:var(--muted);font-size:.85rem}
+  #gloss-tip{position:fixed;z-index:95;max-width:min(320px,90vw)}
   .mnemo{border-left:3px solid var(--pink);background:rgba(255,46,136,.07);padding:.6rem .8rem;border-radius:0 10px 10px 0;margin-top:.5rem}
   .sheet{background:#fff;border-radius:10px;padding:6px}
   .sheet img{display:block;width:100%;height:auto}
@@ -125,6 +130,7 @@
   </div>
 </aside>
 
+<div id="gloss-tip" class="hidden panel neon px-3 py-2 text-sm"></div>
 <div id="modal-root"></div>
 <div id="overlay-root"></div>
 
@@ -259,11 +265,14 @@ async function pullSync() {
 }
 function addXP(n) { S.xp = Math.max(0, S.xp + n); save(); renderStats(); }
 // merge lessons shipped inside the file (prepared from the user's material);
-// a higher `rev` replaces an older copy (its questions changed, so old scores are dropped)
+// a higher `rev` replaces an older copy; scores survive only if the questions are unchanged
 FACH_BUILTIN.forEach(l => {
   const i = S.fach.findIndex(x => x.id === l.id);
   if (i < 0) S.fach.push(l);
-  else if ((l.rev || 0) > (S.fach[i].rev || 0)) S.fach[i] = l;
+  else if ((l.rev || 0) > (S.fach[i].rev || 0)) {
+    const same = JSON.stringify(S.fach[i].testas) === JSON.stringify(l.testas);
+    S.fach[i] = Object.assign({}, l, { quizzes: same ? S.fach[i].quizzes || {} : {} });
+  }
 });
 save();
 
@@ -1038,13 +1047,20 @@ function renderFileList() {
     <button class="text-red-400 text-xs" onclick="LEC.files.splice(${i},1);renderFileList()">xoá</button></div>`).join('');
 }
 
-function buildSystemPrompt(level, part = 'all') {
-  const P = buildSystemPromptFull(level);
+function buildSystemPrompt(level, part = 'all', day = dayNumber()) {
+  const P = buildSystemPromptFull(level) + '\n' + germanRule(day);
   if (part === 'all') return P;
   const only = part === 'lecture'
     ? 'LẦN NÀY CHỈ LÀM PHẦN (0), (1) và (3). JSON chỉ gồm các khoá: {"title","guide","lecture","vocab","cards"} (bỏ "testas").'
     : 'LẦN NÀY CHỈ LÀM PHẦN (2). JSON chỉ gồm khoá: {"testas"} (bỏ các khoá khác).';
   return P + '\n' + only;
+}
+function germanRule(day) {
+  const st = germanStage(day);
+  const common = 'Mỗi section có "kernsaetze": câu tiếng Đức ngắn, đúng văn phong sách giáo khoa (kiểu câu sẽ gặp trong Fachtext), mỗi câu kèm "vi" (dịch tiếng Việt) và "key" (1 từ khoá có nguyên văn trong câu, dùng làm thẻ đục lỗ). Mẹo bựa LUÔN bằng tiếng Việt. Nếu đùa bằng tiếng Đức: chỉ câu ngắn và ghi nghĩa tiếng Việt ngay sau.';
+  return `TỈ LỆ TIẾNG ĐỨC — đây là bài ngày ${day}/20 (giai đoạn ${st}/3). ` + (st === 1 ? 'explanation bằng tiếng Việt; 2–3 kernsaetze mỗi section. '
+    : st === 2 ? 'explanation tiếng Việt NGẮN GỌN (thuật ngữ để tiếng Đức); 3–5 kernsaetze mỗi section. Trong vocab đánh dấu "hard": true cho từ khó. '
+    : 'explanation viết bằng TIẾNG ĐỨC ĐƠN GIẢN (A2–B1, câu ngắn), thêm "explanation_vi" là tóm tắt tiếng Việt 1–2 câu; 3–5 kernsaetze mỗi section. Trong vocab đánh dấu "hard": true cho từ khó. ') + common;
 }
 function buildSystemPromptFull(level) {
   return `Bạn là "BS. Mỏ Hỗn" — gia sư luyện thi TestAS Fachmodul Medizin cực kỳ bựa, mỏ hỗn, nhưng kiến thức phải CHÍNH XÁC.
@@ -1056,26 +1072,26 @@ Tạo 3 phần:
 (0) LỌC BÀI: tài liệu thường là bài AMBOSS đầy đủ. TestAS Fachmodul chỉ hỏi kiến thức TIỀN LÂM SÀNG (Anatomie, Physiologie, Biochemie) và mọi câu trả lời được bằng text, nên: chỉ giảng phần cơ sở; liệt kê mục nào PHẢI HIỂU và mục nào BỎ QUA (thường là Klinik, Diagnostik, Therapie, số liệu dịch tễ, liều thuốc), kèm lý do ngắn. Phần (1)(2)(3) chỉ dùng các mục PHẢI HIỂU.
 (3) ANKI: 8–15 flashcard (front ngắn, back = đáp án + mẹo bựa) và 10–25 từ vựng tiếng Đức quan trọng của Fachtext (kèm der/die/das) với nghĩa tiếng Việt.
 ĐỊNH DẠNG: Trả về DUY NHẤT một object JSON hợp lệ (không markdown, không \`\`\`):
-{"title":"tiêu đề ngắn tiếng Việt","guide":{"must":["mục cần hiểu — vì sao"],"skip":["mục bỏ qua — vì sao"]},"lecture":{"intro":"câu mở đầu mỏ hỗn","sections":[{"heading":"...","explanation":"...","mnemonic":"..."}],"outro":"câu chốt cà khịa"},"testas":{"texts":[{"title_de":"Text 1: ...","text_de":"đoạn 1\\n\\nđoạn 2...","table":{"caption":"(tuỳ chọn)","head":["..."],"rows":[["..."]]},"questions":[{"q":"câu hỏi tiếng Đức","options":["A","B","C","D"],"answer":0,"explain_vi":"..."}]}]},"vocab":[{"de":"die Hypophyse","vi":"tuyến yên"}],"cards":[{"front":"...","back":"..."}]}`;
+{"title":"tiêu đề ngắn tiếng Việt","guide":{"must":["mục cần hiểu — vì sao"],"skip":["mục bỏ qua — vì sao"]},"lecture":{"intro":"câu mở đầu mỏ hỗn","sections":[{"heading":"...","explanation":"...","explanation_vi":"(chỉ giai đoạn 3)","mnemonic":"...","kernsaetze":[{"de":"...","vi":"...","key":"..."}]}],"outro":"câu chốt cà khịa"},"testas":{"texts":[{"title_de":"Text 1: ...","text_de":"đoạn 1\\n\\nđoạn 2...","table":{"caption":"(tuỳ chọn)","head":["..."],"rows":[["..."]]},"questions":[{"q":"câu hỏi tiếng Đức","options":["A","B","C","D"],"answer":0,"explain_vi":"..."}]}]},"vocab":[{"de":"die Hypophyse","vi":"tuyến yên","hard":false}],"cards":[{"front":"...","back":"..."}]}`;
 }
 
 // Claude via the artifact's sample capability: two calls (lecture+Anki, then TestAS) to stay within the answer length
-async function callSample(text, files, level) {
+async function callSample(text, files, level, day) {
   const material = `TÀI LIỆU CỦA NGƯỜI HỌC:\n${text || '(xem ảnh đính kèm)'}` + files.filter(f => f.kind === 'text').map(f => `\n--- FILE ${f.name} ---\n${f.text}`).join('');
   const images = files.filter(f => f.kind === 'image').map(f => f.blob);
   if (files.some(f => f.kind === 'pdf')) throw new Error('Bản trên claude.ai chưa tự đọc được PDF. Cách nhanh nhất: gửi file PDF cho Claude trong khung chat (kèm "bài ngày n"), bài soạn xong sẽ tự xuất hiện trong app. Hoặc dán chữ / chụp vài trang thành ảnh rồi soạn ở đây.');
   const limits = await CAP.sample.limits().catch(() => null);
   if (limits && new Blob([material]).size > limits.maxPromptBytes - 8000) throw new Error('Tài liệu quá dài cho một lần soạn — chia nhỏ ra từng bài.');
   const opts = images.length ? { images, modelTier: 'complex' } : { modelTier: 'complex' };
-  const a = await CAP.sample.json(buildSystemPrompt(level, 'lecture') + '\n\n' + material, opts);
-  const b = await CAP.sample.json(buildSystemPrompt(level, 'testas') + '\n\n' + material, opts);
+  const a = await CAP.sample.json(buildSystemPrompt(level, 'lecture', day) + '\n\n' + material, opts);
+  const b = await CAP.sample.json(buildSystemPrompt(level, 'testas', day) + '\n\n' + material, opts);
   return Object.assign({}, a, { testas: b.testas || b });
 }
 
-async function callAI(text, files, level) {
+async function callAI(text, files, level, day) {
   const { provider, apiKey } = S.settings;
   const model = S.settings.model || DEFAULT_MODELS[provider];
-  const sys = buildSystemPrompt(level);
+  const sys = buildSystemPrompt(level, 'all', day);
   const extraText = files.filter(f => f.kind === 'text').map(f => `\n--- FILE ${f.name} ---\n${f.text}`).join('');
   const user = `TÀI LIỆU CỦA NGƯỜI HỌC:\n${text || '(xem file đính kèm)'}${extraText}`;
   const bin = files.filter(f => f.kind !== 'text');
@@ -1113,6 +1129,45 @@ async function callAI(text, files, level) {
   throw new Error('Provider không hợp lệ');
 }
 
+// --- German ratio across the 20 days: 1–7 Vietnamese + Kernsätze with all hints,
+//     8–14 shorter Vietnamese + more Kernsätze, hints for hard words only,
+//     15–20 simple German explanations, exam mode (no hints) by default
+const germanStage = day => day <= 7 ? 1 : day <= 14 ? 2 : 3;
+const HINT_LABEL = { all: 'Gợi ý: mọi từ', hard: 'Gợi ý: từ khó', off: 'Chế độ thi (tắt gợi ý)' };
+const defaultHint = day => ({ 1: 'all', 2: 'hard', 3: 'off' })[germanStage(day)];
+const hintMode = L => (S.hintMode || {})[L.id] || defaultHint(L.day);
+function setHint(id, mode) { S.hintMode = Object.assign({}, S.hintMode, { [id]: mode }); save(); openFach(id, FV.part); }
+// vocab entry "der Abbau / abbauen" → match terms ["Abbau", "abbauen"]
+function glossTerms(v) {
+  return v.de.split('/').map(t => t.replace(/\(.*?\)/g, '').replace(/^\s*(der|die|das|sich)\s+/i, '').replace(/\s+(an|auf|in)$/i, '').trim())
+    .filter(t => t.length >= 4);
+}
+function glossaryRegex(L, mode) {
+  if (mode === 'off' || !L.vocab.length) return null;
+  const map = new Map();
+  L.vocab.forEach(v => { if (mode === 'hard' && !(v.hard || v.de.length >= 14)) return; glossTerms(v).forEach(t => map.set(t.toLowerCase(), v)); });
+  if (!map.size) return null;
+  const alt = [...map.keys()].sort((a, b) => b.length - a.length).map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+  return { re: new RegExp(`(^|[^\\wäöüÄÖÜß])(${alt})([a-zäöüß]{0,3})(?![\\wäöüß])`, 'gi'), map };
+}
+// German text → safe HTML with tap-to-translate words
+function deHTML(text, G) {
+  let h = md(text);
+  if (!G) return h;
+  const seen = new Set();   // underline each term once per paragraph
+  return h.replace(G.re, (m, pre, word, suf) => { const v = G.map.get(word.toLowerCase()); if (seen.has(v)) return m; seen.add(v); return `${pre}<span class="gl" data-vi="${esc(v.de + ' — ' + v.vi)}" onclick="glossTip(this,event)">${word}${suf}</span>`; });
+}
+function glossTip(el, ev) {
+  ev.stopPropagation();
+  const tip = $('#gloss-tip'); tip.textContent = el.dataset.vi; tip.classList.remove('hidden');
+  const r = el.getBoundingClientRect();
+  tip.style.left = Math.max(8, Math.min(r.left, innerWidth - tip.offsetWidth - 8)) + 'px';
+  tip.style.top = (r.bottom + 6 + tip.offsetHeight > innerHeight ? r.top - tip.offsetHeight - 6 : r.bottom + 6) + 'px';
+}
+addEventListener('click', () => { const t = $('#gloss-tip'); if (t) t.classList.add('hidden'); });
+addEventListener('scroll', () => { const t = $('#gloss-tip'); if (t) t.classList.add('hidden'); }, { passive: true });
+const clozeOf = k => k.key && k.de.includes(k.key) ? k.de.replace(k.key, '[ … ]') : null;
+
 // a lesson's TestAS part = several texts, each with its own questions (like the practice book).
 // Older lessons stored one text directly on `testas`; read both shapes.
 const lessonTexts = L => L.testas?.texts || normTexts(L.testas);
@@ -1138,10 +1193,11 @@ function normalizeLesson(o, day) {
   const L = {
     id: s(o.id) || uid(), rev: +o.rev || 0, day: +(o.day || day || dayNumber()), title: s(o.title) || 'Bài Fachmodul', createdAt: o.createdAt || new Date().toISOString(),
     source: s(o.source) || 'import', sourceFiles: o.sourceFiles || [],
-    lecture: { intro: s(o.lecture?.intro), outro: s(o.lecture?.outro), sections: (o.lecture?.sections || []).map(x => ({ heading: s(x.heading), explanation: s(x.explanation), mnemonic: s(x.mnemonic) })) },
+    lecture: { intro: s(o.lecture?.intro), outro: s(o.lecture?.outro), sections: (o.lecture?.sections || []).map(x => ({ heading: s(x.heading), explanation: s(x.explanation), explanation_vi: s(x.explanation_vi), mnemonic: s(x.mnemonic),
+      kernsaetze: (x.kernsaetze || []).map(k => ({ de: s(k.de), vi: s(k.vi), key: s(k.key) })).filter(k => k.de) })) },
     testas: { texts: normTexts(o.testas) },
     guide: { must: (o.guide?.must || []).map(s), skip: (o.guide?.skip || []).map(s) },
-    vocab: (o.vocab || []).map(v => ({ de: s(v.de), vi: s(v.vi) })).filter(v => v.de && v.vi),
+    vocab: (o.vocab || []).map(v => ({ de: s(v.de), vi: s(v.vi), hard: !!v.hard })).filter(v => v.de && v.vi),
     cards: (o.cards || []).map(c => ({ front: s(c.front), back: s(c.back) })).filter(c => c.front && c.back),
     quizzes: o.quizzes || {}
   };
@@ -1161,7 +1217,7 @@ async function generateFach() {
   out.innerHTML = `<div class="panel p-6 text-center"><div class="text-5xl heartbeat">🧠</div><div id="lec-step" class="mono text-cyan-300 mt-3">${LOADING_STEPS[0]}</div></div>`;
   const iv = setInterval(() => { const el = $('#lec-step'); if (el) el.textContent = LOADING_STEPS[++step % LOADING_STEPS.length]; }, 1500);
   try {
-    const obj = CAP.sample ? await callSample(text, LEC.files, level) : parseAI(await callAI(text, LEC.files, level));
+    const obj = CAP.sample ? await callSample(text, LEC.files, level, day) : parseAI(await callAI(text, LEC.files, level, day));
     const L = normalizeLesson(Object.assign(obj, { source: CAP.sample ? 'claude' : S.settings.provider, sourceFiles: LEC.files.map(f => f.name) }), day);
     S.fach.push(L); save(); renderStats(); addXP(30);
     LEC.files = [];
@@ -1202,26 +1258,33 @@ function openFach(id, part = 'lecture') {
   ({ lecture: fachLecture, quiz: fachQuiz, vocab: fachVocab, anki: fachAnki })[part](L);
 }
 function fachLecture(L) {
-  const lec = L.lecture;
+  const lec = L.lecture, stage = germanStage(L.day), G = glossaryRegex(L, hintMode(L));
   const g = L.guide || { must: [], skip: [] };
   $('#fach-body').innerHTML = `<article class="panel neon p-5 lecture-body fade-in">
     ${g.must.length || g.skip.length ? `<div class="grid sm:grid-cols-2 gap-3 mb-4">
       <div class="panel p-3" style="border-color:rgba(0,255,163,.4)"><div class="font-bold text-emerald-300">✅ Phải hiểu</div><ul class="list-disc pl-5 text-sm mt-1 space-y-1">${g.must.map(x => `<li>${md(x)}</li>`).join('')}</ul></div>
       <div class="panel p-3" style="border-color:rgba(255,31,61,.4)"><div class="font-bold text-red-300">⏭ Bỏ qua được</div><ul class="list-disc pl-5 text-sm mt-1 space-y-1">${g.skip.map(x => `<li>${md(x)}</li>`).join('')}</ul></div></div>` : ''}
+    <div class="text-xs text-slate-400 mb-2">Giai đoạn ${stage}/3 · ${['', 'giảng tiếng Việt + Kernsätze', 'tiếng Việt ngắn + nhiều Kernsätze', 'giảng bằng tiếng Đức đơn giản'][stage]} · ${hintBar(L)}</div>
     ${lec.intro ? `<p class="text-slate-300 italic">${md(lec.intro)}</p>` : ''}
-    ${lec.sections.map(s => `<h3>▸ ${esc(s.heading)}</h3><p class="text-slate-200 mt-1">${md(s.explanation)}</p>${s.mnemonic ? `<div class="mnemo"><b class="text-pink-300">🤪 Mẹo bựa:</b> ${md(s.mnemonic)}</div>` : ''}`).join('')}
+    ${lec.sections.map(s => `<h3>▸ ${esc(s.heading)}</h3>
+      <p class="text-slate-200 mt-1">${stage === 3 ? deHTML(s.explanation, G) : md(s.explanation)}</p>
+      ${s.explanation_vi ? `<details class="mt-1 text-sm"><summary class="cursor-pointer text-slate-400">📖 Xem tóm tắt tiếng Việt</summary><p class="mt-1 text-slate-300">${md(s.explanation_vi)}</p></details>` : ''}
+      ${s.mnemonic ? `<div class="mnemo"><b class="text-pink-300">🤪 Mẹo bựa:</b> ${md(s.mnemonic)}</div>` : ''}
+      ${s.kernsaetze.length ? `<div class="ks"><div class="text-xs font-bold text-cyan-300 mb-1">🇩🇪 KERNSÄTZE — đọc tiếng Đức trước, bí thì chạm để xem nghĩa</div>${s.kernsaetze.map(k =>
+        `<details class="mt-1"><summary class="cursor-pointer">${deHTML(k.de, G)}</summary><div class="vi">→ ${esc(k.vi)}</div></details>`).join('')}</div>` : ''}`).join('')}
     ${L.cards.length ? `<h3>🃏 Flashcards (${L.cards.length})</h3><div class="grid sm:grid-cols-2 gap-2 mt-2">${L.cards.map(c => `
       <details class="panel p-3"><summary class="font-semibold cursor-pointer">${esc(c.front)}</summary><div class="text-sm text-emerald-200 mt-2">${md(c.back)}</div></details>`).join('')}</div>` : ''}
     ${lec.outro ? `<p class="mt-4 text-yellow-200">💀 ${md(lec.outro)}</p>` : ''}
     <div class="mt-5"><button class="btn btn-pink" onclick="openFach('${L.id}','quiz')">Xong → làm câu hỏi TestAS (tiếng Đức) 📝</button></div>
   </article>`;
 }
+const hintBar = L => ['all', 'hard', 'off'].map(m => `<button class="optbtn text-xs ${hintMode(L) === m ? 'on' : ''}" onclick="setHint('${L.id}','${m}')">${HINT_LABEL[m]}</button>`).join(' ');
 let FQ = null;
 function fachQuiz(L, ti = 0) {
   const texts = lessonTexts(L);
   if (!texts.length) { $('#fach-body').innerHTML = '<div class="panel p-5 text-slate-400">Bài này chưa có câu hỏi TestAS.</div>'; return; }
   stopTimer();
-  const T = texts[ti], qs = T.questions, sum = lessonScore(L);
+  const T = texts[ti], qs = T.questions, sum = lessonScore(L), G = glossaryRegex(L, hintMode(L));
   FQ = { id: L.id, ti, sel: {}, t: qs.length * 95, done: false };   // ~1 min 35 s per question, like the real module
   const chips = texts.map((x, k) => { const r = (L.quizzes || {})[k];
     return `<button class="optbtn text-xs ${k === ti ? 'on' : ''}" style="${r ? (r.score / r.total >= .7 ? 'border-color:var(--neon)' : 'border-color:var(--red)') : ''}" onclick="fachQuiz(S.fach.find(l=>l.id==='${L.id}'),${k})">Text ${k + 1}${r ? ` · ${r.score}/${r.total}` : ''}</button>`; }).join('');
@@ -1230,11 +1293,12 @@ function fachQuiz(L, ti = 0) {
     <tbody>${T.table.rows.map(r => `<tr>${r.map(c => `<td class="border border-slate-700 px-2 py-1 align-top">${md(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>` : '';
   $('#fach-body').innerHTML = `
     <div class="flex flex-wrap gap-2 mb-3">${chips}</div>
+    <div class="flex flex-wrap gap-2 mb-3 items-center"><span class="text-xs text-slate-400">Chạm vào từ gạch chân để xem nghĩa:</span>${hintBar(L)}</div>
     <div class="flex items-center justify-between mb-2"><div class="text-sm text-slate-400">Text ${ti + 1}/${texts.length} · ${qs.length} câu · ~1:35/câu · chỉ dùng thông tin trong text${sum ? ` · tổng đã làm ${sum.score}/${sum.total}` : ''}</div>
       <div id="fq-time" class="mono text-2xl font-bold text-cyan-300">${fmtMS(FQ.t)}</div></div>
     <div class="grid lg:grid-cols-2 gap-4">
       <article class="panel p-5 detext lg:max-h-[75vh] lg:overflow-auto"><h3 class="text-lg font-bold text-cyan-300">${esc(T.title_de)}</h3>
-        ${T.text_de.split(/\n\s*\n/).map(p => `<p>${md(p)}</p>`).join('')}${table}</article>
+        ${T.text_de.split(/\n\s*\n/).map(p => `<p>${deHTML(p, G)}</p>`).join('')}${table}</article>
       <div class="space-y-4" id="fq-list">${qs.map((q, i) => `
         <div class="panel p-4"><div class="font-semibold">${ti + 1}.${i + 1} ${esc(q.q)}</div>
           <div class="space-y-2 mt-3">${q.options.map((o, k) => `<button class="opt" id="fq-${i}-${k}" onclick="fqPick(${i},${k})"><span class="k">(${'ABCD'[k]})</span>${esc(o)}</button>`).join('')}</div>
@@ -1276,7 +1340,7 @@ function fachAnki(L) {
   const n = lessonRows(L).length;
   $('#fach-body').innerHTML = `<div class="panel neon p-5">
     <div class="font-bold text-lg">⬇ Xuất Anki (${n} thẻ)</div>
-    <p class="text-sm text-slate-400 mt-1">Gồm: flashcard của bài giảng · mỗi mục giảng (khái niệm → giải thích + mẹo bựa) · từ vựng Đức → Việt · mọi câu hỏi TestAS của các text (câu hỏi + 4 lựa chọn → đáp án + giải thích).</p>
+    <p class="text-sm text-slate-400 mt-1">Gồm: flashcard của bài giảng · mỗi mục giảng (khái niệm → giải thích + mẹo bựa) · từ vựng Đức → Việt · Kernsätze dạng đục lỗ (tự điền từ khoá) · mọi câu hỏi TestAS của các text (câu hỏi + 4 lựa chọn → đáp án + giải thích).</p>
     <p class="text-sm text-slate-400 mt-1">Trong Anki: File → Import → chọn file .csv (cột 1 = Front, cột 2 = Back).</p>
     <button class="btn btn-neon mt-3" onclick="exportFach('${L.id}')">⬇ Tải file .csv</button>
     <button class="btn btn-ghost mt-3" onclick="exportLessonJSON('${L.id}')">⬇ Tải bài (.json) để chép sang máy khác</button></div>`;
@@ -1293,6 +1357,7 @@ function lessonRows(L) {
   const rows = L.cards.map(c => [c.front, c.back]);
   L.lecture.sections.forEach(s => { if (s.heading) rows.push([s.heading, `${s.explanation}${s.mnemonic ? '\n\n🤪 Mẹo bựa: ' + s.mnemonic : ''}`]); });
   L.vocab.forEach(v => rows.push([v.de, v.vi]));
+  L.lecture.sections.forEach(s => s.kernsaetze.forEach(k => rows.push(clozeOf(k) ? [`Điền từ còn thiếu:\n${clozeOf(k)}`, `${k.de}\n\n→ ${k.vi}`] : [k.de, k.vi])));
   lessonQs(L).forEach(q => rows.push([`${q.q}\n${q.options.map((o, k) => `(${'ABCD'[k]}) ${o}`).join('\n')}`, `(${'ABCD'[q.answer]}) ${q.options[q.answer]}\n\n${q.explain_vi}`]));
   return rows;
 }
