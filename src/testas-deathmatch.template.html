@@ -1003,7 +1003,7 @@ async function openFachCreate(day) {
         : '● Chưa có API key → app không soạn được (và sẽ KHÔNG bịa bài mẫu). Nhập key ở ⚙️ Cài đặt, mở app trên claude.ai, hoặc gửi tài liệu cho Claude trong chat rồi nhập file .json.'}</div>
       <textarea id="lec-text" rows="8" class="mt-3" placeholder="Dán nội dung bài (Amboss, sách Medizin, ghi chú...)."></textarea>
       <label class="block mt-3 panel p-4 text-center cursor-pointer" style="border-style:dashed">
-        <input type="file" id="lec-files" class="hidden" multiple accept="${CAP.sample ? 'image/*,.txt,.md' : 'image/*,application/pdf,.txt,.md'}" onchange="addLecFiles(this.files)">
+        <input type="file" id="lec-files" class="hidden" multiple accept="image/*,application/pdf,.pdf,.txt,.md" onchange="addLecFiles(this.files)">
         📎 <b>Upload ảnh / PDF / .txt</b><div class="text-xs text-slate-500">Mỗi lần 1 bài (PDF dài quá ~100 trang API sẽ từ chối). ≤ 15MB/file.</div>
       </label>
       <div id="lec-filelist" class="mt-2 space-y-1"></div>
@@ -1058,7 +1058,7 @@ Tạo 3 phần:
 async function callSample(text, files, level) {
   const material = `TÀI LIỆU CỦA NGƯỜI HỌC:\n${text || '(xem ảnh đính kèm)'}` + files.filter(f => f.kind === 'text').map(f => `\n--- FILE ${f.name} ---\n${f.text}`).join('');
   const images = files.filter(f => f.kind === 'image').map(f => f.blob);
-  if (files.some(f => f.kind === 'pdf')) throw new Error('Trên claude.ai app chưa đọc được PDF: dán chữ vào ô, chụp ảnh trang, hoặc gửi PDF cho Claude trong chat.');
+  if (files.some(f => f.kind === 'pdf')) throw new Error('Bản trên claude.ai chưa tự đọc được PDF. Cách nhanh nhất: gửi file PDF cho Claude trong khung chat (kèm "bài ngày n"), bài soạn xong sẽ tự xuất hiện trong app. Hoặc dán chữ / chụp vài trang thành ảnh rồi soạn ở đây.');
   const limits = await CAP.sample.limits().catch(() => null);
   if (limits && new Blob([material]).size > limits.maxPromptBytes - 8000) throw new Error('Tài liệu quá dài cho một lần soạn — chia nhỏ ra từng bài.');
   const opts = images.length ? { images, modelTier: 'complex' } : { modelTier: 'complex' };
