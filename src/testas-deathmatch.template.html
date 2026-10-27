@@ -420,7 +420,7 @@ function kernDone() { return ['fig', 'math', 'latin'].reduce((n, b) => n + Objec
 function renderStats() {
   const items = [
     ['NGÀY', `${dayNumber()}/${PLAN_DAYS}`, 'text-cyan-300'], ['XP', S.xp, 'text-emerald-300'], ['STREAK', `${S.streak}🔥`, 'text-orange-300'],
-    ['BÀI KERN', `${kernDone()}/180`, 'text-emerald-300'], ['BÀI FACH', S.fach.length, 'text-pink-300'], ['GIẾT NHẦM', S.deaths, 'text-red-400']
+    ['BÀI KERN', `${kernDone()}/180`, 'text-emerald-300'], ['BÀI FACH', S.fach.length, 'text-pink-300'], ['ĐANG NỢ', (t => t.kern + t.fachQ + t.lessons)(debtTotals()) || '0 ✓', debts().length ? 'text-red-400' : 'text-emerald-300']
   ];
   $('#statbar').innerHTML = items.map(([k, v, c]) => `<div class="panel px-2 py-1.5"><div class="text-[10px] text-slate-500 mono">${k}</div><div class="font-bold ${c}">${v}</div></div>`).join('');
 }
@@ -511,6 +511,68 @@ const FACH_PLAN = [
   { topics: ['THI THỬ: phần Medicine trong quyển Practice Test (57 câu / 90 phút)'], exam: true },
   { topics: ['Ôn chủ đề sai nhiều nhất ở ngày 19 + ôn Anki'], exam: true }
 ];
+// --- DEBT: everything of an earlier plan day that is not finished.
+// Kern = each of the day's 9 exercises must be solved correctly (last attempt right);
+// Fach = the day's lesson must exist and every one of its texts must be submitted.
+function dayDebt(n) {
+  const kern = dayExercises(n).filter(({ bid, ex }) => !(S.kern[bid][ex.id] || {}).ok);
+  const fach = { missingLesson: false, texts: [], questions: 0 };
+  if (n <= FACH_DAYS && !FACH_PLAN[n - 1].exam) {
+    const ls = fachOfDay(n);
+    if (!ls.length) fach.missingLesson = true;
+    ls.forEach(L => lessonTexts(L).forEach((t, i) => { if (!(L.quizzes || {})[i]) { fach.texts.push({ id: L.id, i }); fach.questions += t.questions.length; } }));
+  }
+  return { n, kern, fach, empty: !kern.length && !fach.missingLesson && !fach.texts.length };
+}
+function debts() { const out = []; for (let n = 1; n < dayNumber(); n++) { const x = dayDebt(n); if (!x.empty) out.push(x); } return out; }
+function debtTotals(list = debts()) {
+  return list.reduce((a, x) => ({ kern: a.kern + x.kern.length, fachQ: a.fachQ + x.fach.questions, texts: a.texts + x.fach.texts.length, lessons: a.lessons + (x.fach.missingLesson ? 1 : 0) }), { kern: 0, fachQ: 0, texts: 0, lessons: 0 });
+}
+const firstDebtDay = () => (debts()[0] || {}).n || null;
+const lockedByDebt = day => { const f = firstDebtDay(); return f !== null && day > f; };
+function debtListHTML(list = debts()) {
+  return list.map(x => `<div class="panel p-3 mt-2" style="border-color:rgba(255,31,61,.45)">
+    <div class="font-bold text-red-300">Ngày ${x.n} · nợ từ ${daysBetween(addDays(S.startDate, x.n - 1), todayStr())} ngày trước</div>
+    ${x.kern.length ? `<div class="text-sm mt-1">🧠 Kern: <b>${x.kern.length}/${PER_DAY}</b> bài chưa giải đúng
+      <div class="flex flex-wrap gap-1 mt-1">${x.kern.map(({ bid, ex }) => `<button class="optbtn text-xs" style="border-color:var(--red)" onclick="closeModal();openPractice('${bid}','${ex.id}')">${BOOK_ICON[bid]} ${ex.id}</button>`).join('')}</div></div>` : ''}
+    ${x.fach.missingLesson ? `<div class="text-sm mt-1">🩺 Fach: <b>chưa có bài</b> (${esc(fachPlanText(x.n))}) — gửi tài liệu cho Claude trong chat, hoặc tự soạn ở tab 🩺.</div>` : ''}
+    ${x.fach.texts.length ? `<div class="text-sm mt-1">🩺 Fach: <b>${x.fach.texts.length} text · ${x.fach.questions} câu</b> chưa làm
+      <div class="flex flex-wrap gap-1 mt-1">${x.fach.texts.map(t => `<button class="optbtn text-xs" style="border-color:var(--red)" onclick="closeModal();openFachText('${t.id}',${t.i})">Text ${t.i + 1}</button>`).join('')}</div></div>` : ''}
+  </div>`).join('');
+}
+function debtSummary(t = debtTotals()) {
+  return [t.kern ? `${t.kern} bài Kern` : '', t.fachQ ? `${t.fachQ} câu Fach (${t.texts} text)` : '', t.lessons ? `${t.lessons} bài Fach chưa nạp` : ''].filter(Boolean).join(' + ');
+}
+function openFachText(id, i) { openFach(id, 'quiz'); const L = S.fach.find(l => l.id === id); if (L) fachQuiz(L, i); }
+// jump to the oldest unpaid item
+function payDebt() {
+  const x = debts()[0]; if (!x) { praise('Hết nợ rồi. Lần đầu tiên tôi thấy bạn sạch nợ.'); go('dash'); return; }
+  closeModal();
+  if (x.kern.length) return openPractice(x.kern[0].bid, x.kern[0].ex.id);
+  if (x.fach.texts.length) return openFachText(x.fach.texts[0].id, x.fach.texts[0].i);
+  go('fach'); tutorSay(`Ngày ${x.n} còn thiếu bài Fach (${fachPlanText(x.n)}). Gửi tài liệu cho Claude trong chat đi, nợ không tự trả đâu.`, 'roast');
+}
+function debtBlock(what) {
+  const list = debts();
+  showModal(`<div class="text-xs mono text-red-400">🔒 BỊ KHOÁ VÌ NỢ</div>
+    <h3 class="text-lg font-bold mt-1">${esc(what)} chỉ mở khi bạn trả hết nợ của các ngày trước.</h3>
+    <div class="text-sm text-slate-300 mt-1">Đang nợ: <b class="text-red-300">${debtSummary(debtTotals(list))}</b></div>
+    ${debtListHTML(list)}
+    <button class="btn btn-red mt-4" onclick="payDebt()">💸 Trả nợ ngay</button>`, true);
+  roast('Nợ cũ chưa trả mà đòi học bài mới? Ngân hàng nào cho bạn vay tiếp vậy?');
+}
+function showDebtNotice() {
+  const list = debts(); if (!list.length) return;
+  const key = 'tdm_debt_notice_' + todayStr();
+  try { if (sessionStorage.getItem(key)) return; sessionStorage.setItem(key, '1'); } catch (e) { }
+  showModal(`<div class="text-xs mono text-red-400">📜 GIẤY ĐÒI NỢ — PHÒNG TÍN DỤNG ĐEN KHOA HỒI SỨC</div>
+    <h3 class="text-xl font-bold mt-1">Bạn đang nợ: <span class="text-red-300">${debtSummary(debtTotals(list))}</span></h3>
+    <p class="text-sm text-slate-400 mt-1">Bài mới (Fach và ER của các ngày sau ngày ${list[0].n}) và Dating Sim bị khoá cho tới khi trả xong. Kern phải giải ĐÚNG mới tính là trả.</p>
+    ${debtListHTML(list)}
+    <button class="btn btn-red mt-4" onclick="payDebt()">💸 Trả nợ ngay</button>`, true);
+  tutorSay('"Schulden" tiếng Đức nghĩa là nợ. Và bạn đang ngập trong Schulden. Trả đi rồi tôi mới cho học bài mới.', 'roast');
+}
+
 const fachPlanText = n => n <= FACH_DAYS ? (FACH_PLAN[n - 1].star ? '★ ' : '') + FACH_PLAN[n - 1].topics.join(' + ') : 'Ôn tập tự do (lịch Fach 20 ngày đã xong)';
 const checkedToday = () => S.checkins.includes(todayStr());
 function msToMidnight() { const n = new Date(); const m = new Date(n); m.setHours(24, 0, 0, 0); return m - n; }
@@ -528,7 +590,12 @@ function renderDash() {
   }).join('');
   const todays = dayExercises(d);
   const fd = fachOfDay(d);
+  const dl = debts();
   $('#view').innerHTML = `
+  ${dl.length ? `<section class="panel danger p-5 mb-4"><span class="tape" style="background:var(--red);color:#fff">SỔ NỢ</span>
+    <div class="flex flex-wrap items-center justify-between gap-3 mt-1"><div><div class="text-xl font-bold text-red-300">Đang nợ: ${debtSummary(debtTotals(dl))}</div>
+      <div class="text-sm text-slate-400">Fach/ER của các ngày sau ngày ${dl[0].n} và Dating Sim đang bị khoá.</div></div>
+      <button class="btn btn-red" onclick="payDebt()">💸 Trả nợ ngay</button></div>${debtListHTML(dl)}</section>` : ''}
   <div class="grid md:grid-cols-3 gap-4">
     <section class="panel ${done ? 'neon' : 'danger'} p-5 md:col-span-2">
       <span class="tape">DEADMAN'S SWITCH</span>
@@ -854,7 +921,7 @@ function submitPractice(giveUp) {
   recordKern(PR.bid, ex, ok);
   if (ok) addXP(PR.t >= 0 ? 20 : 10);
   ok ? praise(PR.t < 0 ? `Đúng, nhưng quá giờ ${-PR.t}s. Thi thật thì tiếc lắm.` : '') : roast(giveUp ? 'Đầu hàng sớm thế. Đọc lời giải rồi làm lại sau nhé.' : '');
-  $('#pr-actions').innerHTML = `${PR.i < b.ex.length - 1 ? `<button class="btn btn-neon" onclick="openPractice('${PR.bid}','${b.ex[PR.i + 1].id}')">Bài tiếp →</button>` : ''}
+  $('#pr-actions').innerHTML = `${debts().length ? `<button class="btn btn-red" onclick="payDebt()">💸 Trả nợ tiếp (${debtSummary()})</button>` : ''}${PR.i < b.ex.length - 1 ? `<button class="btn btn-neon" onclick="openPractice('${PR.bid}','${b.ex[PR.i + 1].id}')">Bài tiếp →</button>` : ''}
     <button class="btn btn-ghost" onclick="openPractice('${PR.bid}','${ex.id}')">Làm lại</button>`;
   $('#pr-feedback').innerHTML = `<div class="mt-3 text-lg font-bold ${ok ? 'text-emerald-300' : 'text-red-400'}">${ok ? '✓ ĐÚNG' : '✗ SAI'} <span class="text-sm font-normal text-slate-400">· bạn chọn: ${esc(fmtAnswer(PR.bid, a))} · thời gian ${fmtMS(75 - PR.t)}</span></div>${solutionHTML(ex)}`;
 }
@@ -930,9 +997,9 @@ const ecgSVG = (flat = false) => `<div class="ecg-wrap"><svg class="ecg ${flat ?
 
 function renderER() {
   const nodes = Array.from({ length: PLAN_DAYS }, (_, i) => {
-    const n = i + 1, done = S.erCleared.includes(n), open = isUnlocked(n);
+    const n = i + 1, done = S.erCleared.includes(n), open = isUnlocked(n) && !lockedByDebt(n);
     const style = done ? 'background:rgba(0,255,163,.12);border-color:rgba(0,255,163,.5);color:#6ee7b7' : open ? 'background:rgba(0,229,255,.08);border-color:rgba(0,229,255,.6);color:#67e8f9' : 'opacity:.45;color:#64748b';
-    return `<div class="node ${open && !done ? 'pulse-neon' : ''}" style="${style}" onclick="${open ? `startLevel(${n})` : `roast('Level ${n} còn khoá. Cứu bệnh nhân trước đã.')`}">
+    return `<div class="node ${open && !done ? 'pulse-neon' : ''}" style="${style}" onclick="${open ? `startLevel(${n})` : lockedByDebt(n) ? `debtBlock('ER Level ${n}')` : `roast('Level ${n} còn khoá. Cứu bệnh nhân trước đã.')`}">
       <div class="text-lg">${done ? '✓' : open ? '🩺' : '🔒'}</div><div class="text-xs">LV ${n}</div></div>`;
   }).join('');
   $('#view').innerHTML = `
@@ -946,6 +1013,7 @@ function renderER() {
     <div class="grid grid-cols-5 md:grid-cols-10 gap-2 mt-4">${nodes}</div>`;
 }
 function startLevel(n) {
+  if (lockedByDebt(n)) return debtBlock(`ER Level ${n}`);
   stopTimer(); if (currentTab !== 'er') { currentTab = 'er'; renderTabs(); }
   Object.assign(ER, { lvl: n, i: 0, list: dayExercises(n), max: PER_DAY * 75, time: PER_DAY * 75 });
   ER.patient = PATIENTS[(n - 1) % PATIENTS.length];
@@ -1307,6 +1375,7 @@ let FV = null;
 function openFach(id, part = 'lecture') {
   stopTimer(); if (currentTab !== 'fach') { currentTab = 'fach'; renderTabs(); }
   const L = S.fach.find(l => l.id === id); if (!L) return go('fach');
+  if (lockedByDebt(+L.day)) { go('fach'); return debtBlock(`Bài Fach ngày ${L.day}`); }
   FV = { id, part };
   const tab = (p, label) => `<button class="tab ${part === p ? 'active' : ''}" onclick="openFach('${id}','${p}')">${label}</button>`;
   $('#view').innerHTML = `
@@ -1384,10 +1453,11 @@ function fqSubmit() {
     for (let k = 0; k < 4; k++) { const b = $(`#fq-${i}-${k}`); b.classList.remove('on'); if (k === q.answer) b.classList.add('good'); else if (k === FQ.sel[i]) b.classList.add('bad'); }
     $(`#fq-exp-${i}`).innerHTML = `<div class="sol mt-3"><b class="${ok ? 'text-emerald-300' : 'text-red-400'}">${ok ? '✓' : '✗'} Đáp án (${'ABCD'[q.answer]})</b><div class="mt-1">${md(q.explain_vi)}</div></div>`;
   });
-  L.quizzes = Object.assign({}, L.quizzes, { [FQ.ti]: { score, total: qs.length, date: todayStr() } }); save(); addXP(score * 15);
+  L.quizzes = Object.assign({}, L.quizzes, { [FQ.ti]: { score, total: qs.length, date: todayStr() } }); save(); addXP(score * 15); renderStats();
   const next = FQ.ti + 1 < texts.length;
   $('#fq-submit').outerHTML = `<div class="panel ${score / qs.length >= .7 ? 'neon' : 'danger'} p-4 text-center"><div class="text-4xl font-bold">${score}/${qs.length}</div>
     <div class="flex flex-wrap justify-center gap-2 mt-3"><button class="btn btn-ghost" onclick="fachQuiz(S.fach.find(l=>l.id==='${L.id}'),${FQ.ti})">Làm lại</button>
+    ${debts().length ? `<button class="btn btn-red" onclick="payDebt()">💸 Trả nợ tiếp</button>` : ''}
     ${next ? `<button class="btn btn-neon" onclick="fachQuiz(S.fach.find(l=>l.id==='${L.id}'),${FQ.ti + 1});window.scrollTo({top:0})">Text ${FQ.ti + 2} →</button>` : `<button class="btn btn-neon" onclick="openFach('${L.id}','anki')">⬇ Xuất Anki</button>`}</div></div>`;
   score / qs.length >= .7 ? praise(`${score}/${qs.length}. Đọc tiếng Đức cũng không tệ. Đừng tự mãn.`) : roast(`${score}/${qs.length}. Mở mục 🇩🇪 Từ vựng ra học đi rồi đọc lại Fachtext.`);
 }
@@ -1480,6 +1550,8 @@ const DATE_LOSE = ['Ew. Em vừa bị ngoại tâm thu vì câu đó.', 'Câu đ
 const DATE = { organ: null, round: 0, love: 30, qs: [], answered: false };
 const vocabPool = () => S.fach.flatMap(l => l.vocab);
 function renderDating() {
+  if (debts().length) { $('#view').innerHTML = `<section class="panel danger p-5"><div class="text-xl font-bold text-red-300">🔒 Dating Sim bị khoá vì nợ bài</div>
+    <p class="text-sm text-slate-300 mt-1">Nội tạng không hẹn hò với con nợ. Đang nợ: <b>${debtSummary()}</b></p><button class="btn btn-red mt-3" onclick="payDebt()">💸 Trả nợ ngay</button></section>`; return; }
   const pool = vocabPool();
   $('#view').innerHTML = `
     <section class="panel p-5" style="border-color:rgba(255,46,136,.45)">
@@ -1659,7 +1731,7 @@ if (S.tutorMin) toggleTutor(true);
 tutorSay(checkedToday() ? 'Lại là bạn à. Hôm nay điểm danh rồi, giờ đi làm ' + PER_DAY + ' bài Kern của ngày hôm nay đi.'
   : `Ngày ${dayNumber()}/${PLAN_DAYS}. Bạn CHƯA điểm danh. Đồng hồ đang chạy về 00:00:00... tick tock 😈`);
 checkDeadman();
-pullSync();
+pullSync().then(() => { if (!S.pendingPunishment) showDebtNotice(); });
 </script>
 </body>
 </html>
