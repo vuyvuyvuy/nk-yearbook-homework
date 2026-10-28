@@ -153,7 +153,10 @@ const shuffle = a => { const b = a.slice(); for (let i = b.length - 1; i > 0; i-
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const md = s => esc(s).replace(/\*\*(.+?)\*\*/g, '<b class="text-white">$1</b>').replace(/\n/g, '<br>');
 const pad = n => String(n).padStart(2, '0');
-const todayStr = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+// a study day runs 07:00 → 07:00: before 7 am it still counts as the previous day
+const DAY_RESET_H = 7;
+const studyDay = (d = new Date()) => { const x = new Date(d); if (x.getHours() < DAY_RESET_H) x.setDate(x.getDate() - 1); return x; };
+const todayStr = (d = studyDay()) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const parseDay = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
 const daysBetween = (a, b) => Math.round((parseDay(b) - parseDay(a)) / 86400000);
 const addDays = (s, n) => { const d = parseDay(s); d.setDate(d.getDate() + n); return todayStr(d); };
@@ -223,6 +226,8 @@ function loadState() {
   return base;
 }
 let S = loadState();
+// the plan starts on 28/10/2026 (day 1); applied once per device, newest start date wins in sync
+try { if (!localStorage.getItem('tdm_start_1028')) { S.startDate = '2026-10-28'; S.startDateSetAt = Date.now(); S.lastDeadmanCheck = ''; S.pendingPunishment = false; localStorage.setItem('tdm_start_1028', '1'); } } catch (e) { }
 function save() {
   S.updatedAt = Date.now();
   try { localStorage.setItem(LS_KEY, JSON.stringify(S)); }
@@ -604,7 +609,7 @@ function examClock() {
 
 const fachPlanText = n => n <= FACH_DAYS ? (FACH_PLAN[n - 1].star ? '★ ' : '') + FACH_PLAN[n - 1].topics.join(' + ') : 'Ôn tập tự do (lịch Fach 20 ngày đã xong)';
 const checkedToday = () => S.checkins.includes(todayStr());
-function msToMidnight() { const n = new Date(); const m = new Date(n); m.setHours(24, 0, 0, 0); return m - n; }
+function msToMidnight() { const n = new Date(); const m = new Date(n); m.setHours(DAY_RESET_H, 0, 0, 0); if (m <= n) m.setDate(m.getDate() + 1); return m - n; }   // until the 07:00 reset
 function fmtHMS(ms) { const s = Math.max(0, Math.floor(ms / 1000)); return `${pad(Math.floor(s / 3600))}:${pad(Math.floor(s % 3600 / 60))}:${pad(s % 60)}`; }
 
 function renderDash() {
@@ -638,7 +643,7 @@ function renderDash() {
         <div>
           <div class="text-xs text-slate-400 mono">${done ? 'CÔNG TẮC ĐÃ ĐƯỢC NHẤN HÔM NAY' : 'THỜI GIAN CÒN LẠI TRƯỚC KHI KÍCH HOẠT HÌNH PHẠT'}</div>
           <div id="deadman-clock" class="mono text-4xl md:text-5xl font-bold ${done ? 'text-emerald-300' : 'text-red-400'}">${done ? 'AN TOÀN ✓' : fmtHMS(msToMidnight())}</div>
-          <div class="text-sm text-slate-400 mt-1">${done ? 'Hôm nay bạn sống sót. Mai lại phải chứng minh.' : 'Không đạt trước 00:00:00 → Punishment Protocol. Điểm danh tự động khi đạt ≥ 80% bài Kern và ≥ 80% câu Fach của hôm nay.'}</div>
+          <div class="text-sm text-slate-400 mt-1">${done ? 'Hôm nay bạn sống sót. Mai lại phải chứng minh.' : 'Không đạt trước 07:00 sáng mai → Punishment Protocol. Điểm danh tự động khi đạt ≥ 80% bài Kern và ≥ 80% câu Fach của hôm nay.'}</div>
           ${progressHTML(dayProgress(d))}
         </div>
         <button class="btn ${done ? 'btn-ghost' : 'btn-red heartbeat'} text-lg" ${done ? 'disabled' : ''} onclick="startCheckin()">${done ? 'Đã điểm danh' : '☠ KIỂM TRA ĐIỂM DANH'}</button>
@@ -1594,10 +1599,10 @@ const lessonOpen = L => !lockedByDebt(+L.day);
 function ankiPlan(now = Date.now()) {
   const t = todayStr(), cards = ankiLessons().filter(lessonOpen).flatMap(lessonCards);
   let left = 0, learnedToday = 0, due = 0;
-  const eod = parseDay(t).getTime() + DAY;
+  const eod = parseDay(t).getTime() + DAY + DAY_RESET_H * 36e5;
   cards.forEach(c => { const st = cardState(c);
     if (!st || st.state === 'new') left++;
-    else { if (st.first && todayStr(new Date(st.first)) === t) learnedToday++; if (isDueCard(st, eod)) due++; } });
+    else { if (st.first && todayStr(studyDay(new Date(st.first))) === t) learnedToday++; if (isDueCard(st, eod)) due++; } });
   const daysLeft = Math.max(0, daysBetween(t, todayStr(new Date(examAt()))));
   const days = Math.max(0, daysLeft - ANKI_FINAL - ANKI_RAMP);
   const quota = days ? Math.ceil((left + learnedToday) / days) : left + learnedToday;
@@ -1901,7 +1906,7 @@ const closeOverlay = () => { $('#overlay-root').innerHTML = ''; };
 renderTabs(); renderStats(); go('dash');
 if (S.tutorMin) toggleTutor(true);
 tutorSay(examRoast() + ' ' + (checkedToday() ? 'Lại là bạn à. Hôm nay điểm danh rồi, giờ đi làm ' + PER_DAY + ' bài Kern của ngày hôm nay đi.'
-  : `Ngày ${dayNumber()}/${PLAN_DAYS}. Bạn CHƯA điểm danh. Đồng hồ đang chạy về 00:00:00... tick tock 😈`));
+  : `Ngày ${dayNumber()}/${PLAN_DAYS}. Bạn CHƯA điểm danh. Đồng hồ đang chạy về 07:00 sáng mai... tick tock 😈`));
 checkDeadman();
 pullSync().then(() => { if (!S.pendingPunishment) showDebtNotice(); });
 </script>
