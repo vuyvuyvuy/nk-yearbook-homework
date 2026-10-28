@@ -454,6 +454,9 @@ const BOOK_IDS = ['fig', 'math', 'latin'];
 const BOOK_ICON = { fig: '🔷', math: '➗', latin: '🔠' };
 const LETTER_COLOR = { A: '#f87171', B: '#60a5fa', C: '#4ade80', D: '#c084fc' };   // book's colour convention
 const exById = (bid, id) => KERN[bid].ex.find(e => e.id === id);
+// sets of a book: Prüfung 1–3 from the user's book + "G" = the official g.a.s.t. practice exercises
+const PRUEF_SETS = bid => [...new Set(KERN[bid].ex.map(e => e.pruef))];
+const pruefLabel = p => p === 'G' ? '🏛 Đề mẫu chính thức (g.a.s.t. 2022)' : `Prüfung ${p}`;
 let SEL = {};
 function answerWidget(bid, ex) {
   SEL = {};
@@ -484,7 +487,7 @@ function solutionHTML(ex) {
     if (/^(Ghi chú|Kiểm tra|Lưu ý)/.test(l)) return `<div class="mt-1 text-slate-400">${t}</div>`;
     return `<div>${t}</div>`;
   }).join('');
-  return `<div class="sol mt-3"><div class="font-bold text-emerald-300 mb-1">Đáp án (theo sách): ${esc(ex.answerLine)}</div>${lines}</div>`;
+  return `<div class="sol mt-3"><div class="font-bold text-emerald-300 mb-1">Đáp án (${ex.pruef === 'G' ? 'đề chính thức g.a.s.t.' : 'theo sách'}): ${esc(ex.answerLine)}</div>${lines}</div>`;
 }
 function recordKern(bid, ex, ok) {
   const r = S.kern[bid][ex.id] || { ok: false, n: 0, wrong: 0 };
@@ -499,7 +502,9 @@ const exSheet = ex => `<div class="sheet"><img src="${ex.img}" alt="Bài ${ex.id
 // Day n of the 20-day plan = 3 exercises from each book (books have 60 each, ordered easy → hard)
 const PER_BOOK = 3, PER_DAY = PER_BOOK * 3;
 const dayExercises = n => BOOK_IDS.flatMap(b => KERN[b].ex.slice((n - 1) * PER_BOOK, n * PER_BOOK).map(ex => ({ bid: b, ex })));
-const fachOfDay = n => S.fach.filter(l => +l.day === n);
+const fachOfDay = n => S.fach.filter(l => +l.day === n && !l.bonus);
+// bonus lessons (official sample tasks) sit outside the plan: no debt, no check-in, always open
+const dayLabel = L => L && L.bonus ? '🏛 Đề mẫu' : `Ngày ${L ? L.day : '?'}`;
 // 20-day Fachmodul plan (AMBOSS articles), ordered by the themes of the user's Medicine practice test.
 // star = the theme appeared in that practice test. Skipped on purpose: statistics/studies,
 // mechanics/radiation, organic chemistry basics, psychology/sociology, limbs/trunk.
@@ -917,6 +922,7 @@ function renderKern() {
           <button class="btn btn-neon text-sm" onclick="openBook('${bid}')">🎯 Luyện bài</button>
         </div>
         <div class="flex flex-wrap gap-2 mt-2">${[1, 2, 3].map(p => `<button class="btn btn-red text-xs" onclick="startExam('${bid}',${p})">⏱ Prüfung ${p}</button>`).join('')}</div>
+        ${b.ex.some(e => e.pruef === 'G') ? `<button class="btn btn-ghost text-xs mt-2" onclick="openBook('${bid}','G')">🏛 6 bài đề mẫu chính thức</button>` : ''}
       </div>`; }).join('')}</div>`;
 }
 function openTips(bid) {
@@ -929,18 +935,19 @@ function openTips(bid) {
     <div class="mt-4"><button class="btn btn-neon" onclick="openBook('${bid}')">Đọc xong → Luyện bài 🎯</button></div>`;
   tutorSay('Đọc mẹo của chính bạn đi. Bạn mất công soạn rồi, đừng để nó nằm mốc.');
 }
-function openBook(bid) {
+function openBook(bid, focus) {
   stopTimer();
   const b = KERN[bid];
   $('#view').innerHTML = `
     <div class="flex items-center justify-between gap-2 mb-3"><button class="btn btn-ghost text-sm" onclick="go('kern')">← Kernmodul</button>
       <div class="font-bold">${BOOK_ICON[bid]} ${esc(b.title)}</div></div>
-    ${[1, 2, 3].map(p => `<section class="panel p-4 mb-3"><div class="flex items-center justify-between"><div class="font-bold text-cyan-300">Prüfung ${p}</div>
-      <button class="btn btn-red text-xs" onclick="startExam('${bid}',${p})">⏱ Thi thử 25 phút</button></div>
+    ${PRUEF_SETS(bid).map(p => `<section id="set-${p}" class="panel p-4 mb-3" ${p === 'G' ? 'style="border-color:rgba(250,204,21,.5)"' : ''}><div class="flex items-center justify-between"><div class="font-bold ${p === 'G' ? 'text-yellow-300' : 'text-cyan-300'}">${pruefLabel(p)}</div>
+      ${p === 'G' ? '<span class="text-xs text-slate-400">6 bài · dễ → khó · lời giải dịch từ đáp án chính thức</span>' : `<button class="btn btn-red text-xs" onclick="startExam('${bid}',${p})">⏱ Thi thử 25 phút</button>`}</div>
       <div class="grid grid-cols-5 sm:grid-cols-10 gap-1.5 mt-3">${b.ex.filter(e => e.pruef === p).map(e => { const r = S.kern[bid][e.id];
         const st = !r ? '' : r.ok ? 'background:rgba(0,255,163,.18);border-color:rgba(0,255,163,.5);color:#6ee7b7' : 'background:rgba(255,31,61,.15);border-color:rgba(255,31,61,.5);color:#fca5a5';
         return `<div class="exnum" style="${st}" onclick="openPractice('${bid}','${e.id}')" title="${esc(e.level || '')}">${e.id}</div>`; }).join('')}</div></section>`).join('')}
     <div class="text-xs text-slate-500">Xanh = lần gần nhất đúng · Đỏ = lần gần nhất sai.</div>`;
+  if (focus) $('#set-' + focus)?.scrollIntoView({ block: 'start' });
 }
 
 // --- single-exercise practice (75 s soft timer, then the book's solution)
@@ -1173,12 +1180,16 @@ function renderFach() {
     <section class="panel p-5" style="border-color:rgba(255,46,136,.45)">
       <span class="tape" style="background:var(--pink);color:#fff">FACHMODUL MEDIZIN</span>
       <h2 class="text-2xl font-bold mt-1">Bài Fachmodul theo ngày 🩺</h2>
-      <p class="text-sm text-slate-400">Lịch 20 ngày theo chủ đề của đề mẫu Medicine (★ = chủ đề đã ra trong đề mẫu). App KHÔNG tự bịa bài. Mỗi bài được soạn từ tài liệu bạn đưa, gồm 3 phần: 🤪 giảng bài bựa (tiếng Việt) · 📝 Fachtext + câu hỏi kiểu TestAS (tiếng Đức, 4 lựa chọn, giải thích tiếng Việt) · ⬇ file Anki.</p>
+      <p class="text-sm text-slate-400">Lịch 20 ngày theo chủ đề của đề mẫu Medicine (★ = chủ đề đã ra trong đề mẫu). App KHÔNG tự bịa bài. Mỗi bài được soạn từ tài liệu bạn đưa, gồm 3 phần: 🤪 giảng bài bựa (tiếng Việt) · 📝 Fachtext + câu hỏi kiểu TestAS (tiếng Đức, 4 lựa chọn, giải thích tiếng Việt) · 🃏 thẻ Anki học ngay trên web.</p>
       <div class="flex flex-wrap gap-2 mt-3">
         <button class="btn btn-pink" onclick="openFachCreate(${Math.min(d, FACH_DAYS)})">➕ Soạn bài ngày ${Math.min(d, FACH_DAYS)}</button>
         <label class="btn btn-ghost">⬆ Nhập bài (.json từ Claude)<input type="file" accept="application/json,.json" class="hidden" onchange="importFach(this.files[0])"></label>
       </div>
     </section>
+    ${S.fach.filter(l => l.bonus).map(l => { const q = lessonScore(l); return `<section class="panel p-4 mt-4" style="border-color:rgba(250,204,21,.5)">
+      <div class="text-xs mono text-yellow-300">🏛 ĐỀ MẪU CHÍNH THỨC · ngoài lịch 20 ngày, không tính nợ</div>
+      <button class="text-left font-bold text-pink-200 hover:text-white mt-1" onclick="openFach('${l.id}')">${esc(l.title)}${q ? ` <span class="text-xs text-slate-400">(${q.score}/${q.total})</span>` : ''}</button>
+      <div class="text-xs text-slate-400 mt-1">Làm bài này để biết đề thật hỏi kiểu gì. Mục cuối phần giảng so sánh đề thật với đề app soạn.</div></section>`; }).join('')}
     <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 mt-4">${days.map(n => { const ls = fachOfDay(n); const pl = FACH_PLAN[n - 1];
       return `<div class="panel p-3 ${n === d ? 'pulse-neon' : ''}" style="${ls.length ? 'border-color:rgba(255,46,136,.5)' : ''}">
         <div class="text-xs mono text-slate-400">NGÀY ${n}${pl.star ? ' · <span class="text-yellow-300">★ có trong đề mẫu</span>' : ''}</div>
@@ -1257,7 +1268,8 @@ NGƯỜI HỌC: người Việt, tiếng Đức còn yếu.
 QUY TẮC NỘI DUNG: Chỉ dùng kiến thức có trong tài liệu người dùng cung cấp. KHÔNG thêm chủ đề/sự kiện ngoài tài liệu. Nếu tài liệu mơ hồ, ghi "(tài liệu không nói rõ)".
 Tạo 3 phần:
 (1) GIẢNG BÀI BỰA bằng TIẾNG VIỆT. Thuật ngữ tiếng Đức/Latin giữ nguyên kèm nghĩa tiếng Việt trong ngoặc. Đùa bằng tiếng Đức thì phải giải thích nghĩa tiếng Việt. Mỗi khái niệm chính có 1 mẹo nhớ (Eselsbrücke) cực kỳ xàm xí, liên tưởng kỳ quặc, chơi chữ tiếng Việt, dark humor nhẹ (không xúc phạm nhóm người thật). Độ bựa: ${level}/10.
-(2) CÂU HỎI KIỂU TESTAS bằng TIẾNG ĐỨC, đúng format Fachmodul Medizin bản digital: chia các mục PHẢI HIỂU thành 3–8 Fachtext tiếng Đức (mỗi text 300–450 từ, văn phong sách giáo khoa tiền lâm sàng: Physiologie/Anatomie/Biochemie), sao cho MỌI kiến thức quan trọng đều nằm trong ít nhất một text (không chỉ lấy ví dụ minh hoạ). Text có thể kèm 1 bảng (table) nếu tài liệu có so sánh/số liệu, và có thể nêu cơ chế một bệnh làm ví dụ để hỏi suy luận. Mỗi text 5–7 câu hỏi trắc nghiệm, mỗi câu 4 lựa chọn (A)–(D), chỉ 1 đáp án đúng, MỌI câu đều trả lời được chỉ bằng Fachtext (không cần kiến thức ngoài). Trộn các dạng: "Welche Aussage ist richtig?", "Welche Aussage ist falsch?", "Welche Aussage lässt sich aus dem Text ableiten?", sắp xếp trình tự/Regelkreis, suy luận khi một yếu tố thay đổi, đọc số liệu nếu tài liệu có. Đáp án đúng phân bố ngẫu nhiên A–D. Giải thích bằng tiếng Việt, trích cụm tiếng Đức then chốt trong Fachtext.
+(2) CÂU HỎI KIỂU TESTAS bằng TIẾNG ĐỨC, đúng format Fachmodul Medizin bản digital: chia các mục PHẢI HIỂU thành 3–8 Fachtext tiếng Đức (mỗi text 250–400 từ như đề thật, văn phong sách giáo khoa tiền lâm sàng: Physiologie/Anatomie/Biochemie), sao cho MỌI kiến thức quan trọng đều nằm trong ít nhất một text (không chỉ lấy ví dụ minh hoạ). Text có thể kèm 1 bảng (table) nếu tài liệu có so sánh/số liệu, và có thể nêu cơ chế một bệnh làm ví dụ để hỏi suy luận. Mỗi text 6 câu hỏi trắc nghiệm, mỗi câu 4 lựa chọn (A)–(D), chỉ 1 đáp án đúng, MỌI câu đều trả lời được chỉ bằng Fachtext + suy luận logic (không cần kiến thức ngoài).
+CÁCH RA ĐỀ THEO ĐỀ MẪU CHÍNH THỨC g.a.s.t. (bắt buộc): mỗi text tối đa 2 câu đọc hiểu trực tiếp, ít nhất 4 câu ÁP DỤNG/SUY LUẬN, chọn từ các dạng: (a) ca lâm sàng ngắn ("Ein Patient…", "Während einer Untersuchung…") cần áp dụng quy tắc trong text; (b) tính toán/suy ra từ một quy tắc hay bảng (kể cả ngoại suy xu hướng của bảng); (c) câu hỏi đưa THÔNG TIN MỚI trong đề (một bệnh, một đột biến, một thuốc) rồi bắt ghép với cơ chế trong text; (d) đảo vai/đảo chiều (người cho ↔ người nhận, tăng ↔ giảm, trước ↔ sau) — dựng bẫy cho người làm theo phản xạ; (e) điều kiện cần/đủ ("Um sicher zu sein, dass…", "Unter welcher Bedingung…"); (f) di truyền/suy ngược nguyên nhân từ kết quả. Thỉnh thoảng (khoảng 1 câu mỗi bài) cho "Eine klare Aussage ist nicht möglich." làm đáp án ĐÚNG khi dữ kiện thực sự không đủ. Đáp án sai dựng bằng cách đảo quan hệ, nhầm mốc/số, khái quát quá đà, hoặc trái với text — không dùng lựa chọn vô lý ai cũng loại được. Đáp án đúng phân bố ngẫu nhiên A–D. Trong explain_vi ghi rõ dạng câu (VD "Dạng ĐẢO VAI") và vì sao từng đáp án sai bị loại. Giải thích bằng tiếng Việt, trích cụm tiếng Đức then chốt trong Fachtext.
 (0) LỌC BÀI: tài liệu thường là bài AMBOSS đầy đủ. TestAS Fachmodul chỉ hỏi kiến thức TIỀN LÂM SÀNG (Anatomie, Physiologie, Biochemie) và mọi câu trả lời được bằng text, nên: chỉ giảng phần cơ sở; liệt kê mục nào PHẢI HIỂU và mục nào BỎ QUA (thường là Klinik, Diagnostik, Therapie, số liệu dịch tễ, liều thuốc), kèm lý do ngắn. Phần (1)(2)(3) chỉ dùng các mục PHẢI HIỂU.
 (3) ANKI: 8–15 flashcard (front ngắn, back = đáp án + mẹo bựa) và 10–25 từ vựng tiếng Đức quan trọng của Fachtext (kèm der/die/das) với nghĩa tiếng Việt.
 ĐỊNH DẠNG: Trả về DUY NHẤT một object JSON hợp lệ (không markdown, không \`\`\`):
@@ -1380,7 +1392,7 @@ function lessonScore(L) {   // summed over the texts already answered
 function normalizeLesson(o, day) {
   const s = v => String(v ?? '');
   const L = {
-    id: s(o.id) || uid(), rev: +o.rev || 0, day: +(o.day || day || dayNumber()), title: s(o.title) || 'Bài Fachmodul', createdAt: o.createdAt || new Date().toISOString(),
+    id: s(o.id) || uid(), rev: +o.rev || 0, bonus: !!o.bonus, day: o.bonus ? 0 : +(o.day || day || dayNumber()), title: s(o.title) || 'Bài Fachmodul', createdAt: o.createdAt || new Date().toISOString(),
     source: s(o.source) || 'import', sourceFiles: o.sourceFiles || [],
     lecture: { intro: s(o.lecture?.intro), outro: s(o.lecture?.outro), sections: (o.lecture?.sections || []).map(x => ({ heading: s(x.heading), explanation: s(x.explanation), explanation_vi: s(x.explanation_vi), mnemonic: s(x.mnemonic),
       kernsaetze: (x.kernsaetze || []).map(k => ({ de: s(k.de), vi: s(k.vi), key: s(k.key) })).filter(k => k.de) })) },
@@ -1436,12 +1448,12 @@ let FV = null;
 function openFach(id, part = 'lecture') {
   stopTimer(); if (currentTab !== 'fach') { currentTab = 'fach'; renderTabs(); }
   const L = S.fach.find(l => l.id === id); if (!L) return go('fach');
-  if (lockedByDebt(+L.day)) { go('fach'); return debtBlock(`Bài Fach ngày ${L.day}`); }
+  if (!L.bonus && lockedByDebt(+L.day)) { go('fach'); return debtBlock(`Bài Fach ngày ${L.day}`); }
   FV = { id, part };
   const tab = (p, label) => `<button class="tab ${part === p ? 'active' : ''}" onclick="openFach('${id}','${p}')">${label}</button>`;
   $('#view').innerHTML = `
     <div class="flex flex-wrap items-center justify-between gap-2 mb-3"><button class="btn btn-ghost text-sm" onclick="go('fach')">← Fachmodul</button>
-      <div class="text-xs mono text-slate-400">NGÀY ${L.day} · ${new Date(L.createdAt).toLocaleDateString('vi-VN')} · nguồn: ${esc(L.source)}${L.sourceFiles?.length ? ' · 📎 ' + esc(L.sourceFiles.join(', ')) : ''}</div></div>
+      <div class="text-xs mono text-slate-400">${L.bonus ? 'ĐỀ MẪU CHÍNH THỨC' : 'NGÀY ' + L.day} · ${new Date(L.createdAt).toLocaleDateString('vi-VN')} · nguồn: ${esc(L.source)}${L.sourceFiles?.length ? ' · 📎 ' + esc(L.sourceFiles.join(', ')) : ''}</div></div>
     <h2 class="text-2xl font-bold text-pink-300">${esc(L.title)}</h2>
     <nav class="flex gap-1 overflow-x-auto mt-3 p-1 panel">${tab('lecture', '🤪 Giảng bài bựa')}${tab('quiz', `📝 TestAS: ${lessonTexts(L).length} text · ${lessonQs(L).length} câu`)}${tab('vocab', `🇩🇪 Từ vựng (${L.vocab.length})`)}${tab('anki', `🃏 Thẻ (${lessonCards(L).length})`)}</nav>
     <div id="fach-body" class="mt-4"></div>`;
@@ -1595,7 +1607,7 @@ function lessonCards(L) {
 }
 const cardState = c => ((S.srs || {})[c.lid] || {})[c.id];
 const ankiLessons = () => S.fach.slice().sort((a, b) => a.day - b.day);
-const lessonOpen = L => !lockedByDebt(+L.day);
+const lessonOpen = L => L.bonus || !lockedByDebt(+L.day);
 function ankiPlan(now = Date.now()) {
   const t = todayStr(), cards = ankiLessons().filter(lessonOpen).flatMap(lessonCards);
   let left = 0, learnedToday = 0, due = 0;
@@ -1616,7 +1628,7 @@ function renderAnki() {
   const rows = ankiLessons().map(L => { const cs = lessonCards(L); const open = lessonOpen(L);
     const due = cs.filter(c => isDueCard(cardState(c), now)).length, nw = cs.filter(c => !cardState(c) || cardState(c).state === 'new').length;
     return `<button class="w-full grid grid-cols-[1fr_60px_60px] gap-2 items-center text-left panel px-3 py-2 ${open && (due || nw) ? '' : 'opacity-50'}" ${open && (due || nw) ? `onclick="startDeck('${L.id}')"` : open ? '' : `onclick="debtBlock('Thẻ của bài ngày ${L.day}')"`}>
-      <span class="min-w-0"><b class="text-pink-200">${open ? '' : '🔒 '}Ngày ${L.day} · ${esc(L.title)}</b><div class="text-xs text-slate-500">${cs.length} thẻ · đã học ${cs.length - nw}</div></span>
+      <span class="min-w-0"><b class="text-pink-200">${open ? '' : '🔒 '}${dayLabel(L)} · ${esc(L.title)}</b><div class="text-xs text-slate-500">${cs.length} thẻ · đã học ${cs.length - nw}</div></span>
       <span class="mono text-lg text-right ${due ? 'text-emerald-300' : 'text-slate-600'}">${due}</span><span class="mono text-lg text-right ${nw ? 'text-cyan-300' : 'text-slate-600'}">${nw}</span></button>`; }).join('');
   $('#view').innerHTML = `
     <section class="panel p-5" style="border-color:rgba(0,229,255,.45)">
@@ -1644,7 +1656,7 @@ function startDeck(lid) {
   const items = [...due, ...nw];
   if (!items.length) { tutorSay(pool.some(c => !cardState(c)) ? 'Hết chỉ tiêu thẻ mới hôm nay rồi. Mai học tiếp, đừng tham.' : 'Không còn thẻ đến hạn hay thẻ mới. Hiếm lắm mới thấy bạn sạch nợ.', 'praise'); return; }
   if (currentTab !== 'anki') { stopTimer(); currentTab = 'anki'; renderTabs(); }
-  ANKI = { items, i: 0, revealed: false, done: false, again: 0, answered: 0, title: lid ? `Ngày ${S.fach.find(l => l.id === lid).day}` : 'Tất cả bài', nDue: due.length, nNew: nw.length };
+  ANKI = { items, i: 0, revealed: false, done: false, again: 0, answered: 0, title: lid ? dayLabel(S.fach.find(l => l.id === lid)) : 'Tất cả bài', nDue: due.length, nNew: nw.length };
   renderAnkiCard(); window.scrollTo({ top: 0 });
 }
 function renderAnkiCard() {
@@ -1663,7 +1675,7 @@ function renderAnkiCard() {
       <div class="text-lg font-bold">Thẻ ${ANKI.i + 1}/${ANKI.items.length}</div></div>
       <button class="btn btn-ghost text-sm" onclick="ANKI.done=true;renderAnkiCard()">Kết thúc phiên</button></div>
     <section class="panel p-5">
-      <div class="text-xs mono text-slate-400">${kind} · Ngày ${L ? L.day : '?'} · ${!st || st.state === 'new' ? '<span class="text-cyan-300">MỚI</span>' : st.state === 'review' ? '<span class="text-emerald-300">ÔN</span>' : '<span class="text-yellow-300">ĐANG HỌC</span>'}</div>
+      <div class="text-xs mono text-slate-400">${kind} · ${dayLabel(L)} · ${!st || st.state === 'new' ? '<span class="text-cyan-300">MỚI</span>' : st.state === 'review' ? '<span class="text-emerald-300">ÔN</span>' : '<span class="text-yellow-300">ĐANG HỌC</span>'}</div>
       <div class="${c.type === 'vocab' ? 'text-2xl' : 'text-lg'} font-semibold mt-3">${md(c.front)}</div>
       ${ANKI.revealed ? `<div class="border-t border-dashed border-slate-700 mt-4 pt-4 text-base">${md(c.back)}</div>
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-5">${[['again', 'Quên', 'btn-red', 1], ['hard', 'Khó', 'btn-ghost', 2], ['good', 'Tốt', 'btn-neon', 3], ['easy', 'Dễ', 'btn-ghost', 4]].map(([r, l, cls, k]) =>
@@ -1815,7 +1827,7 @@ function renderHubList() {
   const list = S.fach.filter(l => !q || stripVN(l.title + ' ' + lessonTexts(l).map(t => t.title_de).join(' ') + ' ' + l.lecture.sections.map(s => s.heading).join(' ')).includes(q)).sort((a, b) => a.day - b.day);
   $('#hub-list').innerHTML = list.length ? list.map(l => `
     <div class="panel p-4 flex items-center justify-between gap-3 cursor-pointer" onclick="openFach('${l.id}')">
-      <div class="min-w-0"><div class="font-bold text-pink-300 truncate">Ngày ${l.day} · ${esc(l.title)}</div>
+      <div class="min-w-0"><div class="font-bold text-pink-300 truncate">${dayLabel(l)} · ${esc(l.title)}</div>
         <div class="text-xs text-slate-500">${l.lecture.sections.length} mục · ${lessonTexts(l).length} text · ${lessonQs(l).length} câu · ${l.vocab.length} từ${lessonScore(l) ? ` · điểm ${lessonScore(l).score}/${lessonScore(l).total}` : ''}</div></div>
       <div class="flex gap-2 shrink-0" onclick="event.stopPropagation()">
         <button class="btn btn-neon text-sm" onclick="startDeck('${l.id}')">🃏 Thẻ</button>
