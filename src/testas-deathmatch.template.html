@@ -106,7 +106,7 @@
       <h1 class="glitch text-3xl md:text-5xl font-bold tracking-tight" data-text="TESTAS 20-DAY DEATHMATCH">TESTAS 20-DAY DEATHMATCH</h1>
       <div class="text-sm text-slate-400 mt-1">Kernmodul (3 quyển của bạn) + Fachmodul Medizin (bài bạn nạp mỗi ngày) · 0 lòng thương xót</div>
     </div>
-    <div id="statbar" class="grid grid-cols-3 md:grid-cols-6 gap-2 text-center text-xs"></div>
+    <div id="statbar" class="grid grid-cols-4 md:grid-cols-7 gap-2 text-center text-xs"></div>
   </div>
   <nav id="tabs" class="flex gap-1 overflow-x-auto mt-5 p-1 panel"></nav>
 </header>
@@ -240,11 +240,15 @@ function scheduleSync() {
 }
 async function pushSync() {
   try {
-    const { fach, settings, tutorMin, ...rest } = S;
+    const { fach, settings, tutorMin, srs, ...rest } = S;
     await userCol().doc('state').set(JSON.parse(JSON.stringify(rest)));
     const live = new Set();
     for (const L of S.fach) {
       const key = 'fach-' + L.id, body = JSON.stringify(L); live.add(key);
+      if (SYNC.sent.get(key) !== body) { await userCol().doc(key).set(JSON.parse(body)); SYNC.sent.set(key, body); }
+    }
+    for (const [lid, cards] of Object.entries(S.srs || {})) {
+      const key = 'srs-' + lid, body = JSON.stringify(cards); live.add(key);
       if (SYNC.sent.get(key) !== body) { await userCol().doc(key).set(JSON.parse(body)); SYNC.sent.set(key, body); }
     }
     for (const key of [...SYNC.sent.keys()]) if (!live.has(key)) { await userCol().doc(key).delete(); SYNC.sent.delete(key); }
@@ -304,10 +308,16 @@ async function pullSync(quiet) {
     SYNC.uid = SYNC.uid || await CAP.user.id();
     const snap = await userCol().get();
     let remote = null; const lessons = [];
-    snap.docs.forEach(d => { if (d.id === 'state') remote = d.data(); else if (d.id.startsWith('fach-')) lessons.push(d.data()); });
+    const srsDocs = {};
+    snap.docs.forEach(d => { if (d.id === 'state') remote = d.data(); else if (d.id.startsWith('fach-')) lessons.push(d.data()); else if (d.id.startsWith('srs-')) srsDocs[d.id.slice(4)] = d.data(); });
     const before = JSON.stringify([S.checkins, S.xp, S.kern, S.timeDev, S.fach.length]);
-    if (remote) S = Object.assign(mergeState(S, remote), { fach: S.fach, settings: S.settings, tutorMin: S.tutorMin });
+    if (remote) S = Object.assign(mergeState(S, remote), { fach: S.fach, settings: S.settings, tutorMin: S.tutorMin, srs: S.srs });
     lessons.forEach(L => { const i = S.fach.findIndex(x => x.id === L.id); if (i < 0) S.fach.push(L); else S.fach[i] = mergeLesson(S.fach[i], L); });
+    S.srs = S.srs || {};
+    Object.entries(srsDocs).forEach(([lid, cards]) => {   // per card, the most recently reviewed copy wins
+      const mine = S.srs[lid] = Object.assign({}, S.srs[lid]);
+      Object.entries(cards).forEach(([cid, c]) => { if (!mine[cid] || (c.last || 0) > (mine[cid].last || 0)) mine[cid] = c; });
+    });
     if (!S.pendingPunishment && $('#punish')) { $('#punish').remove(); }
     SYNC.sent.clear(); SYNC.ready = true; save();
     if (before !== JSON.stringify([S.checkins, S.xp, S.kern, S.timeDev, S.fach.length])) {
@@ -408,7 +418,7 @@ function toggleTutor(force) {
    4. NAV + STATS + shared timer
    ===================================================================== */
 const TABS = [
-  ['dash', '🏥 Tổng quan'], ['kern', '🧠 Kernmodul'], ['er', '🚑 ER Survival'], ['fach', '🩺 Fachmodul'],
+  ['dash', '🏥 Tổng quan'], ['kern', '🧠 Kernmodul'], ['er', '🚑 ER Survival'], ['fach', '🩺 Fachmodul'], ['anki', '🃏 Anki'],
   ['dating', '💘 Dating Sim'], ['hub', '📚 Study Hub'], ['settings', '⚙️ Cài đặt']
 ];
 let currentTab = 'dash', TIMER = null;
@@ -420,7 +430,7 @@ function kernDone() { return ['fig', 'math', 'latin'].reduce((n, b) => n + Objec
 function renderStats() {
   const items = [
     ['NGÀY', `${dayNumber()}/${PLAN_DAYS}`, 'text-cyan-300'], ['XP', S.xp, 'text-emerald-300'], ['STREAK', `${S.streak}🔥`, 'text-orange-300'],
-    ['BÀI KERN', `${kernDone()}/180`, 'text-emerald-300'], ['BÀI FACH', S.fach.length, 'text-pink-300'], ['ĐANG NỢ', (t => t.kern + t.fachQ + t.lessons)(debtTotals()) || '0 ✓', debts().length ? 'text-red-400' : 'text-emerald-300']
+    ['BÀI KERN', `${kernDone()}/180`, 'text-emerald-300'], ['BÀI FACH', S.fach.length, 'text-pink-300'], ['ĐANG NỢ', (t => t.kern + t.fachQ + t.lessons + ankiPlan().owe)(debtTotals()) || '0 ✓', debts().length || ankiPlan().owe ? 'text-red-400' : 'text-emerald-300'], ['THI SAU', `${examDaysLeft()} ngày`, 'text-red-400']
   ];
   $('#statbar').innerHTML = items.map(([k, v, c]) => `<div class="panel px-2 py-1.5"><div class="text-[10px] text-slate-500 mono">${k}</div><div class="font-bold ${c}">${v}</div></div>`).join('');
 }
@@ -428,7 +438,7 @@ function go(tab) {
   stopTimer();
   currentTab = tab; renderTabs();
   const v = $('#view'); v.classList.remove('fade-in'); void v.offsetWidth; v.classList.add('fade-in');
-  ({ dash: renderDash, kern: renderKern, er: renderER, fach: renderFach, dating: renderDating, hub: renderHub, settings: renderSettings })[tab]();
+  ({ dash: renderDash, kern: renderKern, er: renderER, fach: renderFach, anki: renderAnki, dating: renderDating, hub: renderHub, settings: renderSettings })[tab]();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -573,6 +583,25 @@ function showDebtNotice() {
   tutorSay('"Schulden" tiếng Đức nghĩa là nợ. Và bạn đang ngập trong Schulden. Trả đi rồi tôi mới cho học bài mới.', 'roast');
 }
 
+// --- exam countdown (26/11, editable in settings) + a roast that matches how close it is
+const examDaysLeft = () => Math.max(0, daysBetween(todayStr(), todayStr(new Date(examAt()))));
+const EXAM_ROASTS = [
+  [22, ['Còn {d} ngày. Nghe thì nhiều, nhưng bạn tiêu ngày như tiêu lương: chớp mắt là hết.', '{d} ngày nữa thi. Đủ để giỏi lên, cũng đủ để lười đến mức hết cứu.', 'Còn {d} ngày. Người Đức có câu "Morgen, morgen, nur nicht heute" — "mai, mai, chỉ không phải hôm nay". Đó là câu cửa miệng của kẻ trượt.']],
+  [14, ['Còn {d} ngày. Kernmodul không tự giải, Fachtext không tự dịch.', '{d} ngày. Tức là chưa tới 3 tuần. Bạn vẫn đang lướt điện thoại à?', 'Còn {d} ngày mà vẫn hỏi "học gì trước"? Học cái bạn đang né ấy.']],
+  [7, ['Còn {d} ngày. Hết thời "để mai tính". Mai là của người khác rồi.', '{d} ngày nữa thi. Giờ mà còn nợ bài là đang tự đào hố.', 'Còn {d} ngày. "Jetzt oder nie" — tiếng Đức: "bây giờ hoặc không bao giờ". Chọn đi.']],
+  [3, ['Còn {d} ngày. Tuần cuối chỉ ôn — ai còn học mới là đang đánh bạc.', '{d} ngày. Thẻ Anki của bạn đang chờ, bạn thì đang chờ phép màu.', 'Còn {d} ngày. Ngủ đủ, ôn đủ, đừng than.']],
+  [1, ['Còn {d} ngày. Mai ngày kia là thi rồi, đừng học bài mới, ôn cái đã có.', '{d} ngày nữa. Hít thở. Rồi mở Anki.']],
+  [0, ['HÔM NAY/MAI THI. Ăn sáng, mang giấy tờ, đừng hoảng. Viel Erfolg — chúc thành công.', 'Thi tới nơi rồi. Những gì chưa học thì thôi, những gì đã học thì tin nó.']]];
+function examRoast(d = examDaysLeft()) {
+  const lines = EXAM_ROASTS.find(([min]) => d >= min)[1];
+  return lines[(dayNumber() + d) % lines.length].replace('{d}', d);
+}
+function examClock() {
+  const ms = Math.max(0, examAt() - Date.now());
+  return [[Math.floor(ms / DAY), 'ngày'], [Math.floor(ms % DAY / 36e5), 'giờ'], [Math.floor(ms % 36e5 / MIN), 'phút'], [Math.floor(ms % MIN / 1000), 'giây']]
+    .map(([v, l]) => `<div class="panel py-2 text-center" style="border-color:rgba(255,31,61,.35)"><b class="mono text-3xl md:text-5xl text-red-400" style="text-shadow:0 0 18px rgba(255,31,61,.5)">${pad(v)}</b><div class="text-[10px] mono text-slate-500">${l}</div></div>`).join('');
+}
+
 const fachPlanText = n => n <= FACH_DAYS ? (FACH_PLAN[n - 1].star ? '★ ' : '') + FACH_PLAN[n - 1].topics.join(' + ') : 'Ôn tập tự do (lịch Fach 20 ngày đã xong)';
 const checkedToday = () => S.checkins.includes(todayStr());
 function msToMidnight() { const n = new Date(); const m = new Date(n); m.setHours(24, 0, 0, 0); return m - n; }
@@ -590,8 +619,14 @@ function renderDash() {
   }).join('');
   const todays = dayExercises(d);
   const fd = fachOfDay(d);
-  const dl = debts();
+  const dl = debts(), ap = ankiPlan();
   $('#view').innerHTML = `
+  <section class="panel danger p-5 mb-4"><span class="tape" style="background:var(--red);color:#fff">NGÀY THI TESTAS · ${new Date(examAt()).toLocaleDateString('vi-VN')}</span>
+    <div id="exam-clock" class="grid grid-cols-4 gap-2 mt-2">${examClock()}</div>
+    <p class="mt-3 font-semibold text-red-200">💀 ${esc(examRoast())}</p></section>
+  ${ap.total ? `<section class="panel p-4 mb-4 flex flex-wrap items-center justify-between gap-3" style="border-color:${ap.owe ? 'rgba(255,31,61,.45)' : 'rgba(0,255,163,.35)'}">
+    <div><div class="text-xs mono text-slate-400">🃏 ANKI HÔM NAY</div><div class="text-sm">Thẻ mới <b>${ap.learnedToday}/${ap.quota}</b> · đến hạn ôn <b class="text-emerald-300">${ap.due}</b> · nợ <b class="${ap.owe ? 'text-red-300' : 'text-emerald-300'}">${ap.owe || '0 ✓'}</b></div></div>
+    <button class="btn ${ap.owe ? 'btn-red' : 'btn-ghost'}" onclick="startDeck('')">🃏 Học thẻ</button></section>` : ''}
   ${dl.length ? `<section class="panel danger p-5 mb-4"><span class="tape" style="background:var(--red);color:#fff">SỔ NỢ</span>
     <div class="flex flex-wrap items-center justify-between gap-3 mt-1"><div><div class="text-xl font-bold text-red-300">Đang nợ: ${debtSummary(debtTotals(dl))}</div>
       <div class="text-sm text-slate-400">Fach/ER của các ngày sau ngày ${dl[0].n} và Dating Sim đang bị khoá.</div></div>
@@ -716,7 +751,7 @@ function studyModule() {
   if ($('#punish')) return null;
   if ($('#modal-card') && CHK) return 'kern';                        // check-in exercise
   if (currentTab === 'kern' || currentTab === 'er') return 'kern';
-  if (currentTab === 'fach' || currentTab === 'dating') return 'fach';  // dating quizzes Fach vocab
+  if (currentTab === 'fach' || currentTab === 'dating' || currentTab === 'anki') return 'fach';  // dating & cards use Fach content
   return null;
 }
 function tickStudyTime() {
@@ -733,6 +768,7 @@ const fmtDur = sec => { const m = Math.round(sec / 60); return m < 60 ? `${m} ph
 let lastSeenDay = todayStr();
 setInterval(() => {
   tickStudyTime();
+  const ec = $('#exam-clock'); if (ec) ec.innerHTML = examClock();
   const el = $('#deadman-clock');
   if (el && !checkedToday()) el.textContent = fmtHMS(msToMidnight());
   const t = todayStr();
@@ -1002,7 +1038,7 @@ function finishExam() {
     <div class="space-y-2 mt-4">${list.map((ex, k) => { const a = EXAM.ans[ex.id]; const ok = !!a && isCorrect(ex, a);
       return `<details class="panel p-3"><summary class="cursor-pointer"><b class="${ok ? 'text-emerald-300' : 'text-red-400'}">${ok ? '✓' : '✗'} Câu ${k + 1} (bài ${ex.id})</b> <span class="text-xs text-slate-400">bạn: ${esc(fmtAnswer(bid, a))}</span></summary>
         <div class="mt-3">${exSheet(ex)}${solutionHTML(ex)}</div></details>`; }).join('')}</div>
-    <div class="flex gap-2 mt-4"><button class="btn btn-neon" onclick="go('kern')">Về Kernmodul</button><button class="btn btn-ghost" onclick="exportKernWrong('${bid}')">⬇ Anki: bài sai quyển này</button></div>`;
+    <div class="flex gap-2 mt-4"><button class="btn btn-neon" onclick="go('kern')">Về Kernmodul</button></div>`;
 }
 
 /* =====================================================================
@@ -1402,7 +1438,7 @@ function openFach(id, part = 'lecture') {
     <div class="flex flex-wrap items-center justify-between gap-2 mb-3"><button class="btn btn-ghost text-sm" onclick="go('fach')">← Fachmodul</button>
       <div class="text-xs mono text-slate-400">NGÀY ${L.day} · ${new Date(L.createdAt).toLocaleDateString('vi-VN')} · nguồn: ${esc(L.source)}${L.sourceFiles?.length ? ' · 📎 ' + esc(L.sourceFiles.join(', ')) : ''}</div></div>
     <h2 class="text-2xl font-bold text-pink-300">${esc(L.title)}</h2>
-    <nav class="flex gap-1 overflow-x-auto mt-3 p-1 panel">${tab('lecture', '🤪 Giảng bài bựa')}${tab('quiz', `📝 TestAS: ${lessonTexts(L).length} text · ${lessonQs(L).length} câu`)}${tab('vocab', `🇩🇪 Từ vựng (${L.vocab.length})`)}${tab('anki', '⬇ Anki')}</nav>
+    <nav class="flex gap-1 overflow-x-auto mt-3 p-1 panel">${tab('lecture', '🤪 Giảng bài bựa')}${tab('quiz', `📝 TestAS: ${lessonTexts(L).length} text · ${lessonQs(L).length} câu`)}${tab('vocab', `🇩🇪 Từ vựng (${L.vocab.length})`)}${tab('anki', `🃏 Thẻ (${lessonCards(L).length})`)}</nav>
     <div id="fach-body" class="mt-4"></div>`;
   ({ lecture: fachLecture, quiz: fachQuiz, vocab: fachVocab, anki: fachAnki })[part](L);
 }
@@ -1480,7 +1516,7 @@ function fqSubmit() {
   $('#fq-submit').outerHTML = `<div class="panel ${score / qs.length >= .7 ? 'neon' : 'danger'} p-4 text-center"><div class="text-4xl font-bold">${score}/${qs.length}</div>
     <div class="flex flex-wrap justify-center gap-2 mt-3"><button class="btn btn-ghost" onclick="fachQuiz(S.fach.find(l=>l.id==='${L.id}'),${FQ.ti})">Làm lại</button>
     ${debts().length ? `<button class="btn btn-red" onclick="payDebt()">💸 Trả nợ tiếp</button>` : ''}
-    ${next ? `<button class="btn btn-neon" onclick="fachQuiz(S.fach.find(l=>l.id==='${L.id}'),${FQ.ti + 1});window.scrollTo({top:0})">Text ${FQ.ti + 2} →</button>` : `<button class="btn btn-neon" onclick="openFach('${L.id}','anki')">⬇ Xuất Anki</button>`}</div></div>`;
+    ${next ? `<button class="btn btn-neon" onclick="fachQuiz(S.fach.find(l=>l.id==='${L.id}'),${FQ.ti + 1});window.scrollTo({top:0})">Text ${FQ.ti + 2} →</button>` : `<button class="btn btn-neon" onclick="openFach('${L.id}','anki')">🃏 Học thẻ bài này</button>`}</div></div>`;
   score / qs.length >= .7 ? praise(`${score}/${qs.length}. Đọc tiếng Đức cũng không tệ. Đừng tự mãn.`) : roast(`${score}/${qs.length}. Mở mục 🇩🇪 Từ vựng ra học đi rồi đọc lại Fachtext.`);
 }
 function fachVocab(L) {
@@ -1489,30 +1525,171 @@ function fachVocab(L) {
     : '<div class="panel p-5 text-slate-400">Bài này chưa có danh sách từ vựng.</div>';
 }
 function fachAnki(L) {
-  const n = lessonRows(L).length;
+  const cs = lessonCards(L), now = Date.now();
+  const due = cs.filter(c => isDueCard(cardState(c), now)).length, nw = cs.filter(c => !cardState(c) || cardState(c).state === 'new').length;
   $('#fach-body').innerHTML = `<div class="panel neon p-5">
-    <div class="font-bold text-lg">⬇ Xuất Anki (${n} thẻ)</div>
-    <p class="text-sm text-slate-400 mt-1">Gồm: flashcard của bài giảng · mỗi mục giảng (khái niệm → giải thích + mẹo bựa) · từ vựng Đức → Việt · Kernsätze dạng đục lỗ (tự điền từ khoá) · mọi câu hỏi TestAS của các text (câu hỏi + 4 lựa chọn → đáp án + giải thích).</p>
-    <p class="text-sm text-slate-400 mt-1">Trong Anki: File → Import → chọn file .csv (cột 1 = Front, cột 2 = Back).</p>
-    <button class="btn btn-neon mt-3" onclick="exportFach('${L.id}')">⬇ Tải file .csv</button>
-    <button class="btn btn-ghost mt-3" onclick="exportLessonJSON('${L.id}')">⬇ Tải bài (.json) để chép sang máy khác</button></div>`;
+    <div class="font-bold text-lg">🃏 Thẻ của bài này: ${cs.length} thẻ</div>
+    <p class="text-sm text-slate-400 mt-1">Flashcard · mục giảng (+ mẹo bựa) · Kernsätze đục lỗ · từ vựng Đức → Việt. Học thẳng trên web, lịch ôn kiểu Anki.</p>
+    <div class="mono mt-2"><span class="text-emerald-300">${due} đến hạn</span> · <span class="text-cyan-300">${nw} mới</span></div>
+    <div class="flex flex-wrap gap-2 mt-3"><button class="btn btn-neon" onclick="startDeck('${L.id}')">▶ Học thẻ bài này</button><button class="btn btn-ghost" onclick="go('anki')">🃏 Bộ thẻ tất cả bài</button></div></div>`;
 }
 
 /* =====================================================================
-   10. ANKI CSV EXPORT (Blob + URL.createObjectURL)
+   10. ANKI IN THE APP — spaced repetition, same rules as "Phòng Trực Y4":
+   SM-2 (learn 1 → 10 min, relearn 10 min, graduate 1 day, easy 4 days, ease 2.5 / min 1.3,
+   easy bonus 1.3, hard ×1.2, lapse ×0.2, max 365 d); a first "Tốt" goes straight to 1 day
+   (1 → 3 → 8 days), "Dễ" to 3 days; every interval is capped at the day before the exam.
+   New cards must all be learned 11 days before the exam (4 days to stretch to ~1 week +
+   7 final days of review only); today's quota = cards left ÷ days left until then.
    ===================================================================== */
-// Anki text import: header lines (#separator/#html/#columns) + one note per row,
-// fields CSV-quoted, HTML allowed (newline -> <br>), UTF-8.
-const ankiEsc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-const ankiField = s => '"' + ankiEsc(s).replace(/\r?\n/g, '<br>').replace(/"/g, '""') + '"';
-function lessonRows(L) {
-  const rows = L.cards.map(c => [c.front, c.back]);
-  L.lecture.sections.forEach(s => { if (s.heading) rows.push([s.heading, `${s.explanation}${s.mnemonic ? '\n\n🤪 Mẹo bựa: ' + s.mnemonic : ''}`]); });
-  L.vocab.forEach(v => rows.push([v.de, v.vi]));
-  L.lecture.sections.forEach(s => s.kernsaetze.forEach(k => rows.push(clozeOf(k) ? [`Điền từ còn thiếu:\n${clozeOf(k)}`, `${k.de}\n\n→ ${k.vi}`] : [k.de, k.vi])));
-  lessonQs(L).forEach(q => rows.push([`${q.q}\n${q.options.map((o, k) => `(${'ABCD'[k]}) ${o}`).join('\n')}`, `(${'ABCD'[q.answer]}) ${q.options[q.answer]}\n\n${q.explain_vi}`]));
-  return rows;
+const MIN = 60e3, DAY = 864e5;
+const SRS_CFG = { learn: [1, 10], relearn: [10], grad: 1, easyIvl: 4, ease: 2.5, minEase: 1.3, easyBonus: 1.3, hard: 1.2, lapse: 0.2, maxIvl: 365 };
+const ANKI_FINAL = 7, ANKI_RAMP = 4, LEARN_AHEAD = 20 * MIN;
+const examAt = () => new Date(S.examAt || '2026-11-26T08:00').getTime();
+const newCardState = now => ({ state: 'new', due: now, ivl: 0, ease: SRS_CFG.ease, reps: 0, lapses: 0, step: 0, last: null, first: null });
+function capDue(t, now) { const lim = examAt() - DAY; return lim > now ? Math.min(t, lim) : t; }
+function firstPass(now, rating) {
+  const ivl = rating === 'easy' ? 3 : 1;
+  return Object.assign(newCardState(now), { state: 'review', ivl, reps: 1, last: now, first: now, due: capDue(now + ivl * DAY, now) });
 }
+function schedule(prev, rating, now) {
+  const c = Object.assign({}, prev, { reps: prev.reps + 1, last: now, first: prev.first || now });
+  const learning = prev.state === 'new' || prev.state === 'learning' || prev.state === 'relearning';
+  if (learning) {
+    const steps = prev.state === 'relearning' ? SRS_CFG.relearn : SRS_CFG.learn;
+    if (rating === 'again') { c.state = prev.state === 'relearning' ? 'relearning' : 'learning'; c.step = 0; c.due = capDue(now + steps[0] * MIN, now); return c; }
+    if (rating === 'easy') { c.state = 'review'; c.step = 0; c.ivl = prev.state === 'relearning' ? Math.max(1, prev.ivl) : SRS_CFG.easyIvl; c.due = capDue(now + c.ivl * DAY, now); return c; }
+    const nx = prev.step + (rating === 'good' ? 1 : 0);
+    if (nx < steps.length) { c.state = prev.state === 'new' ? 'learning' : prev.state; c.step = nx; c.due = capDue(now + steps[nx] * MIN, now); return c; }
+    c.state = 'review'; c.step = 0; c.ivl = prev.state === 'relearning' ? Math.max(1, prev.ivl) : SRS_CFG.grad; c.due = capDue(now + c.ivl * DAY, now); return c;
+  }
+  if (rating === 'again') { c.state = 'relearning'; c.lapses = prev.lapses + 1; c.ease = Math.max(SRS_CFG.minEase, prev.ease - 0.2); c.ivl = Math.max(1, prev.ivl * SRS_CFG.lapse); c.step = 0; c.due = capDue(now + SRS_CFG.relearn[0] * MIN, now); return c; }
+  const over = Math.max(0, (now - prev.due) / DAY);
+  let ivl;
+  if (rating === 'hard') { c.ease = Math.max(SRS_CFG.minEase, prev.ease - 0.15); ivl = prev.ivl * SRS_CFG.hard; }
+  else if (rating === 'good') ivl = (prev.ivl + over / 2) * prev.ease;
+  else { c.ease = prev.ease + 0.15; ivl = (prev.ivl + over) * prev.ease * SRS_CFG.easyBonus; }
+  c.ivl = Math.min(SRS_CFG.maxIvl, Math.max(prev.ivl + 1, Math.round(ivl)));
+  c.due = capDue(now + c.ivl * DAY, now);
+  return c;
+}
+// an unseen card graded "Tốt"/"Dễ" skips the minute steps, like Phòng Trực's Anki cards
+const ankiNext = (card, rating, now = Date.now()) => !card && (rating === 'good' || rating === 'easy') ? firstPass(now, rating) : schedule(card || newCardState(now), rating, now);
+const ankiLabel = (card, now = Date.now()) => { const m = Math.max(1, Math.round((card.due - now) / MIN)); return m < 60 ? m + ' ph' : m < 1440 ? Math.round(m / 60) + ' giờ' : Math.round(m / 1440) + ' ngày'; };
+const isDueCard = (c, at = Date.now()) => c && c.state !== 'new' && c.due <= at + (c.state === 'learning' || c.state === 'relearning' ? LEARN_AHEAD : 0);
+
+// cards of a lesson: flashcards, lecture sections, Kernsätze (cloze), vocabulary German → Vietnamese
+function hashStr(t) { let h = 5381; for (let i = 0; i < t.length; i++) h = (h * 33 + t.charCodeAt(i)) >>> 0; return h.toString(36); }
+function lessonCards(L) {
+  const out = [], add = (type, front, back) => out.push({ id: type + '-' + hashStr(front), lid: L.id, type, front, back });
+  L.cards.forEach(c => add('card', c.front, c.back));
+  L.lecture.sections.forEach(s => { if (s.heading) add('sec', s.heading, `${s.explanation}${s.mnemonic ? '\n\n🤪 Mẹo bựa: ' + s.mnemonic : ''}`); });
+  L.lecture.sections.forEach(s => s.kernsaetze.forEach(k => clozeOf(k) ? add('cloze', `Điền từ còn thiếu:\n${clozeOf(k)}`, `${k.de}\n\n→ ${k.vi}`) : add('ks', k.de, k.vi)));
+  L.vocab.forEach(v => add('vocab', v.de, v.vi));
+  return out;
+}
+const cardState = c => ((S.srs || {})[c.lid] || {})[c.id];
+const ankiLessons = () => S.fach.slice().sort((a, b) => a.day - b.day);
+const lessonOpen = L => !lockedByDebt(+L.day);
+function ankiPlan(now = Date.now()) {
+  const t = todayStr(), cards = ankiLessons().filter(lessonOpen).flatMap(lessonCards);
+  let left = 0, learnedToday = 0, due = 0;
+  const eod = parseDay(t).getTime() + DAY;
+  cards.forEach(c => { const st = cardState(c);
+    if (!st || st.state === 'new') left++;
+    else { if (st.first && todayStr(new Date(st.first)) === t) learnedToday++; if (isDueCard(st, eod)) due++; } });
+  const daysLeft = Math.max(0, daysBetween(t, todayStr(new Date(examAt()))));
+  const days = Math.max(0, daysLeft - ANKI_FINAL - ANKI_RAMP);
+  const quota = days ? Math.ceil((left + learnedToday) / days) : left + learnedToday;
+  return { left, learnedToday, due, days, daysLeft, quota, newLeft: Math.max(0, quota - learnedToday), owe: Math.max(0, quota - learnedToday) + due, total: cards.length };
+}
+
+let ANKI = null;
+function renderAnki() {
+  if (ANKI && !ANKI.done) return renderAnkiCard();
+  const p = ankiPlan(), now = Date.now();
+  const rows = ankiLessons().map(L => { const cs = lessonCards(L); const open = lessonOpen(L);
+    const due = cs.filter(c => isDueCard(cardState(c), now)).length, nw = cs.filter(c => !cardState(c) || cardState(c).state === 'new').length;
+    return `<button class="w-full grid grid-cols-[1fr_60px_60px] gap-2 items-center text-left panel px-3 py-2 ${open && (due || nw) ? '' : 'opacity-50'}" ${open && (due || nw) ? `onclick="startDeck('${L.id}')"` : open ? '' : `onclick="debtBlock('Thẻ của bài ngày ${L.day}')"`}>
+      <span class="min-w-0"><b class="text-pink-200">${open ? '' : '🔒 '}Ngày ${L.day} · ${esc(L.title)}</b><div class="text-xs text-slate-500">${cs.length} thẻ · đã học ${cs.length - nw}</div></span>
+      <span class="mono text-lg text-right ${due ? 'text-emerald-300' : 'text-slate-600'}">${due}</span><span class="mono text-lg text-right ${nw ? 'text-cyan-300' : 'text-slate-600'}">${nw}</span></button>`; }).join('');
+  $('#view').innerHTML = `
+    <section class="panel p-5" style="border-color:rgba(0,229,255,.45)">
+      <span class="tape" style="background:var(--cyan)">ANKI TRÊN WEB</span>
+      <h2 class="text-2xl font-bold mt-1">Bộ thẻ hôm nay 🃏</h2>
+      <p class="text-sm text-slate-400 mt-1">Thẻ lấy từ bài Fach của bạn: flashcard, mục giảng, Kernsätze đục lỗ, từ vựng Đức → Việt. Lịch ôn kiểu Anki; mọi lịch ôn kết thúc trước ngày thi 1 hôm.</p>
+      <div class="grid sm:grid-cols-3 gap-3 mt-3 text-sm">
+        <div class="panel p-3"><div class="text-xs text-slate-400 mono">THẺ MỚI HÔM NAY</div><div class="text-2xl font-bold ${p.newLeft ? 'text-cyan-300' : 'text-emerald-300'}">${p.learnedToday}/${p.quota}</div></div>
+        <div class="panel p-3"><div class="text-xs text-slate-400 mono">ĐẾN HẠN ÔN</div><div class="text-2xl font-bold ${p.due ? 'text-emerald-300' : 'text-slate-500'}">${p.due}</div></div>
+        <div class="panel p-3"><div class="text-xs text-slate-400 mono">NỢ ANKI HÔM NAY</div><div class="text-2xl font-bold ${p.owe ? 'text-red-400' : 'text-emerald-300'}">${p.owe || '0 ✓'}</div></div>
+      </div>
+      <p class="text-xs text-slate-500 mt-2">${p.days ? `Hạn học thẻ mới còn ${p.days} ngày (xong trước thi ${ANKI_FINAL + ANKI_RAMP} ngày: ${ANKI_RAMP} ngày ôn giãn lên ~1 tuần + ${ANKI_FINAL} ngày cuối chỉ ôn). Còn ${p.left} thẻ chưa học.` : `Đã hết hạn học thẻ mới (${ANKI_FINAL + ANKI_RAMP} ngày trước thi): còn ${p.left} thẻ chưa học, học hết trong hôm nay.`}</p>
+      <div class="flex flex-wrap gap-2 mt-3"><button class="btn btn-neon" ${p.due || p.newLeft ? '' : 'disabled'} onclick="startDeck('')">▶ Học tất cả (${p.due} ôn + ${Math.min(p.newLeft, p.left)} mới)</button></div>
+    </section>
+    <section class="panel p-4 mt-4">
+      <div class="grid grid-cols-[1fr_60px_60px] gap-2 text-xs mono text-slate-400 px-3"><span>BÀI</span><span class="text-right text-emerald-300">ĐẾN HẠN</span><span class="text-right text-cyan-300">MỚI</span></div>
+      <div class="space-y-1 mt-2">${rows || '<div class="text-slate-500 text-sm p-3">Chưa có bài Fach nào, nên chưa có thẻ.</div>'}</div>
+    </section>`;
+}
+function startDeck(lid) {
+  const now = Date.now(), p = ankiPlan(now);
+  const pool = ankiLessons().filter(L => lessonOpen(L) && (!lid || L.id === lid)).flatMap(lessonCards);
+  const due = pool.filter(c => isDueCard(cardState(c), now)).sort((a, b) => cardState(a).due - cardState(b).due);
+  const nw = pool.filter(c => !cardState(c) || cardState(c).state === 'new').slice(0, p.newLeft);
+  const items = [...due, ...nw];
+  if (!items.length) { tutorSay(pool.some(c => !cardState(c)) ? 'Hết chỉ tiêu thẻ mới hôm nay rồi. Mai học tiếp, đừng tham.' : 'Không còn thẻ đến hạn hay thẻ mới. Hiếm lắm mới thấy bạn sạch nợ.', 'praise'); return; }
+  if (currentTab !== 'anki') { stopTimer(); currentTab = 'anki'; renderTabs(); }
+  ANKI = { items, i: 0, revealed: false, done: false, again: 0, answered: 0, title: lid ? `Ngày ${S.fach.find(l => l.id === lid).day}` : 'Tất cả bài', nDue: due.length, nNew: nw.length };
+  renderAnkiCard(); window.scrollTo({ top: 0 });
+}
+function renderAnkiCard() {
+  if (ANKI.done) {
+    $('#view').innerHTML = `<section class="panel neon p-6 text-center"><div class="text-4xl">🃏</div><div class="text-2xl font-bold mt-2">Xong phiên thẻ</div>
+      <div class="mono mt-1">${ANKI.answered} lượt chấm · ${ANKI.again} lần quên</div><p class="text-sm text-slate-400 mt-1">Thẻ quên sẽ tự quay lại trong bộ thẻ khi đến giờ.</p>
+      <button class="btn btn-neon mt-4" onclick="ANKI=null;renderAnki()">Về bộ thẻ</button></section>`;
+    ANKI.done && ANKI.again > ANKI.answered / 3 ? roast(`Quên ${ANKI.again}/${ANKI.answered} lượt. Não bạn là cái rổ, không phải cái bình.`) : praise('Hết phiên. Nhớ được bao nhiêu thì mai tôi kiểm tra lại.');
+    return;
+  }
+  const c = ANKI.items[ANKI.i], st = cardState(c), now = Date.now();
+  const L = S.fach.find(l => l.id === c.lid);
+  const kind = { card: 'Flashcard', sec: 'Mục giảng', cloze: 'Kernsatz đục lỗ', ks: 'Kernsatz', vocab: 'Từ vựng' }[c.type];
+  $('#view').innerHTML = `
+    <div class="flex items-center justify-between gap-2 mb-3"><div><div class="text-xs mono text-slate-400">${esc(ANKI.title)} · ${ANKI.nDue} ôn + ${ANKI.nNew} mới</div>
+      <div class="text-lg font-bold">Thẻ ${ANKI.i + 1}/${ANKI.items.length}</div></div>
+      <button class="btn btn-ghost text-sm" onclick="ANKI.done=true;renderAnkiCard()">Kết thúc phiên</button></div>
+    <section class="panel p-5">
+      <div class="text-xs mono text-slate-400">${kind} · Ngày ${L ? L.day : '?'} · ${!st || st.state === 'new' ? '<span class="text-cyan-300">MỚI</span>' : st.state === 'review' ? '<span class="text-emerald-300">ÔN</span>' : '<span class="text-yellow-300">ĐANG HỌC</span>'}</div>
+      <div class="${c.type === 'vocab' ? 'text-2xl' : 'text-lg'} font-semibold mt-3">${md(c.front)}</div>
+      ${ANKI.revealed ? `<div class="border-t border-dashed border-slate-700 mt-4 pt-4 text-base">${md(c.back)}</div>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-5">${[['again', 'Quên', 'btn-red', 1], ['hard', 'Khó', 'btn-ghost', 2], ['good', 'Tốt', 'btn-neon', 3], ['easy', 'Dễ', 'btn-ghost', 4]].map(([r, l, cls, k]) =>
+          `<button class="btn ${cls} flex-col" onclick="gradeAnki('${r}')">${l} <small class="mono opacity-80">${ankiLabel(ankiNext(st && st.state !== 'new' ? st : null, r, now), now)}</small><span class="text-[10px] opacity-60">phím ${k}</span></button>`).join('')}</div>`
+      : `<p class="text-sm text-slate-400 mt-5">Tự trả lời trong đầu (hoặc nói to cho cả phòng nghe) rồi lật.</p>
+        <button class="btn btn-pink w-full mt-3 text-lg" onclick="ANKI.revealed=true;renderAnkiCard()">Lật thẻ <span class="text-xs opacity-70">(Space)</span></button>`}
+    </section>`;
+}
+const ANKI_ROAST = ['Quên rồi à? Thẻ này sẽ quay lại sau 3 thẻ nữa, như người yêu cũ.', 'Thẻ này bạn gặp rồi mà. Não bạn có chế độ tự xoá à?', '"Vergessen" = quên. Bạn thì quên cả cách nói "quên".', 'Quên lần nữa là tôi in thẻ này dán lên trán bạn.'];
+function gradeAnki(rating) {
+  const c = ANKI.items[ANKI.i], now = Date.now(), prev = cardState(c);
+  const next = ankiNext(prev && prev.state !== 'new' ? prev : null, rating, now);
+  S.srs = S.srs || {}; S.srs[c.lid] = Object.assign({}, S.srs[c.lid], { [c.id]: next });
+  ANKI.answered++;
+  if (rating === 'again') {
+    ANKI.again++;
+    if (!ANKI.items.slice(ANKI.i + 1).some(x => x.id === c.id && x.lid === c.lid)) ANKI.items.splice(Math.min(ANKI.items.length, ANKI.i + 4), 0, c);
+    if (Math.random() < .5) tutorSay(pick(ANKI_ROAST), 'roast');
+  }
+  save(); renderStats();
+  ANKI.revealed = false;
+  if (ANKI.i + 1 >= ANKI.items.length) ANKI.done = true; else ANKI.i++;
+  renderAnkiCard(); window.scrollTo({ top: 0 });
+}
+addEventListener('keydown', e => {
+  if (currentTab !== 'anki' || !ANKI || ANKI.done || /input|textarea|select/i.test(e.target.tagName)) return;
+  if (!ANKI.revealed && (e.code === 'Space' || e.key === 'Enter')) { e.preventDefault(); ANKI.revealed = true; renderAnkiCard(); }
+  else if (ANKI.revealed && ['1', '2', '3', '4'].includes(e.key)) gradeAnki(['again', 'hard', 'good', 'easy'][+e.key - 1]);
+});
+
+const slug = s => stripVN(s).replace(/ /g, '-').slice(0, 50) || 'bai';
 async function downloadBlob(content, type, filename) {
   await capReady;
   if (CAP.downloads) {
@@ -1525,35 +1702,6 @@ async function downloadBlob(content, type, filename) {
   const a = document.createElement('a'); a.href = url; a.download = filename;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-function downloadCSV(rows, filename) {
-  const header = '#separator:Comma\n#html:true\n#columns:Front,Back\n';
-  downloadBlob(header + rows.map(([f, b]) => ankiField(f) + ',' + ankiField(b)).join('\n') + '\n', 'text/csv;charset=utf-8', filename);
-}
-const slug = s => stripVN(s).replace(/ /g, '-').slice(0, 50) || 'bai';
-function exportFach(id) {
-  const L = S.fach.find(l => l.id === id); const rows = lessonRows(L);
-  if (!rows.length) { roast('Bài này không có gì để xuất.'); return; }
-  downloadCSV(rows, `anki-fach-ngay${L.day}-${slug(L.title)}.csv`);
-  tutorSay(`Đã xuất ${rows.length} thẻ. Ôn đi chứ đừng sưu tầm thẻ như sưu tầm crush.`, 'praise');
-}
-function exportLessonJSON(id) {
-  const L = S.fach.find(l => l.id === id);
-  downloadBlob(JSON.stringify(L, null, 2), 'application/json', `fach-ngay${L.day}-${slug(L.title)}.json`);
-}
-function exportAllFach() {
-  const rows = S.fach.flatMap(lessonRows);
-  if (!rows.length) { roast('Chưa có bài Fach nào. Xuất cái gì? Xuất sự lười biếng à?'); return; }
-  downloadCSV(rows, `anki-fach-tat-ca-${todayStr()}.csv`);
-}
-// Kern: exercises whose last attempt was wrong → card with the book's equations/solution
-function exportKernWrong(bid) {
-  const ids = bid ? [bid] : BOOK_IDS;
-  const rows = ids.flatMap(b => KERN[b].ex.filter(e => S.kern[b][e.id] && !S.kern[b][e.id].ok).map(e =>
-    [`${KERN[b].title} · Bài ${e.id} (${e.level || ''})${b === 'math' ? '\n' + (e.solution.match(/^\(\d\).*$/gm) || []).join('\n') : '\n(xem đề trong sách / app)'}`, `${e.answerLine}\n\n${e.solution}`]));
-  if (!rows.length) { tutorSay('Chưa có bài nào đang sai. Hoặc bạn giỏi, hoặc bạn chưa làm. Tôi đoán là vế sau.', 'roast'); return; }
-  downloadCSV(rows, `anki-kern-bai-sai-${bid || 'tat-ca'}-${todayStr()}.csv`);
-  tutorSay(`Xuất ${rows.length} bài sai. Ôn lại đến khi thuộc lời giải thì thôi.`, 'praise');
 }
 
 /* =====================================================================
@@ -1648,7 +1796,7 @@ function renderHub() {
       <span class="tape" style="background:var(--cyan)">STUDY HUB</span>
       <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mt-1">
         <div><h2 class="text-2xl font-bold">Kho bài đã lưu 📚</h2><p class="text-sm text-slate-400">${S.fach.length} bài Fachmodul · ${wrong} bài Kern đang sai · lưu trong trình duyệt này.</p></div>
-        <div class="flex flex-wrap gap-2"><button class="btn btn-neon" onclick="exportAllFach()">⬇ Anki: tất cả bài Fach</button><button class="btn btn-ghost" onclick="exportKernWrong()">⬇ Anki: bài Kern đang sai</button></div>
+        <div class="flex flex-wrap gap-2"><button class="btn btn-neon" onclick="go('anki')">🃏 Học thẻ</button></div>
       </div>
       <input class="mt-3" placeholder="🔍 Tìm bài Fach (gõ không dấu cũng được)..." value="${esc(hubQuery)}" oninput="hubQuery=this.value;renderHubList()">
     </section>
@@ -1665,7 +1813,7 @@ function renderHubList() {
       <div class="min-w-0"><div class="font-bold text-pink-300 truncate">Ngày ${l.day} · ${esc(l.title)}</div>
         <div class="text-xs text-slate-500">${l.lecture.sections.length} mục · ${lessonTexts(l).length} text · ${lessonQs(l).length} câu · ${l.vocab.length} từ${lessonScore(l) ? ` · điểm ${lessonScore(l).score}/${lessonScore(l).total}` : ''}</div></div>
       <div class="flex gap-2 shrink-0" onclick="event.stopPropagation()">
-        <button class="btn btn-neon text-sm" onclick="exportFach('${l.id}')">⬇ Anki</button>
+        <button class="btn btn-neon text-sm" onclick="startDeck('${l.id}')">🃏 Thẻ</button>
         <button class="btn btn-ghost text-sm text-red-300" onclick="deleteFach('${l.id}')">🗑</button></div></div>`).join('')
     : `<div class="panel p-8 text-center text-slate-400">Chưa có bài Fachmodul nào. <button class="btn btn-pink ml-2" onclick="go('fach')">🩺 Nạp bài</button></div>`;
 }
@@ -1701,6 +1849,8 @@ function renderSettings() {
       <section class="panel p-5">
         <span class="tape" style="background:var(--cyan)">HỆ THỐNG</span>
         <h2 class="text-xl font-bold mt-1">Bảng điều khiển hành xác ⚙️</h2>
+        <label class="text-xs text-slate-400 mt-3 block">Ngày giờ thi TestAS</label>
+        <div class="flex gap-2"><input id="set-exam" type="datetime-local" value="${esc(S.examAt || '2026-11-26T08:00')}"><button class="btn btn-ghost" onclick="S.examAt=$('#set-exam').value||'2026-11-26T08:00';save();renderStats();tutorSay('Đã đổi ngày thi. Dời ngày thi trong app không dời được ngày thi thật đâu.','roast')">Đặt</button></div>
         <label class="text-xs text-slate-400 mt-3 block">Ngày bắt đầu ${PLAN_DAYS} ngày</label>
         <div class="flex gap-2"><input id="set-start" type="date" value="${S.startDate}"><button class="btn btn-ghost" onclick="setStart()">Đặt</button></div>
         <div class="flex flex-wrap gap-2 mt-4">
@@ -1750,8 +1900,8 @@ const closeOverlay = () => { $('#overlay-root').innerHTML = ''; };
 
 renderTabs(); renderStats(); go('dash');
 if (S.tutorMin) toggleTutor(true);
-tutorSay(checkedToday() ? 'Lại là bạn à. Hôm nay điểm danh rồi, giờ đi làm ' + PER_DAY + ' bài Kern của ngày hôm nay đi.'
-  : `Ngày ${dayNumber()}/${PLAN_DAYS}. Bạn CHƯA điểm danh. Đồng hồ đang chạy về 00:00:00... tick tock 😈`);
+tutorSay(examRoast() + ' ' + (checkedToday() ? 'Lại là bạn à. Hôm nay điểm danh rồi, giờ đi làm ' + PER_DAY + ' bài Kern của ngày hôm nay đi.'
+  : `Ngày ${dayNumber()}/${PLAN_DAYS}. Bạn CHƯA điểm danh. Đồng hồ đang chạy về 00:00:00... tick tock 😈`));
 checkDeadman();
 pullSync().then(() => { if (!S.pendingPunishment) showDebtNotice(); });
 </script>
