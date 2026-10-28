@@ -265,7 +265,7 @@ function mergeLesson(a, b) {
   const q = Object.assign({}, JSON.stringify(hi.testas) === JSON.stringify(lo.testas) ? lo.quizzes : {}, hi.quizzes);
   if (JSON.stringify(hi.testas) === JSON.stringify(lo.testas)) Object.keys(lo.quizzes || {}).forEach(k => {
     const x = lo.quizzes[k], y = (hi.quizzes || {})[k];
-    q[k] = !y || (x.date || '') > (y.date || '') ? x : y;
+    q[k] = Object.assign({}, !y || (x.date || '') > (y.date || '') ? x : y, { best: Math.max(x.best || x.score || 0, (y && (y.best || y.score)) || 0) });
   });
   return Object.assign({}, hi, { quizzes: q });
 }
@@ -474,7 +474,7 @@ function solutionHTML(ex) {
 function recordKern(bid, ex, ok) {
   const r = S.kern[bid][ex.id] || { ok: false, n: 0, wrong: 0 };
   r.n++; if (!ok) r.wrong = (r.wrong || 0) + 1; r.ok = ok; r.last = todayStr();
-  S.kern[bid][ex.id] = r; save(); renderStats();
+  S.kern[bid][ex.id] = r; save(); renderStats(); if (ok) autoCheckin();
 }
 const exSheet = ex => `<div class="sheet"><img src="${ex.img}" alt="Bài ${ex.id}"></div>`;
 
@@ -603,9 +603,10 @@ function renderDash() {
         <div>
           <div class="text-xs text-slate-400 mono">${done ? 'CÔNG TẮC ĐÃ ĐƯỢC NHẤN HÔM NAY' : 'THỜI GIAN CÒN LẠI TRƯỚC KHI KÍCH HOẠT HÌNH PHẠT'}</div>
           <div id="deadman-clock" class="mono text-4xl md:text-5xl font-bold ${done ? 'text-emerald-300' : 'text-red-400'}">${done ? 'AN TOÀN ✓' : fmtHMS(msToMidnight())}</div>
-          <div class="text-sm text-slate-400 mt-1">${done ? 'Hôm nay bạn sống sót. Mai lại phải chứng minh.' : 'Không check-in trước 00:00:00 → Punishment Protocol. Check-in = giải đúng 1 bài trong sách của bạn.'}</div>
+          <div class="text-sm text-slate-400 mt-1">${done ? 'Hôm nay bạn sống sót. Mai lại phải chứng minh.' : 'Không đạt trước 00:00:00 → Punishment Protocol. Điểm danh tự động khi đạt ≥ 80% bài Kern và ≥ 80% câu Fach của hôm nay.'}</div>
+          ${progressHTML(dayProgress(d))}
         </div>
-        <button class="btn ${done ? 'btn-ghost' : 'btn-red heartbeat'} text-lg" ${done ? 'disabled' : ''} onclick="startCheckin()">${done ? 'Đã điểm danh' : '☠ ĐIỂM DANH NGAY'}</button>
+        <button class="btn ${done ? 'btn-ghost' : 'btn-red heartbeat'} text-lg" ${done ? 'disabled' : ''} onclick="startCheckin()">${done ? 'Đã điểm danh' : '☠ KIỂM TRA ĐIỂM DANH'}</button>
       </div>
     </section>
     <section class="panel p-5">
@@ -750,35 +751,54 @@ function checkDeadman() {
   if (S.pendingPunishment) startPunishment();
 }
 
-// check-in: solve one random exercise from the books
+// check-in: the day counts only when ≥ 80 % of the day's Kern exercises are solved correctly
+// AND ≥ 80 % of the day's Fach questions are answered correctly (best attempt per text).
+// Exam/review days (19–20) have no lesson, so only Kern counts there.
+const PASS = 0.8;
 let CHK = null;
-function startCheckin() {
-  const bid = pick(BOOK_IDS); const ex = pick(KERN[bid].ex.filter(e => /Dễ/.test(e.level || '')).length ? KERN[bid].ex.filter(e => /Dễ/.test(e.level || '')) : KERN[bid].ex);
-  CHK = { bid, ex };
-  showModal(`
-    <div class="text-xs mono text-red-400">XÁC MINH SINH TRẮC HỌC NÃO BỘ · ${esc(KERN[bid].title)} · Bài ${ex.id}</div>
-    <h3 class="text-lg font-bold mt-1">Chứng minh bạn chưa chết não:</h3>
-    <div class="mt-3">${exSheet(ex)}</div>
-    ${answerWidget(bid, ex)}
-    <button class="btn btn-neon mt-4" onclick="answerCheckin()">Chốt</button>`, true);
-  tutorSay('Điểm danh à? Giải đúng bài này mới tính. Không có "điểm danh hộ" đâu.');
+function dayProgress(n) {
+  const ex = dayExercises(n);
+  const kernOk = ex.filter(({ bid, ex }) => (S.kern[bid][ex.id] || {}).ok).length;
+  const fachNeeded = n <= FACH_DAYS && !FACH_PLAN[n - 1].exam;
+  const ls = fachOfDay(n);
+  let fachScore = 0, fachTotal = 0;
+  ls.forEach(L => lessonTexts(L).forEach((t, i) => { const q = (L.quizzes || {})[i]; fachTotal += t.questions.length; if (q) fachScore += Math.max(q.best || 0, q.score || 0); }));
+  const kernPass = kernOk >= Math.ceil(PASS * ex.length);
+  const fachPass = !fachNeeded || (fachTotal > 0 && fachScore >= Math.ceil(PASS * fachTotal));
+  return { kernOk, kernTotal: ex.length, kernNeed: Math.ceil(PASS * ex.length), fachNeeded, hasLesson: ls.length > 0, fachScore, fachTotal, fachNeed: Math.ceil(PASS * fachTotal), kernPass, fachPass, pass: kernPass && fachPass };
 }
-function answerCheckin() {
-  const a = readAnswer(CHK.bid, CHK.ex);
-  if (!a) { tutorSay('Điền đủ đáp án đã rồi hẵng bấm. Vội đi đâu?', 'roast'); return; }
-  const ok = isCorrect(CHK.ex, a); recordKern(CHK.bid, CHK.ex, ok);
-  if (!ok) {
-    roast('Sai rồi. Đáp án sách: ' + CHK.ex.answerLine + '. Làm bài khác.');
-    $('#modal-card').classList.add('shake'); setTimeout(startCheckin, 1600); return;
-  }
-  const t = todayStr(); const last = S.checkins[S.checkins.length - 1];
+function progressHTML(pr) {
+  const bar = (v, max, need, color) => `<div class="bar mt-1"><div style="width:${max ? Math.min(100, v / max * 100) : 0}%;background:${color}"></div></div>
+    <div class="text-[11px] text-slate-500">mốc đạt: ${need}/${max}</div>`;
+  return `<div class="grid sm:grid-cols-2 gap-3 mt-3 text-sm">
+    <div>🧠 Kern hôm nay: <b class="${pr.kernPass ? 'text-emerald-300' : 'text-red-300'}">${pr.kernOk}/${pr.kernTotal} bài đúng</b>${bar(pr.kernOk, pr.kernTotal, pr.kernNeed, 'var(--cyan)')}</div>
+    <div>🩺 Fach hôm nay: ${!pr.fachNeeded ? '<b class="text-emerald-300">ngày thi thử/ôn — không tính</b>'
+      : !pr.hasLesson ? '<b class="text-red-300">chưa có bài</b><div class="text-[11px] text-slate-500">gửi tài liệu cho Claude để có bài</div>'
+      : `<b class="${pr.fachPass ? 'text-emerald-300' : 'text-red-300'}">${pr.fachScore}/${pr.fachTotal} câu đúng</b>${bar(pr.fachScore, pr.fachTotal, pr.fachNeed, 'var(--pink)')}`}</div></div>`;
+}
+function doCheckin() {
+  const t = todayStr(); if (S.checkins.includes(t)) return;
+  const last = S.checkins[S.checkins.length - 1];
   S.streak = last === addDays(t, -1) ? S.streak + 1 : 1;
   S.bestStreak = Math.max(S.bestStreak, S.streak);
-  if (!S.checkins.includes(t)) S.checkins.push(t);
-  S.checkins.sort();
+  S.checkins.push(t); S.checkins.sort();
   closeModal(); addXP(50);
-  praise(`Điểm danh xong. Streak ${S.streak}🔥.`);
-  if (currentTab === 'dash') renderDash();
+  showModal(`<div class="text-center"><div class="text-5xl">✅</div><div class="text-2xl font-bold text-emerald-300 mt-2">ĐIỂM DANH THÀNH CÔNG</div>
+    <div class="text-slate-300 mt-1">Đạt ≥ 80% Kern và Fach hôm nay · Streak ${S.streak}🔥 · +50 XP</div></div>`);
+  praise(`Đạt 80% rồi, điểm danh tự động. Streak ${S.streak}🔥. Không phải tôi khen đâu, là thuật toán khen.`);
+  renderStats(); if (currentTab === 'dash') renderDash();
+}
+// called after every Kern answer / Fach submission: check in automatically once today's 80 % is reached
+function autoCheckin() { if (!checkedToday() && dayProgress(dayNumber()).pass) doCheckin(); }
+function startCheckin() {
+  const pr = dayProgress(dayNumber());
+  if (pr.pass) return doCheckin();
+  showModal(`<div class="text-xs mono text-red-400">CHƯA ĐỦ ĐIỀU KIỆN ĐIỂM DANH</div>
+    <h3 class="text-lg font-bold mt-1">Phải đạt ≥ 80% bài Kern VÀ ≥ 80% câu Fach của hôm nay (ngày ${dayNumber()}).</h3>
+    ${progressHTML(pr)}
+    <div class="flex flex-wrap gap-2 mt-4"><button class="btn btn-red" onclick="closeModal();startLevel(${dayNumber()})">🚑 Làm Kern hôm nay (ER)</button>
+      <button class="btn btn-pink" onclick="closeModal();go('fach')">🩺 Làm Fach hôm nay</button></div>`, true);
+  tutorSay('Điểm danh bằng mồm à? Ở đây điểm danh bằng 80% bài tập. Đi làm đi.', 'roast');
 }
 
 const CONFESSION = 'Tôi hứa học TestAS mỗi ngày, xin tha cho tôi';
@@ -1453,7 +1473,9 @@ function fqSubmit() {
     for (let k = 0; k < 4; k++) { const b = $(`#fq-${i}-${k}`); b.classList.remove('on'); if (k === q.answer) b.classList.add('good'); else if (k === FQ.sel[i]) b.classList.add('bad'); }
     $(`#fq-exp-${i}`).innerHTML = `<div class="sol mt-3"><b class="${ok ? 'text-emerald-300' : 'text-red-400'}">${ok ? '✓' : '✗'} Đáp án (${'ABCD'[q.answer]})</b><div class="mt-1">${md(q.explain_vi)}</div></div>`;
   });
-  L.quizzes = Object.assign({}, L.quizzes, { [FQ.ti]: { score, total: qs.length, date: todayStr() } }); save(); addXP(score * 15); renderStats();
+  const prevQ = (L.quizzes || {})[FQ.ti] || {};
+  L.quizzes = Object.assign({}, L.quizzes, { [FQ.ti]: { score, total: qs.length, date: todayStr(), best: Math.max(prevQ.best || 0, prevQ.score || 0, score) } }); save(); addXP(score * 15); renderStats();
+  setTimeout(autoCheckin, 1500);
   const next = FQ.ti + 1 < texts.length;
   $('#fq-submit').outerHTML = `<div class="panel ${score / qs.length >= .7 ? 'neon' : 'danger'} p-4 text-center"><div class="text-4xl font-bold">${score}/${qs.length}</div>
     <div class="flex flex-wrap justify-center gap-2 mt-3"><button class="btn btn-ghost" onclick="fachQuiz(S.fach.find(l=>l.id==='${L.id}'),${FQ.ti})">Làm lại</button>
