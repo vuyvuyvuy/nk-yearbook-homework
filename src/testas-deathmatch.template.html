@@ -290,7 +290,7 @@ function mergeState(a, r) {
   m.kern = {};
   BOOK_IDS.forEach(b => {
     const x = (a.kern || {})[b] || {}, y = (r.kern || {})[b] || {}; m.kern[b] = Object.assign({}, x);
-    Object.keys(y).forEach(id => { if (!x[id] || (y[id].last || '') > (x[id].last || '') || ((y[id].last || '') === (x[id].last || '') && y[id].n > x[id].n)) m.kern[b][id] = y[id]; });
+    Object.keys(y).forEach(id => { if (!x[id] || (y[id].last || '') > (x[id].last || '') || ((y[id].last || '') === (x[id].last || '') && (y[id].n > x[id].n || (y[id].n === x[id].n && y[id].ok && !x[id].ok)))) m.kern[b][id] = y[id]; });
   });
   const ek = e => [e.bid, e.pruef, e.date, e.score, e.secs].join('|');
   m.exams = [...new Map([...(r.exams || []), ...(a.exams || [])].map(e => [ek(e), e])).values()];
