@@ -1546,7 +1546,7 @@ function fachAnki(L) {
   const due = cs.filter(c => isDueCard(cardState(c), now)).length, nw = cs.filter(c => !cardState(c) || cardState(c).state === 'new').length;
   $('#fach-body').innerHTML = `<div class="panel neon p-5">
     <div class="font-bold text-lg">🃏 Thẻ của bài này: ${cs.length} thẻ</div>
-    <p class="text-sm text-slate-400 mt-1">Flashcard · mục giảng (+ mẹo bựa) · Kernsätze đục lỗ · từ vựng Đức → Việt. Học thẳng trên web, lịch ôn kiểu Anki.</p>
+    <p class="text-sm text-slate-400 mt-1">Từ vựng Đức → Việt trước, rồi flashcard · mục giảng (+ mẹo bựa) · Kernsätze đục lỗ. Học thẳng trên web, lịch ôn kiểu Anki.</p>
     <div class="mono mt-2"><span class="text-emerald-300">${due} đến hạn</span> · <span class="text-cyan-300">${nw} mới</span></div>
     <div class="flex flex-wrap gap-2 mt-3"><button class="btn btn-neon" onclick="startDeck('${L.id}')">▶ Học thẻ bài này</button><button class="btn btn-ghost" onclick="go('anki')">🃏 Bộ thẻ tất cả bài</button></div></div>`;
 }
@@ -1599,10 +1599,11 @@ const isDueCard = (c, at = Date.now()) => c && c.state !== 'new' && c.due <= at 
 function hashStr(t) { let h = 5381; for (let i = 0; i < t.length; i++) h = (h * 33 + t.charCodeAt(i)) >>> 0; return h.toString(36); }
 function lessonCards(L) {
   const out = [], add = (type, front, back) => out.push({ id: type + '-' + hashStr(front), lid: L.id, type, front, back });
+  // vocabulary first, so a lesson's German words are known before its knowledge cards
+  L.vocab.forEach(v => add('vocab', v.de, v.vi));
   L.cards.forEach(c => add('card', c.front, c.back));
   L.lecture.sections.forEach(s => { if (s.heading) add('sec', s.heading, `${s.explanation}${s.mnemonic ? '\n\n🤪 Mẹo bựa: ' + s.mnemonic : ''}`); });
   L.lecture.sections.forEach(s => s.kernsaetze.forEach(k => clozeOf(k) ? add('cloze', `Điền từ còn thiếu:\n${clozeOf(k)}`, `${k.de}\n\n→ ${k.vi}`) : add('ks', k.de, k.vi)));
-  L.vocab.forEach(v => add('vocab', v.de, v.vi));
   return out;
 }
 const cardState = c => ((S.srs || {})[c.lid] || {})[c.id];
@@ -1634,7 +1635,7 @@ function renderAnki() {
     <section class="panel p-5" style="border-color:rgba(0,229,255,.45)">
       <span class="tape" style="background:var(--cyan)">ANKI TRÊN WEB</span>
       <h2 class="text-2xl font-bold mt-1">Bộ thẻ hôm nay 🃏</h2>
-      <p class="text-sm text-slate-400 mt-1">Thẻ lấy từ bài Fach của bạn: flashcard, mục giảng, Kernsätze đục lỗ, từ vựng Đức → Việt. Lịch ôn kiểu Anki; mọi lịch ôn kết thúc trước ngày thi 1 hôm.</p>
+      <p class="text-sm text-slate-400 mt-1">Thẻ lấy từ bài Fach của bạn. Thẻ mới đi theo từng bài: từ vựng Đức → Việt trước, rồi mới tới thẻ kiến thức (flashcard, mục giảng, Kernsätze đục lỗ). Lịch ôn kiểu Anki; mọi lịch ôn kết thúc trước ngày thi 1 hôm.</p>
       <div class="grid sm:grid-cols-3 gap-3 mt-3 text-sm">
         <div class="panel p-3"><div class="text-xs text-slate-400 mono">THẺ MỚI HÔM NAY</div><div class="text-2xl font-bold ${p.newLeft ? 'text-cyan-300' : 'text-emerald-300'}">${p.learnedToday}/${p.quota}</div></div>
         <div class="panel p-3"><div class="text-xs text-slate-400 mono">ĐẾN HẠN ÔN</div><div class="text-2xl font-bold ${p.due ? 'text-emerald-300' : 'text-slate-500'}">${p.due}</div></div>
