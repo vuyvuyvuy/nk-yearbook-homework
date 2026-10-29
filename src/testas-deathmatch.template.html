@@ -1525,8 +1525,8 @@ function fachQuiz(L, ti = 0, restore = null) {
   stopTimer();
   if (!restore) stashRun('quiz');   // a text left half-done goes to the resume bar instead of being thrown away
   const T = texts[ti], qs = T.questions, sum = lessonScore(L), G = glossaryRegex(L, hintMode(L));
-  FQ = { id: L.id, ti, sel: restore ? restore.sel : {}, t: restore ? restore.t : qs.length * 95, done: false };   // ~1 min 35 s per question, like the real module
-  RUNVIEW = 'quiz';   // ~1 min 35 s per question, like the real module
+  FQ = { id: L.id, ti, sel: restore ? Object.assign({}, restore.sel) : {}, t: restore ? restore.t : qs.length * 95, done: false };   // ~1 min 35 s per question, like the real module
+  RUNVIEW = 'quiz'; if (restore) delete PAUSED.quiz;   // timer: ~1 min 35 s per question, like the real module
   const chips = texts.map((x, k) => { const r = (L.quizzes || {})[k];
     return `<button class="optbtn text-xs ${k === ti ? 'on' : ''}" style="${r ? (r.score / r.total >= .7 ? 'border-color:var(--neon)' : 'border-color:var(--red)') : ''}" onclick="fachQuiz(S.fach.find(l=>l.id==='${L.id}'),${k})">Text ${k + 1}${r ? ` · ${r.score}/${r.total}` : ''}</button>`; }).join('');
   const table = T.table ? `<div class="overflow-x-auto mt-3"><table class="w-full text-sm border border-slate-700">${T.table.caption ? `<caption class="text-left text-xs text-slate-400 pb-1">${esc(T.table.caption)}</caption>` : ''}
@@ -1551,7 +1551,7 @@ function fachQuiz(L, ti = 0, restore = null) {
   TIMER = setInterval(() => {
     FQ.t--; const el = $('#fq-time'); if (!el) return stopTimer();
     el.textContent = fmtMS(FQ.t); if (FQ.t <= 60) el.classList.add('text-red-400');
-    if (FQ.t <= 0) { tutorSay('Hết giờ! Nộp bài tự động.', 'panic'); fqSubmit(); }
+    if (FQ.t === 0) tutorSay('Hết giờ chuẩn của đề thật rồi. Thôi cứ làm nốt, nhưng nhớ là phòng thi không cho thêm giờ đâu.', 'panic');   // soft limit: no auto-submit, answers are never thrown away
   }, 1000);
 }
 function fqPick(i, k) {
@@ -1559,13 +1559,18 @@ function fqPick(i, k) {
   for (let x = 0; x < 4; x++) $(`#fq-${i}-${x}`).classList.toggle('on', x === k);
   saveRun();
 }
+// what the student sees as chosen is what gets graded: read the highlighted option first, the stored pick second
+const fqPicked = i => { for (let k = 0; k < 4; k++) if ($(`#fq-${i}-${k}`)?.classList.contains('on')) return k; return FQ.sel[i] === undefined ? undefined : Number(FQ.sel[i]); };
 function fqSubmit() {
-  if (FQ.done) return; FQ.done = true; stopTimer(); saveRun();
+  if (FQ.done) return; FQ.done = true; stopTimer();
+  if (PAUSED.quiz && PAUSED.quiz.id === FQ.id && PAUSED.quiz.ti === FQ.ti) delete PAUSED.quiz;   // a stale copy of this very text must not come back as "dở"
+  saveRun();
   const L = S.fach.find(l => l.id === FQ.id); const texts = lessonTexts(L); const qs = texts[FQ.ti].questions; let score = 0;
   qs.forEach((q, i) => {
-    const ok = FQ.sel[i] === q.answer; if (ok) score++;
-    for (let k = 0; k < 4; k++) { const b = $(`#fq-${i}-${k}`); b.classList.remove('on'); if (k === q.answer) b.classList.add('good'); else if (k === FQ.sel[i]) b.classList.add('bad'); }
-    $(`#fq-exp-${i}`).innerHTML = `<div class="sol mt-3"><b class="${ok ? 'text-emerald-300' : 'text-red-400'}">${ok ? '✓' : '✗'} Đáp án (${'ABCD'[q.answer]})</b><div class="mt-1">${md(q.explain_vi)}</div></div>`;
+    const pick = fqPicked(i), ok = pick === Number(q.answer); if (ok) score++;
+    for (let k = 0; k < 4; k++) { const b = $(`#fq-${i}-${k}`); b.classList.remove('on'); if (k === Number(q.answer)) b.classList.add('good'); else if (k === pick) b.classList.add('bad'); }
+    const head = pick === undefined ? `<b class="text-yellow-300">⚠ Bạn chưa chọn đáp án nào · đáp án đúng (${'ABCD'[q.answer]})</b>` : ok ? `<b class="text-emerald-300">✓ Đúng · đáp án (${'ABCD'[q.answer]})</b>` : `<b class="text-red-400">✗ Bạn chọn (${'ABCD'[pick]}) · đáp án đúng (${'ABCD'[q.answer]})</b>`;
+    $(`#fq-exp-${i}`).innerHTML = `<div class="sol mt-3">${head}<div class="mt-1">${md(q.explain_vi)}</div></div>`;
   });
   const prevQ = (L.quizzes || {})[FQ.ti] || {};
   L.quizzes = Object.assign({}, L.quizzes, { [FQ.ti]: { score, total: qs.length, date: todayStr(), best: Math.max(prevQ.best || 0, prevQ.score || 0, score) } }); save(); addXP(score * 15); renderStats();
