@@ -203,6 +203,7 @@ const DEFAULT_STATE = () => ({
   settings: { provider: 'openai', apiKey: '', model: '' },
   pendingPunishment: false, lastDeadmanCheck: '', punishments: 0, missedDays: 0,
   timeDev: {},                              // deviceId -> 'YYYY-MM-DD' -> {kern: seconds, fach: seconds}
+  srsResetAt: 0,                            // Anki reset: reviews made before this moment are ignored on every device
   startDateSetAt: 0,                        // when the start date was last chosen (newest wins across devices)
   tutorMin: false
 });
@@ -227,6 +228,8 @@ function loadState() {
 }
 let S = loadState();
 // the plan starts on 28/10/2026 (day 1); applied once per device, newest start date wins in sync
+const SRS_RESET_1029 = 1793248419976;
+if ((S.srsResetAt || 0) < SRS_RESET_1029) { S.srsResetAt = SRS_RESET_1029; S.srs = {}; }
 try { if (!localStorage.getItem('tdm_start_1028')) { S.startDate = '2026-10-28'; S.startDateSetAt = Date.now(); S.lastDeadmanCheck = ''; S.pendingPunishment = false; localStorage.setItem('tdm_start_1028', '1'); } } catch (e) { }
 function save() {
   S.updatedAt = Date.now();
@@ -284,6 +287,7 @@ function mergeState(a, r) {
   m.streak = streakFrom(m.checkins);
   m.bestStreak = Math.max(a.bestStreak || 0, r.bestStreak || 0, m.streak);
   ['xp', 'deaths', 'punishments'].forEach(k => { m[k] = Math.max(a[k] || 0, r[k] || 0); });
+  m.srsResetAt = Math.max(a.srsResetAt || 0, r.srsResetAt || 0);
   if ((r.startDateSetAt || 0) > (a.startDateSetAt || 0)) { m.startDate = r.startDate; m.startDateSetAt = r.startDateSetAt; }
   else if (!a.startDateSetAt && !r.startDateSetAt && r.startDate < a.startDate) m.startDate = r.startDate;   // neither chose: earliest first-use wins
   m.erCleared = [...new Set([...(a.erCleared || []), ...(r.erCleared || [])])].sort((x, y) => x - y);
@@ -319,10 +323,12 @@ async function pullSync(quiet) {
     if (remote) S = Object.assign(mergeState(S, remote), { fach: S.fach, settings: S.settings, tutorMin: S.tutorMin, srs: S.srs });
     lessons.forEach(L => { const i = S.fach.findIndex(x => x.id === L.id); if (i < 0) S.fach.push(L); else S.fach[i] = mergeLesson(S.fach[i], L); });
     S.srs = S.srs || {};
+    const afterReset = c => (c.last || 0) > (S.srsResetAt || 0);   // reviews from before an Anki reset do not come back
     Object.entries(srsDocs).forEach(([lid, cards]) => {   // per card, the most recently reviewed copy wins
       const mine = S.srs[lid] = Object.assign({}, S.srs[lid]);
-      Object.entries(cards).forEach(([cid, c]) => { if (!mine[cid] || (c.last || 0) > (mine[cid].last || 0)) mine[cid] = c; });
+      Object.entries(cards).forEach(([cid, c]) => { if (afterReset(c) && (!mine[cid] || (c.last || 0) > (mine[cid].last || 0))) mine[cid] = c; });
     });
+    Object.keys(S.srs).forEach(lid => { S.srs[lid] = Object.fromEntries(Object.entries(S.srs[lid]).filter(([, c]) => afterReset(c))); if (!Object.keys(S.srs[lid]).length) delete S.srs[lid]; });
     if (!S.pendingPunishment && $('#punish')) { $('#punish').remove(); }
     SYNC.sent.clear(); SYNC.ready = true; save();
     if (before !== JSON.stringify([S.checkins, S.xp, S.kern, S.timeDev, S.fach.length])) {
@@ -1623,6 +1629,12 @@ function ankiPlan(now = Date.now()) {
 }
 
 let ANKI = null;
+function resetAnki() {
+  askConfirm('Xoá toàn bộ lịch ôn của mọi thẻ Anki (cả trên các máy khác)? Thẻ sẽ như chưa học bao giờ.', () => {
+    ANKI = null; S.srs = {}; S.srsResetAt = Date.now(); save(); renderStats(); renderAnki();
+    tutorSay('Reset sạch. Toàn bộ thẻ quay về "mới", hạn mới cũng tính lại từ đầu.', 'roast');
+  });
+}
 function renderAnki() {
   if (ANKI && !ANKI.done) return renderAnkiCard();
   const p = ankiPlan(), now = Date.now();
@@ -1642,7 +1654,7 @@ function renderAnki() {
         <div class="panel p-3"><div class="text-xs text-slate-400 mono">NỢ ANKI HÔM NAY</div><div class="text-2xl font-bold ${p.owe ? 'text-red-400' : 'text-emerald-300'}">${p.owe || '0 ✓'}</div></div>
       </div>
       <p class="text-xs text-slate-500 mt-2">${p.days ? `Hạn học thẻ mới còn ${p.days} ngày (xong trước thi ${ANKI_FINAL + ANKI_RAMP} ngày: ${ANKI_RAMP} ngày ôn giãn lên ~1 tuần + ${ANKI_FINAL} ngày cuối chỉ ôn). Còn ${p.left} thẻ chưa học.` : `Đã hết hạn học thẻ mới (${ANKI_FINAL + ANKI_RAMP} ngày trước thi): còn ${p.left} thẻ chưa học, học hết trong hôm nay.`}</p>
-      <div class="flex flex-wrap gap-2 mt-3"><button class="btn btn-neon" ${p.due || p.newLeft ? '' : 'disabled'} onclick="startDeck('')">▶ Học tất cả (${p.due} ôn + ${Math.min(p.newLeft, p.left)} mới)</button></div>
+      <div class="flex flex-wrap gap-2 mt-3"><button class="btn btn-neon" ${p.due || p.newLeft ? '' : 'disabled'} onclick="startDeck('')">▶ Học tất cả (${p.due} ôn + ${Math.min(p.newLeft, p.left)} mới)</button><button class="btn btn-ghost text-sm" onclick="resetAnki()">🗑 Reset tất cả thẻ</button></div>
     </section>
     <section class="panel p-4 mt-4">
       <div class="grid grid-cols-[1fr_60px_60px] gap-2 text-xs mono text-slate-400 px-3"><span>BÀI</span><span class="text-right text-emerald-300">ĐẾN HẠN</span><span class="text-right text-cyan-300">MỚI</span></div>
