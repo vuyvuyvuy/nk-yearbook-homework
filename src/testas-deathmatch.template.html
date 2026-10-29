@@ -95,6 +95,31 @@
   @keyframes fi{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
   .heartbeat{animation:hb 1s infinite}
   @keyframes hb{0%,100%{transform:scale(1)}15%{transform:scale(1.18)}30%{transform:scale(1)}45%{transform:scale(1.12)}}
+
+/* ---------- pomodoro + duck ---------- */
+#pomo{position:fixed;left:.75rem;z-index:60;width:min(300px,calc(100vw - 1.5rem));bottom:calc(9.5rem + env(safe-area-inset-bottom,0px));--pm:var(--neon)}
+@media (min-width:768px){#pomo{bottom:calc(.75rem + env(safe-area-inset-bottom,0px))}}
+.pomo-card{background:rgba(10,12,20,.94);border:1px solid color-mix(in srgb,var(--pm) 55%,transparent);border-radius:14px;padding:8px 10px;box-shadow:0 0 24px color-mix(in srgb,var(--pm) 22%,transparent);backdrop-filter:blur(6px)}
+.pomo-main{display:flex;gap:8px;align-items:center}.pomo-body{flex:1;min-width:0}
+.pomo-duckbtn{all:unset;cursor:pointer;width:62px;height:62px;flex:none}
+.duck{width:100%;height:100%;overflow:visible;transform-origin:50% 90%}
+.duck .eyes-happy,.duck .eyes-sleepy,.duck .brows,.duck .stars{display:none}
+.duck[data-mood=focus] .brows{display:block}
+.duck[data-mood=break] .eyes-open,.duck[data-mood=cheer] .eyes-open{display:none}.duck[data-mood=break] .eyes-happy,.duck[data-mood=cheer] .eyes-happy{display:block}
+.duck[data-mood=sleepy] .eyes-open{display:none}.duck[data-mood=sleepy] .eyes-sleepy{display:block}
+.duck[data-mood=cheer] .stars{display:block}
+.duck[data-mood=focus]{animation:duckbob 1.6s ease-in-out infinite}.duck[data-mood=break]{animation:duckwiggle 2s ease-in-out infinite}.duck[data-mood=cheer]{animation:duckhop .5s ease-in-out 3}
+.duck.talk .beak-low{animation:quack .22s ease-in-out infinite alternate}
+@keyframes duckbob{50%{transform:translateY(-2px) rotate(-2deg)}}@keyframes duckwiggle{25%{transform:rotate(-5deg)}75%{transform:rotate(5deg)}}@keyframes duckhop{50%{transform:translateY(-8px)}}@keyframes quack{to{transform:translateY(2.5px)}}
+.pomo-time{font-size:30px;line-height:1.05;font-weight:700;color:var(--pm)}
+.pomo-bar{height:4px;border-radius:99px;background:rgba(255,255,255,.1);overflow:hidden;margin:4px 0 6px}.pomo-bar i{display:block;height:100%;background:var(--pm);transition:width .9s linear}
+.pomo-ctl{display:flex;gap:6px;align-items:center}
+.pomo-ic{all:unset;cursor:pointer;font-size:14px;line-height:1;padding:3px 6px;border-radius:6px;color:#94a3b8}.pomo-ic:hover{background:rgba(255,255,255,.1);color:#fff}
+.pomo-say{display:none;margin-bottom:6px;padding:8px 10px;border-radius:12px 12px 12px 3px;background:#fff;color:#1b1b1b;font-size:13px;line-height:1.4;box-shadow:0 6px 18px rgba(0,0,0,.45)}.pomo-say.show{display:block}
+.pomo-set{display:grid;grid-template-columns:1fr 1fr;gap:6px 8px;margin-top:8px;padding-top:8px;border-top:1px dashed rgba(255,255,255,.18)}.pomo-set.hidden{display:none}
+.pomo-f{display:grid;gap:2px;font-size:11px;color:#94a3b8}.pomo-f input{width:100%;padding:4px 6px;font-size:13px}
+#pomo-count{white-space:nowrap}.pomo-c input{width:auto!important;flex:none}.pomo-c{grid-column:1/-1;font-size:12px;color:#cbd5e1;display:flex;gap:6px;align-items:center}
+#pomo.min{width:auto}#pomo.min .pomo-card{padding:4px 10px 4px 4px;border-radius:99px}#pomo.min .pomo-body>div:not(#pomo-time){display:none}#pomo.min .pomo-duckbtn{width:38px;height:38px}#pomo.min .pomo-time{font-size:20px}#pomo.min .pomo-set{display:none}
 </style>
 </head>
 <body>
@@ -2034,6 +2059,140 @@ const closeModal = () => { $('#modal-root').innerHTML = ''; };
 const showOverlay = html => { $('#overlay-root').innerHTML = `<div class="overlay" style="background:rgba(10,0,2,.94);align-items:flex-start">${html}</div>`; };
 const closeOverlay = () => { $('#overlay-root').innerHTML = ''; };
 
+/* =====================================================================
+   11. POMODORO — floating timer in a corner of every screen, with a rude little duck ("Vịt Mỏ Hỗn":
+   "mỏ" = beak, also "mouth"). Focus / short break / long break lengths are set by the user;
+   state is kept as an end timestamp in localStorage, so it survives tab changes and reloads.
+   ===================================================================== */
+const POMO_KEY = 'tdm_pomo';
+const POMO_DEFAULT = { cfg: { focus: 25, brk: 5, long: 15, every: 4, auto: true, sound: true }, phase: 'focus', running: false, endAt: 0, left: 25 * 60, count: 0, day: '', min: false, set: false };
+const POMO_PHASE = { focus: ['TẬP TRUNG', 'var(--neon)'], brk: ['NGHỈ NGẮN', 'var(--cyan)'], long: ['NGHỈ DÀI', 'var(--pink)'] };
+const POMO_SAY = {
+  start: ['Quạc! Vào việc. Điện thoại úp xuống, mắt nhìn thẻ, đừng nhìn trần nhà.', 'Đồng hồ chạy rồi. Từ giờ cái mỏ của tôi chỉ mở để chửi bạn.', 'Bắt đầu đi. Lát nữa nghỉ, bây giờ thì im lặng và học.'],
+  nudge: ['Còn {m} phút. Bạn đang đọc hay đang nhìn chữ cho vui?', 'Tôi thấy mắt bạn trôi đi đâu rồi. Quay lại màn hình, {m} phút nữa thôi.', '{m} phút nữa. Đừng mở TikTok, tôi biết bạn đang định mở.'],
+  brk: ['Hết giờ! Nghỉ {m} phút: uống nước, đứng dậy, đừng cầm điện thoại quá 5 phút.', 'Cho phép nghỉ. Duỗi lưng đi, ngồi còng như dấu hỏi rồi đấy.'],
+  long: ['Xong cả đợt! Nghỉ dài {m} phút. Ăn gì đó đi, vịt này tự hào (một chút xíu).', 'Nghỉ dài. Đi lại, ăn nhẹ. Quay về trễ một phút là tôi quạc vào tai.'],
+  focus: ['Hết nghỉ. Vịt đếm rồi: bạn nghỉ nhiều hơn tôi tưởng. Vào việc!', 'Quạc quạc! Hết giờ chơi. Mở thẻ ra.'],
+  pause: ['Dừng giữa chừng? Cái mỏ tôi cũng khép lại vì thất vọng.', 'Tạm dừng thôi nhé. Quay lại trong 2 phút, không thì tôi tính là bỏ học.'],
+  reset: ['Làm lại từ đầu hả? Tôi không phán xét. Tôi chỉ ghi sổ.'],
+  skip: ['Bỏ qua? Thôi được. Nhưng tôi sẽ nhớ.'],
+  poke: ['Đừng chọc. "Die Ente" tiếng Đức là con vịt, mà cũng là "tin vịt". Bạn thì giống cái thứ hai: nghe thì hứa hẹn mà không có thật.', 'Chọc vịt à? Quạc! Học đi.', 'Mỏ tôi hỗn nhưng tim tôi vẫn hỗn.', 'Sờ vịt không giúp bạn nhớ Lysosom. Mở thẻ ra.'],
+  done: ['Pomodoro thứ {n} hôm nay. Tạm được. Tạm thôi.', 'Xong pomodoro thứ {n}. Đừng khoe, chưa thi đâu.', '{n} pomodoro rồi. Nếu vịt biết khen thì tôi đã khen.']
+};
+let PM = (() => { try { const x = JSON.parse(localStorage.getItem(POMO_KEY) || 'null'); if (x) return Object.assign({}, POMO_DEFAULT, x, { cfg: Object.assign({}, POMO_DEFAULT.cfg, x.cfg || {}) }); } catch (e) { } return JSON.parse(JSON.stringify(POMO_DEFAULT)); })();
+let POMO_OPEN = false, POMO_AUDIO = null, POMO_BUBBLE = null, POMO_NUDGE = 0;
+const pomoDur = ph => 60 * (ph === 'focus' ? PM.cfg.focus : ph === 'brk' ? PM.cfg.brk : PM.cfg.long);
+const pomoLeft = () => PM.running ? Math.max(0, Math.round((PM.endAt - Date.now()) / 1000)) : PM.left;
+function pomoSave() { try { localStorage.setItem(POMO_KEY, JSON.stringify(PM)); } catch (e) { } }
+function pomoBeep() {
+  if (!PM.cfg.sound) return;
+  try {
+    POMO_AUDIO = POMO_AUDIO || new (window.AudioContext || window.webkitAudioContext)();
+    [660, 880, 1100].forEach((f, k) => { const o = POMO_AUDIO.createOscillator(), g = POMO_AUDIO.createGain(), t = POMO_AUDIO.currentTime + k * .22;
+      o.frequency.value = f; o.type = 'triangle'; g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.25, t + .03); g.gain.exponentialRampToValueAtTime(.0001, t + .2); o.connect(g); g.connect(POMO_AUDIO.destination); o.start(t); o.stop(t + .21); });
+  } catch (e) { }
+}
+function pomoSay(key, vars = {}) {
+  const el = $('#pomo-say'); if (!el) return;
+  el.textContent = pick(POMO_SAY[key]).replace(/\{(\w)\}/g, (_, k) => vars[k] ?? '');
+  el.classList.add('show'); $('#pomo-duck')?.classList.add('talk');
+  clearTimeout(POMO_BUBBLE); POMO_BUBBLE = setTimeout(() => { el.classList.remove('show'); $('#pomo-duck')?.classList.remove('talk'); }, 7000);
+}
+function pomoDuck(mood) {   // mood: focus | break | sleepy | cheer
+  return `<svg id="pomo-duck" class="duck" data-mood="${mood}" viewBox="0 0 64 64" aria-hidden="true">
+    <ellipse cx="32" cy="60" rx="17" ry="2.6" fill="rgba(0,0,0,.35)"/>
+    <ellipse cx="32" cy="42" rx="21" ry="17" fill="#ffd23f"/><path d="M12 42 Q6 34 13 31 Q15 40 20 44Z" fill="#f4b400"/>
+    <circle cx="32" cy="24" r="15" fill="#ffd23f"/><path d="M30 9 Q33 3 37 8 Q33 8 32 12Z" fill="#ffd23f"/>
+    <ellipse cx="21" cy="28" rx="3.2" ry="2.2" fill="#ff8fa3" opacity=".75"/><ellipse cx="43" cy="28" rx="3.2" ry="2.2" fill="#ff8fa3" opacity=".75"/>
+    <g class="eyes-open"><circle cx="25.5" cy="23" r="3" fill="#1b1b1b"/><circle cx="38.5" cy="23" r="3" fill="#1b1b1b"/><circle cx="26.4" cy="22" r="1" fill="#fff"/><circle cx="39.4" cy="22" r="1" fill="#fff"/></g>
+    <g class="eyes-happy" fill="none" stroke="#1b1b1b" stroke-width="2.2" stroke-linecap="round"><path d="M22.5 24 Q25.5 20 28.5 24"/><path d="M35.5 24 Q38.5 20 41.5 24"/></g>
+    <g class="eyes-sleepy" stroke="#1b1b1b" stroke-width="2.4" stroke-linecap="round"><path d="M22.5 24 H28.5"/><path d="M35.5 24 H41.5"/></g>
+    <g class="brows" stroke="#6b3d00" stroke-width="2.4" stroke-linecap="round"><path d="M21.5 17.5 L29 20.5"/><path d="M42.5 17.5 L35 20.5"/></g>
+    <g class="beak"><path d="M25 29.5 Q32 26.5 39 29.5 Q39 33.5 32 33.8 Q25 33.5 25 29.5Z" fill="#ff8a1f"/><path class="beak-low" d="M26.5 33 Q32 37.5 37.5 33 Q32 35 26.5 33Z" fill="#e8690b"/></g>
+    <g class="stars" fill="#fff6a8"><path d="M52 12 l1.2 3 3 1.2 -3 1.2 -1.2 3 -1.2 -3 -3 -1.2 3 -1.2z"/><path d="M10 14 l.9 2.2 2.2.9 -2.2.9 -.9 2.2 -.9 -2.2 -2.2 -.9 2.2 -.9z"/></g></svg>`;
+}
+function pomoRender() {
+  const root = $('#pomo'); if (!root) return;
+  const left = pomoLeft(), mm = fmtMS(left), [label, color] = POMO_PHASE[PM.phase], total = pomoDur(PM.phase);
+  const mood = PM.phase !== 'focus' ? (PM.running ? 'break' : 'sleepy') : PM.running ? 'focus' : 'sleepy';
+  const pct = total ? Math.min(100, (1 - left / total) * 100) : 0;
+  root.classList.toggle('min', PM.min);
+  root.style.setProperty('--pm', color);
+  if (!root.dataset.built) {
+    root.dataset.built = '1';
+    root.innerHTML = `<div id="pomo-say" class="pomo-say"></div>
+      <div class="pomo-card">
+        <div class="pomo-main">
+          <button class="pomo-duckbtn" onclick="pomoPoke()" title="Chọc vịt">${pomoDuck('sleepy')}</button>
+          <div class="pomo-body">
+            <div class="flex items-center justify-between gap-2"><span id="pomo-label" class="mono text-[10px] tracking-widest"></span>
+              <span class="flex gap-1"><button class="pomo-ic" onclick="pomoToggleSet()" title="Cài đặt thời gian">⚙</button><button class="pomo-ic" onclick="pomoMin()" title="Thu nhỏ / mở rộng" id="pomo-minbtn">–</button></span></div>
+            <div id="pomo-time" class="mono pomo-time"></div>
+            <div class="pomo-bar"><i id="pomo-prog"></i></div>
+            <div class="pomo-ctl"><button id="pomo-go" class="btn btn-neon text-xs" onclick="pomoStartPause()"></button><button class="pomo-ic" onclick="pomoReset()" title="Làm lại phiên này">⟲</button><button class="pomo-ic" onclick="pomoSkip()" title="Bỏ qua sang pha sau">⏭</button><span id="pomo-count" class="mono text-[11px] text-slate-400 ml-auto"></span></div>
+          </div>
+        </div>
+        <div id="pomo-set" class="pomo-set hidden"></div>
+      </div>`;
+  }
+  $('#pomo-label').textContent = label; $('#pomo-label').style.color = color;
+  $('#pomo-time').textContent = mm; $('#pomo-prog').style.width = pct + '%';
+  $('#pomo-go').textContent = PM.running ? '⏸ Dừng' : left < total ? '▶ Tiếp' : '▶ Bắt đầu';
+  $('#pomo-count').textContent = `🍅 ${PM.count}`;
+  $('#pomo-minbtn').textContent = PM.min ? '+' : '–';
+  const duck = $('#pomo-duck'); if (duck) duck.dataset.mood = mood;
+  document.title = PM.running ? `${mm} · ${label} · TestAS` : 'TestAS 20-Day Deathmatch';
+}
+function pomoSetHTML() {
+  const f = (id, label, val, max) => `<label class="pomo-f"><span>${label}</span><input id="pomo-${id}" type="number" inputmode="numeric" min="1" max="${max}" value="${val}" onchange="pomoApply()"></label>`;
+  return `${f('focus', 'Học (phút)', PM.cfg.focus, 180)}${f('brk', 'Nghỉ (phút)', PM.cfg.brk, 60)}${f('long', 'Nghỉ dài', PM.cfg.long, 90)}${f('every', 'Nghỉ dài sau (đợt)', PM.cfg.every, 12)}
+    <label class="pomo-c"><input id="pomo-auto" type="checkbox" ${PM.cfg.auto ? 'checked' : ''} onchange="pomoApply()"> Tự chạy pha tiếp theo</label>
+    <label class="pomo-c"><input id="pomo-sound" type="checkbox" ${PM.cfg.sound ? 'checked' : ''} onchange="pomoApply()"> Báo chuông</label>`;
+}
+function pomoToggleSet() { POMO_OPEN = !POMO_OPEN; const el = $('#pomo-set'); el.classList.toggle('hidden', !POMO_OPEN); if (POMO_OPEN) el.innerHTML = pomoSetHTML(); }
+function pomoApply() {
+  const num = (id, d, lo, hi) => Math.min(hi, Math.max(lo, Math.round(+$('#pomo-' + id).value) || d));
+  PM.cfg = { focus: num('focus', 25, 1, 180), brk: num('brk', 5, 1, 60), long: num('long', 15, 1, 90), every: num('every', 4, 1, 12), auto: $('#pomo-auto').checked, sound: $('#pomo-sound').checked };
+  if (!PM.running) PM.left = pomoDur(PM.phase);   // an idle timer takes the new length at once; a running one finishes as set
+  pomoSave(); $('#pomo-set').innerHTML = pomoSetHTML(); pomoRender();
+}
+function pomoStartPause() {
+  try { POMO_AUDIO = POMO_AUDIO || new (window.AudioContext || window.webkitAudioContext)(); POMO_AUDIO.resume && POMO_AUDIO.resume(); } catch (e) { }
+  if (PM.running) { PM.left = pomoLeft(); PM.running = false; pomoSay('pause'); }
+  else { if (PM.left <= 0) PM.left = pomoDur(PM.phase); PM.endAt = Date.now() + PM.left * 1000; PM.running = true; POMO_NUDGE = Date.now(); pomoSay(PM.phase === 'focus' ? 'start' : PM.phase, { m: Math.ceil(PM.left / 60) }); }
+  pomoSave(); pomoRender();
+}
+function pomoReset() { PM.running = false; PM.left = pomoDur(PM.phase); pomoSave(); pomoRender(); pomoSay('reset'); }
+function pomoNext(finished) {
+  if (PM.day !== todayStr()) { PM.day = todayStr(); PM.count = 0; }
+  if (PM.phase === 'focus') { if (finished) PM.count++; PM.phase = finished && PM.count % PM.cfg.every === 0 ? 'long' : 'brk'; }
+  else PM.phase = 'focus';
+  PM.left = pomoDur(PM.phase);
+}
+function pomoSkip() { const was = PM.running; pomoNext(false); PM.running = was; PM.endAt = Date.now() + PM.left * 1000; pomoSave(); pomoRender(); pomoSay('skip'); }
+function pomoDone() {
+  const wasFocus = PM.phase === 'focus';
+  pomoNext(true); PM.running = PM.cfg.auto; PM.endAt = Date.now() + PM.left * 1000; pomoSave(); pomoBeep();
+  const duck = $('#pomo-duck'); if (duck) { duck.dataset.mood = 'cheer'; }
+  pomoSay(PM.phase === 'focus' ? 'focus' : PM.phase, { m: Math.round(PM.left / 60), n: PM.count });
+  if (wasFocus && PM.count >= 1) setTimeout(() => pomoSay('done', { n: PM.count }), 7500);
+  pomoRender();
+}
+function pomoMin() { PM.min = !PM.min; pomoSave(); pomoRender(); }
+function pomoPoke() { if (PM.min) return pomoMin(); pomoSay('poke'); }
+function pomoTick() {
+  if (PM.day && PM.day !== todayStr() && !PM.running) { PM.count = 0; PM.day = todayStr(); pomoSave(); }
+  if (PM.running && Date.now() >= PM.endAt) pomoDone();
+  else if (PM.running && PM.phase === 'focus' && Date.now() - POMO_NUDGE > 7 * 60e3 && pomoLeft() > 90) { POMO_NUDGE = Date.now(); pomoSay('nudge', { m: Math.ceil(pomoLeft() / 60) }); }
+  pomoRender();
+}
+function pomoInit() {
+  const root = document.createElement('aside'); root.id = 'pomo'; document.body.appendChild(root);
+  pomoRender(); setInterval(pomoTick, 1000);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') pomoTick(); });
+}
+
+pomoInit();
 loadRun(); renderTabs(); renderStats(); go('dash');
 if (S.tutorMin) toggleTutor(true);
 tutorSay(examRoast() + ' ' + (checkedToday() ? 'Lại là bạn à. Hôm nay điểm danh rồi, giờ đi làm ' + PER_DAY + ' bài Kern của ngày hôm nay đi.'
