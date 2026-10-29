@@ -111,6 +111,7 @@
   <nav id="tabs" class="flex gap-1 overflow-x-auto mt-5 p-1 panel"></nav>
 </header>
 
+<div id="resumebar" class="max-w-6xl mx-auto px-4 pt-4 empty:hidden"></div>
 <main id="view" class="max-w-6xl mx-auto px-4 py-6 pb-48"></main>
 
 <footer class="max-w-6xl mx-auto px-4 pb-40 text-xs text-slate-500">
@@ -316,9 +317,9 @@ async function pullSync(quiet) {
   try {
     SYNC.uid = SYNC.uid || await CAP.user.id();
     const snap = await userCol().get();
-    let remote = null; const lessons = [];
+    let remote = null, runDoc = null; const lessons = [];
     const srsDocs = {};
-    snap.docs.forEach(d => { if (d.id === 'state') remote = d.data(); else if (d.id.startsWith('fach-')) lessons.push(d.data()); else if (d.id.startsWith('srs-')) srsDocs[d.id.slice(4)] = d.data(); });
+    snap.docs.forEach(d => { if (d.id === 'state') remote = d.data(); else if (d.id.startsWith('fach-')) lessons.push(d.data()); else if (d.id.startsWith('srs-')) srsDocs[d.id.slice(4)] = d.data(); else if (d.id === 'run') runDoc = d.data(); });
     const before = JSON.stringify([S.checkins, S.xp, S.kern, S.timeDev, S.fach.length]);
     if (remote) S = Object.assign(mergeState(S, remote), { fach: S.fach, settings: S.settings, tutorMin: S.tutorMin, srs: S.srs });
     lessons.forEach(L => { const i = S.fach.findIndex(x => x.id === L.id); if (i < 0) S.fach.push(L); else S.fach[i] = mergeLesson(S.fach[i], L); });
@@ -329,6 +330,9 @@ async function pullSync(quiet) {
       Object.entries(cards).forEach(([cid, c]) => { if (afterReset(c) && (!mine[cid] || (c.last || 0) > (mine[cid].last || 0))) mine[cid] = c; });
     });
     Object.keys(S.srs).forEach(lid => { S.srs[lid] = Object.fromEntries(Object.entries(S.srs[lid]).filter(([, c]) => afterReset(c))); if (!Object.keys(S.srs[lid]).length) delete S.srs[lid]; });
+    if (runDoc && (runDoc.at || 0) > localRunAt()) {   // another device paused or finished a session more recently
+      try { applyRun(JSON.parse(runDoc.run || '{}'), true); localStorage.setItem(RUN_KEY, JSON.stringify({ run: currentRun(), at: runDoc.at })); runSig = JSON.stringify(currentRun()); renderResume(); } catch (e) { }
+    } else if (localRunAt() > (runDoc?.at || 0)) flushRun(JSON.stringify(currentRun()), localRunAt());   // ours is newer: publish it
     if (!S.pendingPunishment && $('#punish')) { $('#punish').remove(); }
     SYNC.sent.clear(); SYNC.ready = true; save();
     if (before !== JSON.stringify([S.checkins, S.xp, S.kern, S.timeDev, S.fach.length])) {
@@ -446,10 +450,11 @@ function renderStats() {
   $('#statbar').innerHTML = items.map(([k, v, c]) => `<div class="panel px-2 py-1.5"><div class="text-[10px] text-slate-500 mono">${k}</div><div class="font-bold ${c}">${v}</div></div>`).join('');
 }
 function go(tab) {
-  stopTimer();
+  stopTimer(); RUNVIEW = null;
   currentTab = tab; renderTabs();
   const v = $('#view'); v.classList.remove('fade-in'); void v.offsetWidth; v.classList.add('fade-in');
   ({ dash: renderDash, kern: renderKern, er: renderER, fach: renderFach, anki: renderAnki, dating: renderDating, hub: renderHub, settings: renderSettings })[tab]();
+  renderResume();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -569,7 +574,7 @@ function debtListHTML(list = debts()) {
 function debtSummary(t = debtTotals()) {
   return [t.kern ? `${t.kern} bài Kern` : '', t.fachQ ? `${t.fachQ} câu Fach (${t.texts} text)` : '', t.lessons ? `${t.lessons} bài Fach chưa nạp` : ''].filter(Boolean).join(' + ');
 }
-function openFachText(id, i) { openFach(id, 'quiz'); const L = S.fach.find(l => l.id === id); if (L) fachQuiz(L, i); }
+function openFachText(id, i, restore) { openFach(id, 'quiz'); const L = S.fach.find(l => l.id === id); if (L && $('#fach-body')) fachQuiz(L, i, restore); }
 // jump to the oldest unpaid item
 function payDebt() {
   const x = debts()[0]; if (!x) { praise('Hết nợ rồi. Lần đầu tiên tôi thấy bạn sạch nợ.'); go('dash'); return; }
@@ -1452,7 +1457,7 @@ function importFach(file) {
 // --- lesson view: lecture / TestAS quiz / Anki
 let FV = null;
 function openFach(id, part = 'lecture') {
-  stopTimer(); if (currentTab !== 'fach') { currentTab = 'fach'; renderTabs(); }
+  stopTimer(); RUNVIEW = null; if (currentTab !== 'fach') { currentTab = 'fach'; renderTabs(); }
   const L = S.fach.find(l => l.id === id); if (!L) return go('fach');
   if (!L.bonus && lockedByDebt(+L.day)) { go('fach'); return debtBlock(`Bài Fach ngày ${L.day}`); }
   FV = { id, part };
@@ -1464,6 +1469,7 @@ function openFach(id, part = 'lecture') {
     <nav class="flex gap-1 overflow-x-auto mt-3 p-1 panel">${tab('lecture', '🤪 Giảng bài bựa')}${tab('quiz', `📝 TestAS: ${lessonTexts(L).length} text · ${lessonQs(L).length} câu`)}${tab('vocab', `🇩🇪 Từ vựng (${L.vocab.length})`)}${tab('anki', `🃏 Thẻ (${lessonCards(L).length})`)}</nav>
     <div id="fach-body" class="mt-4"></div>`;
   ({ lecture: fachLecture, quiz: fachQuiz, vocab: fachVocab, anki: fachAnki })[part](L);
+  renderResume();
 }
 function fachLecture(L) {
   const lec = L.lecture, stage = germanStage(L.day), G = glossaryRegex(L, hintMode(L));
@@ -1488,12 +1494,14 @@ function fachLecture(L) {
 }
 const hintBar = L => ['all', 'hard', 'off'].map(m => `<button class="optbtn text-xs ${hintMode(L) === m ? 'on' : ''}" onclick="setHint('${L.id}','${m}')">${HINT_LABEL[m]}</button>`).join(' ');
 let FQ = null;
-function fachQuiz(L, ti = 0) {
+function fachQuiz(L, ti = 0, restore = null) {
   const texts = lessonTexts(L);
   if (!texts.length) { $('#fach-body').innerHTML = '<div class="panel p-5 text-slate-400">Bài này chưa có câu hỏi TestAS.</div>'; return; }
   stopTimer();
+  if (!restore) stashRun('quiz');   // a text left half-done goes to the resume bar instead of being thrown away
   const T = texts[ti], qs = T.questions, sum = lessonScore(L), G = glossaryRegex(L, hintMode(L));
-  FQ = { id: L.id, ti, sel: {}, t: qs.length * 95, done: false };   // ~1 min 35 s per question, like the real module
+  FQ = { id: L.id, ti, sel: restore ? restore.sel : {}, t: restore ? restore.t : qs.length * 95, done: false };   // ~1 min 35 s per question, like the real module
+  RUNVIEW = 'quiz';   // ~1 min 35 s per question, like the real module
   const chips = texts.map((x, k) => { const r = (L.quizzes || {})[k];
     return `<button class="optbtn text-xs ${k === ti ? 'on' : ''}" style="${r ? (r.score / r.total >= .7 ? 'border-color:var(--neon)' : 'border-color:var(--red)') : ''}" onclick="fachQuiz(S.fach.find(l=>l.id==='${L.id}'),${k})">Text ${k + 1}${r ? ` · ${r.score}/${r.total}` : ''}</button>`; }).join('');
   const table = T.table ? `<div class="overflow-x-auto mt-3"><table class="w-full text-sm border border-slate-700">${T.table.caption ? `<caption class="text-left text-xs text-slate-400 pb-1">${esc(T.table.caption)}</caption>` : ''}
@@ -1514,6 +1522,7 @@ function fachQuiz(L, ti = 0) {
         <button class="btn btn-neon w-full" id="fq-submit" onclick="fqSubmit()">Nộp Text ${ti + 1}</button>
       </div>
     </div>`;
+  Object.entries(FQ.sel).forEach(([i, k]) => $(`#fq-${i}-${k}`)?.classList.add('on'));
   TIMER = setInterval(() => {
     FQ.t--; const el = $('#fq-time'); if (!el) return stopTimer();
     el.textContent = fmtMS(FQ.t); if (FQ.t <= 60) el.classList.add('text-red-400');
@@ -1523,9 +1532,10 @@ function fachQuiz(L, ti = 0) {
 function fqPick(i, k) {
   if (FQ.done) return; FQ.sel[i] = k;
   for (let x = 0; x < 4; x++) $(`#fq-${i}-${x}`).classList.toggle('on', x === k);
+  saveRun();
 }
 function fqSubmit() {
-  if (FQ.done) return; FQ.done = true; stopTimer();
+  if (FQ.done) return; FQ.done = true; stopTimer(); saveRun();
   const L = S.fach.find(l => l.id === FQ.id); const texts = lessonTexts(L); const qs = texts[FQ.ti].questions; let score = 0;
   qs.forEach((q, i) => {
     const ok = FQ.sel[i] === q.answer; if (ok) score++;
@@ -1669,10 +1679,12 @@ function startDeck(lid) {
   const items = [...due, ...nw];
   if (!items.length) { tutorSay(pool.some(c => !cardState(c)) ? 'Hết chỉ tiêu thẻ mới hôm nay rồi. Mai học tiếp, đừng tham.' : 'Không còn thẻ đến hạn hay thẻ mới. Hiếm lắm mới thấy bạn sạch nợ.', 'praise'); return; }
   if (currentTab !== 'anki') { stopTimer(); currentTab = 'anki'; renderTabs(); }
+  stashRun('anki');   // a deck left half-done stays resumable once this one is finished
   ANKI = { items, i: 0, revealed: false, done: false, again: 0, answered: 0, title: lid ? dayLabel(S.fach.find(l => l.id === lid)) : 'Tất cả bài', nDue: due.length, nNew: nw.length };
   renderAnkiCard(); window.scrollTo({ top: 0 });
 }
 function renderAnkiCard() {
+  RUNVIEW = ANKI.done ? null : 'anki'; saveRun(); setTimeout(renderResume, 0);
   if (ANKI.done) {
     $('#view').innerHTML = `<section class="panel neon p-6 text-center"><div class="text-4xl">🃏</div><div class="text-2xl font-bold mt-2">Xong phiên thẻ</div>
       <div class="mono mt-1">${ANKI.answered} lượt chấm · ${ANKI.again} lần quên</div><p class="text-sm text-slate-400 mt-1">Thẻ quên sẽ tự quay lại trong bộ thẻ khi đến giờ.</p>
@@ -1718,6 +1730,95 @@ addEventListener('keydown', e => {
   if (!ANKI.revealed && (e.code === 'Space' || e.key === 'Enter')) { e.preventDefault(); ANKI.revealed = true; renderAnkiCard(); }
   else if (ANKI.revealed && ['1', '2', '3', '4'].includes(e.key)) gradeAnki(['again', 'hard', 'good', 'easy'][+e.key - 1]);
 });
+
+/* =====================================================================
+   10b. UNFINISHED SESSIONS — same mechanism as "Phòng Trực Y4":
+   leaving a tab, opening another session or closing the app keeps a half-done session
+   (Anki deck, TestAS text) behind a "⏸ … dở" bar on every screen with [Làm tiếp] / [Bỏ phiên].
+   One slot per kind; an answered card is already saved, so a resume starts at the next one.
+   Stored in localStorage and in the synced db doc "run"; the copy with the newer timestamp wins.
+   ===================================================================== */
+const RUN_KEY = 'tdm_run';
+const RUN_SLOTS = [['anki', '🃏 Thẻ Anki'], ['quiz', '📝 Bài TestAS']];
+let PAUSED = {}, RUNVIEW = null, runSig = null, runTimer = null;
+const liveAnki = () => !!(ANKI && !ANKI.done && ANKI.i < ANKI.items.length);
+const liveQuiz = () => !!(FQ && !FQ.done && Object.keys(FQ.sel).length);
+function snapshot(slot) {
+  if (slot === 'anki') return liveAnki() ? { title: ANKI.title, nDue: ANKI.nDue, nNew: ANKI.nNew, again: ANKI.again, answered: ANKI.answered, refs: ANKI.items.slice(ANKI.i).map(c => [c.lid, c.id]) } : null;
+  return liveQuiz() ? { id: FQ.id, ti: FQ.ti, sel: FQ.sel, t: FQ.t } : null;
+}
+const isLive = slot => slot === 'anki' ? liveAnki() : liveQuiz();
+const isViewing = slot => RUNVIEW === slot && isLive(slot);
+function stashRun(slot) { const sn = snapshot(slot); if (sn) PAUSED[slot] = sn; }
+function resumables() {
+  const m = { ...PAUSED };
+  RUN_SLOTS.forEach(([k]) => { if (isLive(k)) { if (isViewing(k)) delete m[k]; else m[k] = snapshot(k); } });
+  return RUN_SLOTS.filter(([k]) => m[k]).map(([k, label]) => ({ slot: k, label, P: m[k] }));
+}
+function currentRun() {
+  const m = { ...PAUSED }; RUN_SLOTS.forEach(([k]) => { const sn = snapshot(k); if (sn) m[k] = sn; });
+  return m;
+}
+const localRunAt = () => { try { return JSON.parse(localStorage.getItem(RUN_KEY) || 'null')?.at || 0; } catch (e) { return 0; } };
+function saveRun() {
+  const run = currentRun(), sig = JSON.stringify(run);
+  if (sig === runSig) return;
+  runSig = sig; const at = Date.now();
+  try { localStorage.setItem(RUN_KEY, JSON.stringify({ run, at })); } catch (e) { }
+  clearTimeout(runTimer); runTimer = setTimeout(flushRun, 800, sig, at);
+}
+async function flushRun(sig = runSig, at = Date.now()) {
+  clearTimeout(runTimer); runTimer = null;
+  if (!SYNC.ready || !CAP.db) return;
+  try { await userCol().doc('run').set({ run: sig, at }); } catch (e) { console.warn('run sync failed', e); }
+}
+function applyRun(run, replace) {
+  if (replace) RUN_SLOTS.forEach(([k]) => { if (!isLive(k)) delete PAUSED[k]; });
+  RUN_SLOTS.forEach(([k]) => { if (run?.[k] && !isLive(k)) PAUSED[k] = run[k]; });
+}
+function loadRun() {
+  try { applyRun(JSON.parse(localStorage.getItem(RUN_KEY) || 'null')?.run, true); } catch (e) { }
+  runSig = JSON.stringify(currentRun());
+}
+function renderResume() {
+  const el = $('#resumebar'); if (!el) return;
+  el.innerHTML = resumables().map(({ slot, label, P }) => {
+    let info;
+    if (slot === 'anki') info = `${esc(P.title)} · còn <b>${P.refs.length}</b> thẻ`;
+    else { const L = S.fach.find(l => l.id === P.id); if (!L) return ''; info = `${esc(dayLabel(L))} · Text ${P.ti + 1} · đã chọn <b>${Object.keys(P.sel).length}</b> câu · còn ${fmtMS(P.t)}`; }
+    return `<div class="panel flex flex-wrap items-center justify-between gap-2 px-3 py-2 mb-2" style="border-color:var(--yellow,#facc15)"><span class="text-sm">⏸ ${label} dở: ${info}</span>
+      <span class="flex gap-2"><button class="btn btn-neon text-xs" onclick="resumeRun('${slot}')">Làm tiếp</button><button class="btn btn-ghost text-xs" onclick="dropRun('${slot}')">Bỏ phiên</button></span></div>`;
+  }).join('');
+}
+function resumeRun(slot) {
+  const r = resumables().find(x => x.slot === slot); if (!r) return;
+  const P = r.P; stopTimer();
+  if (slot === 'anki') {
+    if (!liveAnki() || P !== snapshot('anki') && JSON.stringify(P) !== JSON.stringify(snapshot('anki'))) {
+      const now = Date.now(), byId = {};
+      ankiLessons().filter(lessonOpen).flatMap(lessonCards).forEach(c => { byId[c.lid + '|' + c.id] = c; });
+      const items = P.refs.map(([lid, id]) => byId[lid + '|' + id]).filter(c => c && (isDueCard(cardState(c), now) || !cardState(c) || cardState(c).state === 'new'));
+      if (!items.length) { delete PAUSED.anki; saveRun(); renderResume(); return tutorSay('Phiên thẻ dở đó không còn thẻ nào cần học (đã làm ở máy khác hoặc bài bị khoá).', 'praise'); }
+      stashRun('anki'); delete PAUSED.anki;
+      ANKI = { items, i: 0, revealed: false, done: false, again: P.again || 0, answered: P.answered || 0, title: P.title, nDue: P.nDue || 0, nNew: P.nNew || 0 };
+    }
+    currentTab = 'anki'; renderTabs(); renderAnkiCard();
+  } else {
+    const L = S.fach.find(l => l.id === P.id); if (!L) return dropRun('quiz');
+    const keep = { sel: P.sel, t: P.t }; delete PAUSED.quiz; currentTab = 'fach'; renderTabs();
+    openFachText(L.id, P.ti, keep);
+    if (!FQ || FQ.id !== L.id) { PAUSED.quiz = P; saveRun(); renderResume(); }   // e.g. the lesson is locked by a debt
+  }
+  window.scrollTo({ top: 0 });
+}
+function dropRun(slot) {
+  delete PAUSED[slot];
+  if (slot === 'anki' && liveAnki() && !isViewing('anki')) ANKI = null;
+  if (slot === 'quiz' && liveQuiz() && !isViewing('quiz')) FQ = null;
+  saveRun(); renderResume();
+}
+addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') { saveRun(); if (runTimer) flushRun(); } });
+addEventListener('pagehide', () => { saveRun(); if (runTimer) flushRun(); });
 
 const slug = s => stripVN(s).replace(/ /g, '-').slice(0, 50) || 'bai';
 async function downloadBlob(content, type, filename) {
@@ -1928,7 +2029,7 @@ const closeModal = () => { $('#modal-root').innerHTML = ''; };
 const showOverlay = html => { $('#overlay-root').innerHTML = `<div class="overlay" style="background:rgba(10,0,2,.94);align-items:flex-start">${html}</div>`; };
 const closeOverlay = () => { $('#overlay-root').innerHTML = ''; };
 
-renderTabs(); renderStats(); go('dash');
+loadRun(); renderTabs(); renderStats(); go('dash');
 if (S.tutorMin) toggleTutor(true);
 tutorSay(examRoast() + ' ' + (checkedToday() ? 'Lại là bạn à. Hôm nay điểm danh rồi, giờ đi làm ' + PER_DAY + ' bài Kern của ngày hôm nay đi.'
   : `Ngày ${dayNumber()}/${PLAN_DAYS}. Bạn CHƯA điểm danh. Đồng hồ đang chạy về 07:00 sáng mai... tick tock 😈`));
