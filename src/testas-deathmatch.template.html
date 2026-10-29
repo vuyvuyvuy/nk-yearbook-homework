@@ -1569,14 +1569,14 @@ function fachAnki(L) {
 
 /* =====================================================================
    10. ANKI IN THE APP — spaced repetition, same rules as "Phòng Trực Y4":
-   SM-2 (learn 1 → 10 min, relearn 10 min, graduate 1 day, easy 4 days, ease 2.5 / min 1.3,
+   SM-2 (learn and relearn steps 1 → 3 → 5 min; Quên = 1 min, Khó = 5 min on any card; graduate 1 day, easy 4 days, ease 2.5 / min 1.3,
    easy bonus 1.3, hard ×1.2, lapse ×0.2, max 365 d); a first "Tốt" goes straight to 1 day
    (1 → 3 → 8 days), "Dễ" to 3 days; every interval is capped at the day before the exam.
    New cards must all be learned 11 days before the exam (4 days to stretch to ~1 week +
    7 final days of review only). No daily cap on new cards; quota = cards left ÷ days left is just a pace hint.
    ===================================================================== */
 const MIN = 60e3, DAY = 864e5;
-const SRS_CFG = { learn: [1, 10], relearn: [10], grad: 1, easyIvl: 4, ease: 2.5, minEase: 1.3, easyBonus: 1.3, hard: 1.2, lapse: 0.2, maxIvl: 365 };
+const SRS_CFG = { learn: [1, 3, 5], relearn: [1, 3, 5], hardMin: 5, grad: 1, easyIvl: 4, ease: 2.5, minEase: 1.3, easyBonus: 1.3, hard: 1.2, lapse: 0.2, maxIvl: 365 };
 const ANKI_FINAL = 7, ANKI_RAMP = 4, LEARN_AHEAD = 20 * MIN;
 const examAt = () => new Date(S.examAt || '2026-11-26T08:00').getTime();
 const newCardState = now => ({ state: 'new', due: now, ivl: 0, ease: SRS_CFG.ease, reps: 0, lapses: 0, step: 0, last: null, first: null });
@@ -1591,16 +1591,17 @@ function schedule(prev, rating, now) {
   if (learning) {
     const steps = prev.state === 'relearning' ? SRS_CFG.relearn : SRS_CFG.learn;
     if (rating === 'again') { c.state = prev.state === 'relearning' ? 'relearning' : 'learning'; c.step = 0; c.due = capDue(now + steps[0] * MIN, now); return c; }
+    if (rating === 'hard') { c.state = prev.state === 'new' ? 'learning' : prev.state; c.step = Math.min(1, steps.length - 1); c.due = capDue(now + SRS_CFG.hardMin * MIN, now); return c; }
     if (rating === 'easy') { c.state = 'review'; c.step = 0; c.ivl = prev.state === 'relearning' ? Math.max(1, prev.ivl) : SRS_CFG.easyIvl; c.due = capDue(now + c.ivl * DAY, now); return c; }
     const nx = prev.step + (rating === 'good' ? 1 : 0);
     if (nx < steps.length) { c.state = prev.state === 'new' ? 'learning' : prev.state; c.step = nx; c.due = capDue(now + steps[nx] * MIN, now); return c; }
     c.state = 'review'; c.step = 0; c.ivl = prev.state === 'relearning' ? Math.max(1, prev.ivl) : SRS_CFG.grad; c.due = capDue(now + c.ivl * DAY, now); return c;
   }
   if (rating === 'again') { c.state = 'relearning'; c.lapses = prev.lapses + 1; c.ease = Math.max(SRS_CFG.minEase, prev.ease - 0.2); c.ivl = Math.max(1, prev.ivl * SRS_CFG.lapse); c.step = 0; c.due = capDue(now + SRS_CFG.relearn[0] * MIN, now); return c; }
+  if (rating === 'hard') { c.state = 'relearning'; c.ease = Math.max(SRS_CFG.minEase, prev.ease - 0.15); c.ivl = Math.max(1, Math.round(prev.ivl * SRS_CFG.hard)); c.step = 1; c.due = capDue(now + SRS_CFG.hardMin * MIN, now); return c; }
   const over = Math.max(0, (now - prev.due) / DAY);
   let ivl;
-  if (rating === 'hard') { c.ease = Math.max(SRS_CFG.minEase, prev.ease - 0.15); ivl = prev.ivl * SRS_CFG.hard; }
-  else if (rating === 'good') ivl = (prev.ivl + over / 2) * prev.ease;
+  if (rating === 'good') ivl = (prev.ivl + over / 2) * prev.ease;
   else { c.ease = prev.ease + 0.15; ivl = (prev.ivl + over) * prev.ease * SRS_CFG.easyBonus; }
   c.ivl = Math.min(SRS_CFG.maxIvl, Math.max(prev.ivl + 1, Math.round(ivl)));
   c.due = capDue(now + c.ivl * DAY, now);
@@ -1716,9 +1717,12 @@ function gradeAnki(rating) {
   const next = ankiNext(prev && prev.state !== 'new' ? prev : null, rating, now);
   S.srs = S.srs || {}; S.srs[c.lid] = Object.assign({}, S.srs[c.lid], { [c.id]: next });
   ANKI.answered++;
+  // a card that comes back within minutes (Quên 1', Khó 5', or the 1' → 3' → 5' steps) is queued again in this session
+  const wait = Math.round((next.due - now) / MIN);
+  if ((next.state === 'learning' || next.state === 'relearning') && wait <= 10 && !ANKI.items.slice(ANKI.i + 1).some(x => x.id === c.id && x.lid === c.lid))
+    ANKI.items.splice(Math.min(ANKI.items.length, ANKI.i + 1 + (wait <= 1 ? 3 : wait <= 3 ? 6 : 9)), 0, c);
   if (rating === 'again') {
     ANKI.again++;
-    if (!ANKI.items.slice(ANKI.i + 1).some(x => x.id === c.id && x.lid === c.lid)) ANKI.items.splice(Math.min(ANKI.items.length, ANKI.i + 4), 0, c);
     if (Math.random() < .5) tutorSay(pick(ANKI_ROAST), 'roast');
   }
   save(); renderStats();
