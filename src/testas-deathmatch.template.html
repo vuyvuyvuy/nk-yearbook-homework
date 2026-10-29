@@ -1616,7 +1616,11 @@ function schedule(prev, rating, now) {
   if (learning) {
     const steps = prev.state === 'relearning' ? SRS_CFG.relearn : SRS_CFG.learn;
     if (rating === 'again') { c.state = prev.state === 'relearning' ? 'relearning' : 'learning'; c.step = 0; c.due = capDue(now + steps[0] * MIN, now); return c; }
-    if (rating === 'hard') { c.state = prev.state === 'new' ? 'learning' : prev.state; c.step = Math.min(1, steps.length - 1); c.due = capDue(now + SRS_CFG.hardMin * MIN, now); return c; }
+    if (rating === 'hard') {   // always between Quên (1') and Tốt: 5' on a new card, otherwise halfway to the next step
+      if (prev.state === 'new') { c.state = 'learning'; c.step = Math.min(1, steps.length - 1); c.due = capDue(now + SRS_CFG.hardMin * MIN, now); return c; }
+      const cur = steps[Math.min(prev.step, steps.length - 1)], nxt = steps[prev.step + 1], m = nxt === undefined ? cur : Math.round((cur + nxt) / 2);
+      c.step = prev.step; c.due = capDue(now + m * MIN, now); return c;
+    }
     if (rating === 'easy') { c.state = 'review'; c.step = 0; c.ivl = prev.state === 'relearning' ? Math.max(1, prev.ivl) : SRS_CFG.easyIvl; c.due = capDue(now + c.ivl * DAY, now); return c; }
     const nx = prev.step + (rating === 'good' ? 1 : 0);
     if (nx < steps.length) { c.state = prev.state === 'new' ? 'learning' : prev.state; c.step = nx; c.due = capDue(now + steps[nx] * MIN, now); return c; }
