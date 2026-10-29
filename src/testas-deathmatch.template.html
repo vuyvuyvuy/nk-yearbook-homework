@@ -646,7 +646,7 @@ function renderDash() {
     <div id="exam-clock" class="grid grid-cols-4 gap-2 mt-2">${examClock()}</div>
     <p class="mt-3 font-semibold text-red-200">💀 ${esc(examRoast())}</p></section>
   ${ap.total ? `<section class="panel p-4 mb-4 flex flex-wrap items-center justify-between gap-3" style="border-color:${ap.owe ? 'rgba(255,31,61,.45)' : 'rgba(0,255,163,.35)'}">
-    <div><div class="text-xs mono text-slate-400">🃏 ANKI HÔM NAY</div><div class="text-sm">Thẻ mới <b>${ap.learnedToday}/${ap.quota}</b> · đến hạn ôn <b class="text-emerald-300">${ap.due}</b> · nợ <b class="${ap.owe ? 'text-red-300' : 'text-emerald-300'}">${ap.owe || '0 ✓'}</b></div></div>
+    <div><div class="text-xs mono text-slate-400">🃏 ANKI HÔM NAY</div><div class="text-sm">Thẻ mới đã học <b>${ap.learnedToday}</b> · đến hạn ôn <b class="text-emerald-300">${ap.due}</b> · nợ <b class="${ap.owe ? 'text-red-300' : 'text-emerald-300'}">${ap.owe || '0 ✓'}</b></div></div>
     <button class="btn ${ap.owe ? 'btn-red' : 'btn-ghost'}" onclick="startDeck('')">🃏 Học thẻ</button></section>` : ''}
   ${dl.length ? `<section class="panel danger p-5 mb-4"><span class="tape" style="background:var(--red);color:#fff">SỔ NỢ</span>
     <div class="flex flex-wrap items-center justify-between gap-3 mt-1"><div><div class="text-xl font-bold text-red-300">Đang nợ: ${debtSummary(debtTotals(dl))}</div>
@@ -1573,7 +1573,7 @@ function fachAnki(L) {
    easy bonus 1.3, hard ×1.2, lapse ×0.2, max 365 d); a first "Tốt" goes straight to 1 day
    (1 → 3 → 8 days), "Dễ" to 3 days; every interval is capped at the day before the exam.
    New cards must all be learned 11 days before the exam (4 days to stretch to ~1 week +
-   7 final days of review only); today's quota = cards left ÷ days left until then.
+   7 final days of review only). No daily cap on new cards; quota = cards left ÷ days left is just a pace hint.
    ===================================================================== */
 const MIN = 60e3, DAY = 864e5;
 const SRS_CFG = { learn: [1, 10], relearn: [10], grad: 1, easyIvl: 4, ease: 2.5, minEase: 1.3, easyBonus: 1.3, hard: 1.2, lapse: 0.2, maxIvl: 365 };
@@ -1635,7 +1635,8 @@ function ankiPlan(now = Date.now()) {
   const daysLeft = Math.max(0, daysBetween(t, todayStr(new Date(examAt()))));
   const days = Math.max(0, daysLeft - ANKI_FINAL - ANKI_RAMP);
   const quota = days ? Math.ceil((left + learnedToday) / days) : left + learnedToday;
-  return { left, learnedToday, due, days, daysLeft, quota, newLeft: Math.max(0, quota - learnedToday), owe: Math.max(0, quota - learnedToday) + due, total: cards.length };
+  return { left, learnedToday, due, days, daysLeft, quota, newLeft: left, owe: due,   // no daily cap on new cards; `quota` is only the pace that finishes on time
+    total: cards.length };
 }
 
 let ANKI = null;
@@ -1659,11 +1660,11 @@ function renderAnki() {
       <h2 class="text-2xl font-bold mt-1">Bộ thẻ hôm nay 🃏</h2>
       <p class="text-sm text-slate-400 mt-1">Thẻ lấy từ bài Fach của bạn. Thẻ mới đi theo từng bài: từ vựng Đức → Việt trước, rồi mới tới thẻ kiến thức (flashcard, mục giảng, Kernsätze đục lỗ). Lịch ôn kiểu Anki; mọi lịch ôn kết thúc trước ngày thi 1 hôm.</p>
       <div class="grid sm:grid-cols-3 gap-3 mt-3 text-sm">
-        <div class="panel p-3"><div class="text-xs text-slate-400 mono">THẺ MỚI HÔM NAY</div><div class="text-2xl font-bold ${p.newLeft ? 'text-cyan-300' : 'text-emerald-300'}">${p.learnedToday}/${p.quota}</div></div>
+        <div class="panel p-3"><div class="text-xs text-slate-400 mono">THẺ MỚI HÔM NAY</div><div class="text-2xl font-bold ${p.newLeft ? 'text-cyan-300' : 'text-emerald-300'}">${p.learnedToday}</div><div class="text-[11px] text-slate-500">không giới hạn · kịp hạn cần ~${p.quota}/ngày</div></div>
         <div class="panel p-3"><div class="text-xs text-slate-400 mono">ĐẾN HẠN ÔN</div><div class="text-2xl font-bold ${p.due ? 'text-emerald-300' : 'text-slate-500'}">${p.due}</div></div>
         <div class="panel p-3"><div class="text-xs text-slate-400 mono">NỢ ANKI HÔM NAY</div><div class="text-2xl font-bold ${p.owe ? 'text-red-400' : 'text-emerald-300'}">${p.owe || '0 ✓'}</div></div>
       </div>
-      <p class="text-xs text-slate-500 mt-2">${p.days ? `Hạn học thẻ mới còn ${p.days} ngày (xong trước thi ${ANKI_FINAL + ANKI_RAMP} ngày: ${ANKI_RAMP} ngày ôn giãn lên ~1 tuần + ${ANKI_FINAL} ngày cuối chỉ ôn). Còn ${p.left} thẻ chưa học.` : `Đã hết hạn học thẻ mới (${ANKI_FINAL + ANKI_RAMP} ngày trước thi): còn ${p.left} thẻ chưa học, học hết trong hôm nay.`}</p>
+      <p class="text-xs text-slate-500 mt-2">${p.days ? `Hạn học thẻ mới còn ${p.days} ngày (xong trước thi ${ANKI_FINAL + ANKI_RAMP} ngày: ${ANKI_RAMP} ngày ôn giãn lên ~1 tuần + ${ANKI_FINAL} ngày cuối chỉ ôn). Còn ${p.left} thẻ chưa học. Không giới hạn số thẻ mới mỗi ngày; học khoảng ${p.quota} thẻ/ngày là kịp hạn.` : `Đã hết hạn học thẻ mới (${ANKI_FINAL + ANKI_RAMP} ngày trước thi): còn ${p.left} thẻ chưa học, học hết trong hôm nay.`}</p>
       <div class="flex flex-wrap gap-2 mt-3"><button class="btn btn-neon" ${p.due || p.newLeft ? '' : 'disabled'} onclick="startDeck('')">▶ Học tất cả (${p.due} ôn + ${Math.min(p.newLeft, p.left)} mới)</button><button class="btn btn-ghost text-sm" onclick="resetAnki()">🗑 Reset tất cả thẻ</button></div>
     </section>
     <section class="panel p-4 mt-4">
@@ -1677,7 +1678,7 @@ function startDeck(lid) {
   const due = pool.filter(c => isDueCard(cardState(c), now)).sort((a, b) => cardState(a).due - cardState(b).due);
   const nw = pool.filter(c => !cardState(c) || cardState(c).state === 'new').slice(0, p.newLeft);
   const items = [...due, ...nw];
-  if (!items.length) { tutorSay(pool.some(c => !cardState(c)) ? 'Hết chỉ tiêu thẻ mới hôm nay rồi. Mai học tiếp, đừng tham.' : 'Không còn thẻ đến hạn hay thẻ mới. Hiếm lắm mới thấy bạn sạch nợ.', 'praise'); return; }
+  if (!items.length) { tutorSay(pool.some(c => !cardState(c)) ? 'Bạn đã học hết thẻ mới của các bài đang mở. Muốn có thêm thì mở khoá bài tiếp theo.' : 'Không còn thẻ đến hạn hay thẻ mới. Hiếm lắm mới thấy bạn sạch nợ.', 'praise'); return; }
   if (currentTab !== 'anki') { stopTimer(); currentTab = 'anki'; renderTabs(); }
   stashRun('anki');   // a deck left half-done stays resumable once this one is finished
   ANKI = { items, i: 0, revealed: false, done: false, again: 0, answered: 0, title: lid ? dayLabel(S.fach.find(l => l.id === lid)) : 'Tất cả bài', nDue: due.length, nNew: nw.length };
