@@ -552,21 +552,22 @@ const dayLabel = L => L && L.bonus ? '🏛 Đề mẫu' : `Ngày ${L ? L.day : '
 // 24-day rescue plan (from 02/11). Topics use the AMBOSS chapter titles (M1 Turbo / Top-30) so the user
 // can find each article; 2–4 chapters share one day and become 6 texts. Subjects alternate (biochemistry,
 // physiology, anatomy, physics, psychology) to spread the vocabulary. ★ = in the Medicine practice test or
-// reported from the real exam. "(lướt)" = only the parts a TestAS text could ask about.
+// reported from the real exam; anatomy axes/planes, visual pathway and heart physiology are also named by a
+// former test-taker (Reddit). "(lướt)" = only the parts a TestAS text could ask about.
 const FACH_DAYS = 24;
 const FACH_PLAN = [
-  { topics: ['Die Zelle'] },
-  { topics: ['Signaltransduktion'], star: true },
+  { topics: ['Die Zelle', 'Stofftransport'] },
+  { topics: ['Signaltransduktion', 'Ruhe- und Aktionspotenzial'], star: true },
   { topics: ['Vegetatives Nervensystem', 'Nervengewebe, Synapsen und Transmitter'], star: true },
   { topics: ['Kohlenhydrate', 'Abbau und Synthese der Glucose', 'Glykogenstoffwechsel', 'Pankreashormone'], star: true },
-  { topics: ['Aufbau des Herzens', 'Herzerregung', 'Herzmechanik (lướt)'], star: true },
-  { topics: ['Akustik', 'Ohr', 'Auditives System'], star: true },
+  { topics: ['Aufbau des Herzens', 'Herzerregung', 'Herzmechanik'], star: true },
+  { topics: ['Allgemeine Anatomie (Achsen, Ebenen, Lagebezeichnungen)', 'Oberschenkel und Knie'], star: true },
   { topics: ['Citratzyklus', 'Atmungskette'], star: true },
   { topics: ['Blut und Blutzellen', 'Blutstillung und Blutgerinnung'], star: true },
-  { topics: ['Allgemeine Anatomie', 'Oberschenkel und Knie'], star: true },
-  { topics: ['Ruhe- und Aktionspotenzial', 'Grundlagen der Sensorik', 'Taktiles System'], star: true },
+  { topics: ['Akustik', 'Ohr', 'Auditives System'], star: true },
+  { topics: ['Grundlagen der Sensorik', 'Taktiles System', 'Nozizeptives System (lướt)'], star: true },
   { topics: ['Hämoglobin (Häm-Abbau, Bilirubin)', 'Leber', 'Gallenblase und Galle'], star: true },
-  { topics: ['Optik und optische Geräte', 'Auge und Orbita', 'Visuelles System'], star: true },
+  { topics: ['Optik und optische Geräte', 'Auge und Orbita', 'Visuelles System (Sehbahn)'], star: true },
   { topics: ['Lernen, Kognition und Entwicklung', 'Emotion und Motivation', 'Persönlichkeit und Verhaltensstile'], star: true },
   { topics: ['Aminosäuren und Proteine', 'Aminosäurestoffwechsel'], star: true },
   { topics: ['Grundlagen des Kreislaufes', 'Aufbau und Funktion der Blutgefäße', 'Kreislaufregulation'], star: true },
@@ -587,7 +588,7 @@ const FACH_SKIP = ['Handbuch / Kreuztipps / Erstes Staatsexamen', 'Medizinische 
   'Embryonalentwicklung, Physiologische Aspekte prä- und postnatal', 'Obere Extremität, Unterschenkel, Sprunggelenke und Fuß, Becken und Hüfte, Leitungsbahnen', 'Rumpf, Kopf und Hals (chỉ học tên thông dụng ở ngày 23)',
   'Mundhöhle, Zähne, Zunge, Speicheldrüsen, Pharynx, Ösophagus, Magen, Dünndarm, Pankreas, Zäkum und Kolon, Rektum (chỉ tên thông dụng)', 'Leistungsphysiologie und Altern',
   'Gesundheit und Krankheit, Patientenversorgung, Demografie, Arzt-Patient-Beziehung, Untersuchung und Gespräch, Urteilsbildung, Prävention, Psychotherapeutische Verfahren, Umgang mit dem Sterben'];
-const FACH_EXTRA = ['Stofftransport', 'Aufbau von DNA und RNA, Replikation, Genexpression, Translation', 'Lipide, Fettsäuren, Cholesterin', 'Vitamine, Mineralstoffe, Energie- und Wärmehaushalt',
+const FACH_EXTRA = ['Aufbau von DNA und RNA, Replikation, Genexpression, Translation', 'Lipide, Fettsäuren, Cholesterin', 'Vitamine, Mineralstoffe, Energie- und Wärmehaushalt',
   'Erythrozyten, Knochenmark und Blutbildung', 'Wasser- und Elektrolythaushalt, Tubuläre Transportprozesse', 'Rückenmark, Spinale Leitungsbahnen und Reflexe, Limbisches System und Gedächtnis',
   'Haut, Nozizeptives System, Olfaktorisches und gustatorisches System, Vestibuläres System', 'Aufbau der Materie, Chemische Reaktionen, Redoxchemie, Grundlagen der organischen Chemie', 'Stressmodelle'];
 // --- DEBT: everything of an earlier plan day that is not finished.
