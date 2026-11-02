@@ -467,7 +467,7 @@ function toggleTutor(force) {
    ===================================================================== */
 const TABS = [
   ['dash', '🏥 Tổng quan'], ['kern', '🧠 Kernmodul'], ['er', '🚑 ER Survival'], ['fach', '🩺 Fachmodul'], ['anki', '🃏 Anki'],
-  ['dating', '💘 Dating Sim'], ['hub', '📚 Study Hub'], ['settings', '⚙️ Cài đặt']
+  ['chat', '💬 Hỏi bài'], ['dating', '💘 Dating Sim'], ['hub', '📚 Study Hub'], ['settings', '⚙️ Cài đặt']
 ];
 let currentTab = 'dash', TIMER = null;
 const stopTimer = () => { if (TIMER) { clearInterval(TIMER); TIMER = null; } };
@@ -486,7 +486,7 @@ function go(tab) {
   stopTimer(); RUNVIEW = null;
   currentTab = tab; renderTabs();
   const v = $('#view'); v.classList.remove('fade-in'); void v.offsetWidth; v.classList.add('fade-in');
-  ({ dash: renderDash, kern: renderKern, er: renderER, fach: renderFach, anki: renderAnki, dating: renderDating, hub: renderHub, settings: renderSettings })[tab]();
+  ({ dash: renderDash, kern: renderKern, er: renderER, fach: renderFach, anki: renderAnki, chat: renderChat, dating: renderDating, hub: renderHub, settings: renderSettings })[tab]();
   renderResume();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -549,38 +549,47 @@ const dayExercises = n => n > KERN_DAYS ? [] : BOOK_IDS.flatMap(b => KERN[b].ex.
 const fachOfDay = n => S.fach.filter(l => +l.day === n && !l.bonus);
 // bonus lessons (official sample tasks) sit outside the plan: no debt, no check-in, always open
 const dayLabel = L => L && L.bonus ? '🏛 Đề mẫu' : `Ngày ${L ? L.day : '?'}`;
-// 24-day rescue Fachmodul plan (from 02/11). Built from the practice test themes plus the topics a friend
-// reports from the real exam (★ = known to have come up): vegetative nervous system + its drugs, glucose /
-// glycogen, citrate cycle and ATP, heart and circulation (embolism, occlusion), haemostasis, bilirubin,
-// knee joint and ligaments, learned helplessness, and basic physics (waves, sound, optics, electricity).
-// Lessons from day 3 on have 6 texts = 6 steps = one day of ~1.5–2 h together with 9 Kern exercises.
+// 24-day rescue plan (from 02/11). Topics use the AMBOSS chapter titles (M1 Turbo / Top-30) so the user
+// can find each article; 2–4 chapters share one day and become 6 texts. Subjects alternate (biochemistry,
+// physiology, anatomy, physics, psychology) to spread the vocabulary. ★ = in the Medicine practice test or
+// reported from the real exam. "(lướt)" = only the parts a TestAS text could ask about.
 const FACH_DAYS = 24;
 const FACH_PLAN = [
-  { topics: ['Die Zelle (làm tiếp bài 1)'] },
+  { topics: ['Die Zelle'] },
   { topics: ['Signaltransduktion'], star: true },
-  { topics: ['Vegetatives Nervensystem: Sympathikus/Parasympathikus, Rezeptoren, Neurotransmitter'], star: true },
-  { topics: ['Pharmakologie VNS: Sympathomimetika, Sympatholytika, Parasympathomimetika, Parasympatholytika'], star: true },
-  { topics: ['Kohlenhydrate', 'Glucose- und Glykogenstoffwechsel'], star: true },
-  { topics: ['Citratzyklus', 'Atmungskette / ATP-Bilanz'], star: true },
-  { topics: ['Aufbau des Herzens', 'Erregungsbildung'], star: true },
-  { topics: ['Kreislauf, Blutdruck', 'Embolie / Gefäßverschluss'], star: true },
-  { topics: ['Blut', 'Hämostase (primäre + sekundäre Gerinnung)'], star: true },
-  { topics: ['Bilirubinstoffwechsel', 'Leber (lướt)'], star: true },
-  { topics: ['Aminosäuren und Proteine', 'Harnstoffzyklus'], star: true },
-  { topics: ['Kniegelenk: Anatomie, Bänder (Seitenbänder, Kreuzbänder)', 'Gelenke allgemein'], star: true },
-  { topics: ['Physik: Wellen, Schall, Hz', 'Ohr / Gehör'], star: true },
-  { topics: ['Physik: Optik', 'Auge / visuelles System'], star: true },
-  { topics: ['Physik: Elektrizität', 'Neuron, Membranpotenzial, Synapse'] },
-  { topics: ['Hypothalamus/Hypophyse', 'Schilddrüse'], star: true },
-  { topics: ['Nebenniere', 'Weiblicher Zyklus'], star: true },
-  { topics: ['DNA/RNA, Zellzyklus', 'Humangenetik (Erbgänge)'], star: true },
-  { topics: ['Psychologie für Mediziner: erlernte Hilflosigkeit, Lernen, Experimente'], star: true },
-  { topics: ['Atmung', 'Niere (lướt)'] },
-  { topics: ['Chemie: Säuren/Basen, pH, Puffer', 'Lipide (lướt)'] },
+  { topics: ['Vegetatives Nervensystem', 'Nervengewebe, Synapsen und Transmitter'], star: true },
+  { topics: ['Kohlenhydrate', 'Abbau und Synthese der Glucose', 'Glykogenstoffwechsel', 'Pankreashormone'], star: true },
+  { topics: ['Aufbau des Herzens', 'Herzerregung', 'Herzmechanik (lướt)'], star: true },
+  { topics: ['Akustik', 'Ohr', 'Auditives System'], star: true },
+  { topics: ['Citratzyklus', 'Atmungskette'], star: true },
+  { topics: ['Blut und Blutzellen', 'Blutstillung und Blutgerinnung'], star: true },
+  { topics: ['Allgemeine Anatomie', 'Oberschenkel und Knie'], star: true },
+  { topics: ['Ruhe- und Aktionspotenzial', 'Grundlagen der Sensorik', 'Taktiles System'], star: true },
+  { topics: ['Hämoglobin (Häm-Abbau, Bilirubin)', 'Leber', 'Gallenblase und Galle'], star: true },
+  { topics: ['Optik und optische Geräte', 'Auge und Orbita', 'Visuelles System'], star: true },
+  { topics: ['Lernen, Kognition und Entwicklung', 'Emotion und Motivation', 'Persönlichkeit und Verhaltensstile'], star: true },
+  { topics: ['Aminosäuren und Proteine', 'Aminosäurestoffwechsel'], star: true },
+  { topics: ['Grundlagen des Kreislaufes', 'Aufbau und Funktion der Blutgefäße', 'Kreislaufregulation'], star: true },
+  { topics: ['Elektrizitätslehre', 'Unspezifisches Immunsystem'] },
+  { topics: ['Allgemeine Hormoneigenschaften', 'Hypophyse', 'Schilddrüse', 'Nebenniere'], star: true },
+  { topics: ['Sexualhormone', 'Ovar', 'Von der Befruchtung zur Implantation', 'Plazenta, Nabelschnur und Amnion'], star: true },
+  { topics: ['Zellzyklus und Tumorentstehung', 'Humangenetik (Vorklinik)'], star: true },
+  { topics: ['Atemwege und Lunge', 'Atemmechanik', 'Gastransport im Blut'] },
+  { topics: ['Säure-Basen-Haushalt', 'Niere (lướt)', 'Übersicht des Verdauungssystems (lướt)'] },
   { topics: ['THI THỬ: phần Medicine trong quyển Practice Test (57 câu / 90 phút)'], exam: true },
   { topics: ['Ôn chủ đề sai nhiều nhất + Terminologie (tên thông dụng: Speiseröhre, Bauchspeicheldrüse, Schienbein…)'], exam: true },
   { topics: ['Ôn Anki nhẹ, ngủ sớm — mai thi'], exam: true }
 ];
+// AMBOSS chapters left out: M1-only or never asked in a TestAS text (FACH_SKIP), or read only with time to spare (FACH_EXTRA)
+const FACH_SKIP = ['Handbuch / Kreuztipps / Erstes Staatsexamen', 'Medizinische Statistik und Testtheorie', 'Grundlagen wissenschaftlicher Studien', 'Grundlagen des Rechnens', 'Biochemische Labormethoden',
+  'Grundlagen der Mikrobiologie und Virologie', 'Bakterien', 'Allgemeine Histologie + Binde-, Fett-, Knorpel-, Knochen-, Muskelgewebe', 'Ionisierende Strahlung', 'Thermodynamik', 'Grundlagen der Mechanik',
+  'Spezifisches Immunsystem, Gewebshormone, Lymphatisches System, Lymphknoten, Milz, MALT', 'Nebenschilddrüsen', 'Tuba uterina, Uterus, Vagina, Mamma, Hoden, Prostata, Nebenhoden, Penis, Geschlechtsentwicklung, Sexualität',
+  'Embryonalentwicklung, Physiologische Aspekte prä- und postnatal', 'Obere Extremität, Unterschenkel, Sprunggelenke und Fuß, Becken und Hüfte, Leitungsbahnen', 'Rumpf, Kopf und Hals (chỉ học tên thông dụng ở ngày 23)',
+  'Mundhöhle, Zähne, Zunge, Speicheldrüsen, Pharynx, Ösophagus, Magen, Dünndarm, Pankreas, Zäkum und Kolon, Rektum (chỉ tên thông dụng)', 'Leistungsphysiologie und Altern',
+  'Gesundheit und Krankheit, Patientenversorgung, Demografie, Arzt-Patient-Beziehung, Untersuchung und Gespräch, Urteilsbildung, Prävention, Psychotherapeutische Verfahren, Umgang mit dem Sterben'];
+const FACH_EXTRA = ['Stofftransport', 'Aufbau von DNA und RNA, Replikation, Genexpression, Translation', 'Lipide, Fettsäuren, Cholesterin', 'Vitamine, Mineralstoffe, Energie- und Wärmehaushalt',
+  'Erythrozyten, Knochenmark und Blutbildung', 'Wasser- und Elektrolythaushalt, Tubuläre Transportprozesse', 'Rückenmark, Spinale Leitungsbahnen und Reflexe, Limbisches System und Gedächtnis',
+  'Haut, Nozizeptives System, Olfaktorisches und gustatorisches System, Vestibuläres System', 'Aufbau der Materie, Chemische Reaktionen, Redoxchemie, Grundlagen der organischen Chemie', 'Stressmodelle'];
 // --- DEBT: everything of an earlier plan day that is not finished.
 // Kern = each of the day's 9 exercises must be solved correctly (last attempt right);
 // Fach = the day's lesson must exist and every one of its texts must be submitted.
@@ -811,7 +820,7 @@ function studyModule() {
   if ($('#punish')) return null;
   if ($('#modal-card') && CHK) return 'kern';                        // check-in exercise
   if (currentTab === 'kern' || currentTab === 'er') return 'kern';
-  if (currentTab === 'fach' || currentTab === 'dating' || currentTab === 'anki') return 'fach';  // dating & cards use Fach content
+  if (currentTab === 'fach' || currentTab === 'dating' || currentTab === 'anki' || currentTab === 'chat') return 'fach';  // dating, cards & questions use Fach content
   return null;
 }
 function tickStudyTime() {
@@ -1242,11 +1251,15 @@ function renderFach() {
       <div class="text-xs text-slate-400 mt-1">Làm bài này để biết đề thật hỏi kiểu gì. Mục cuối phần giảng so sánh đề thật với đề app soạn.</div></section>`; }).join('')}
     <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 mt-4">${days.map(n => { const ls = fachOfDay(n); const pl = FACH_PLAN[n - 1];
       return `<div class="panel p-3 ${n === d ? 'pulse-neon' : ''}" style="${ls.length ? 'border-color:rgba(255,46,136,.5)' : ''}">
-        <div class="text-xs mono text-slate-400">NGÀY ${n}${pl.star ? ' · <span class="text-yellow-300">★ có trong đề mẫu</span>' : ''}</div>
+        <div class="text-xs mono text-slate-400">NGÀY ${n}${pl.star ? ' · <span class="text-yellow-300">★ hay ra</span>' : ''}</div>
         <div class="text-xs text-cyan-200 mt-1">${esc(pl.topics.join(' + '))}</div>
         ${ls.length ? ls.map(l => { const q = lessonScore(l); return `<button class="text-left text-sm font-semibold text-pink-200 hover:text-white mt-1 block" onclick="openFach('${l.id}')">${esc(l.title)}${q ? ` <span class="text-xs text-slate-400">(${q.score}/${q.total})</span>` : ''}</button>`; }).join('')
           : pl.exam ? '' : `<button class="text-xs text-slate-500 hover:text-cyan-300 mt-1" onclick="openFachCreate(${n})">+ chưa có bài</button>`}
-      </div>`; }).join('')}</div>`;
+      </div>`; }).join('')}</div>
+    <div class="grid md:grid-cols-2 gap-3 mt-4">
+      <details class="panel p-4"><summary class="cursor-pointer font-semibold">🗑 Chương AMBOSS bỏ qua (${FACH_SKIP.length})</summary><p class="text-xs text-slate-400 mt-2">Chỉ thi M1 hoặc TestAS không hỏi kiểu này. Đừng đọc, tiếc thời gian.</p><ul class="text-sm mt-2 space-y-1 list-disc pl-5">${FACH_SKIP.map(x => `<li>${esc(x)}</li>`).join('')}</ul></details>
+      <details class="panel p-4"><summary class="cursor-pointer font-semibold">➕ Nếu dư sức (${FACH_EXTRA.length})</summary><p class="text-xs text-slate-400 mt-2">Có ích cho từ vựng nhưng không nằm trong lịch. Chỉ đọc khi đã xong bài của ngày.</p><ul class="text-sm mt-2 space-y-1 list-disc pl-5">${FACH_EXTRA.map(x => `<li>${esc(x)}</li>`).join('')}</ul></details>
+    </div>`;
 }
 
 // who writes the lesson: Claude through the artifact's `sample` capability, else the user's API key
@@ -1526,7 +1539,7 @@ function fachPath(L) {
   const total = texts.length, doneN = texts.filter((t, k) => qz[k]).length;
   $('#fach-body').innerHTML = `
     <section class="panel p-4 mb-3" style="border-color:rgba(0,229,255,.45)">
-      <div class="font-bold">🎯 Học từng miếng nhỏ — ${doneN}/${total} bước xong</div>
+      <div class="flex flex-wrap items-center justify-between gap-2"><div class="font-bold">🎯 Học từng miếng nhỏ — ${doneN}/${total} bước xong</div><button class="btn btn-ghost text-xs" onclick="openChat({ lid: '${L.id}' })">💬 Hỏi về bài này</button></div>
       <p class="text-sm text-slate-400 mt-1">Không cần đọc hết bài. Mỗi bước ~10–15 phút (vừa 1 pomodoro): ① học thẻ của đoạn đó (từ vựng trước, rồi ý chính) → ② đọc lướt đoạn tiếng Đức (đoạn văn đứng yên bên cạnh câu hỏi) → ③ làm 6 câu. Bước đang sáng là bước tiếp theo của bạn.</p>
       <div class="bar mt-3"><div style="width:${total ? doneN / total * 100 : 0}%;background:linear-gradient(90deg,var(--neon),var(--cyan))"></div></div>
     </section>
@@ -1573,7 +1586,7 @@ function fachQuiz(L, ti = 0, restore = null) {
     <tbody>${T.table.rows.map(r => `<tr>${r.map(c => `<td class="border border-slate-700 px-2 py-1 align-top">${md(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>` : '';
   $('#fach-body').innerHTML = `
     <div class="flex flex-wrap gap-2 mb-3">${chips}</div>
-    <div class="flex flex-wrap gap-2 mb-3 items-center"><span class="text-xs text-slate-400">Chạm vào từ gạch chân để xem nghĩa:</span>${hintBar(L)}</div>
+    <div class="flex flex-wrap gap-2 mb-3 items-center"><button class="btn btn-ghost text-xs" onclick="openChat({ lid: '${L.id}', ti: ${ti} })">💬 Hỏi về text này</button><span class="text-xs text-slate-400">Chạm vào từ gạch chân để xem nghĩa:</span>${hintBar(L)}</div>
     <div class="flex items-center justify-between mb-2"><div class="text-sm text-slate-400">Text ${ti + 1}/${texts.length} · ${qs.length} câu · ~1:35/câu · chỉ dùng thông tin trong text${sum ? ` · tổng đã làm ${sum.score}/${sum.total}` : ''}</div>
       <div id="fq-time" class="mono text-2xl font-bold text-cyan-300">${fmtMS(FQ.t)}</div></div>
     <div class="fq-split">
@@ -1609,7 +1622,7 @@ function fqSubmit() {
     const pick = fqPicked(i), ok = pick === Number(q.answer); if (ok) score++;
     for (let k = 0; k < 4; k++) { const b = $(`#fq-${i}-${k}`); b.classList.remove('on'); if (k === Number(q.answer)) b.classList.add('good'); else if (k === pick) b.classList.add('bad'); }
     const head = pick === undefined ? `<b class="text-yellow-300">⚠ Bạn chưa chọn đáp án nào · đáp án đúng (${'ABCD'[q.answer]})</b>` : ok ? `<b class="text-emerald-300">✓ Đúng · đáp án (${'ABCD'[q.answer]})</b>` : `<b class="text-red-400">✗ Bạn chọn (${'ABCD'[pick]}) · đáp án đúng (${'ABCD'[q.answer]})</b>`;
-    $(`#fq-exp-${i}`).innerHTML = `<div class="sol mt-3">${head}<div class="mt-1">${md(q.explain_vi)}</div></div>`;
+    $(`#fq-exp-${i}`).innerHTML = `<div class="sol mt-3">${head}<div class="mt-1">${md(q.explain_vi)}</div><button class="btn btn-ghost text-xs mt-2" onclick="openChat({ lid: '${L.id}', ti: ${FQ.ti}, qi: ${i}, pick: ${pick === undefined ? 'null' : pick} })">💬 Vẫn chưa hiểu? Hỏi câu này</button></div>`;
   });
   const prevQ = (L.quizzes || {})[FQ.ti] || {};
   L.quizzes = Object.assign({}, L.quizzes, { [FQ.ti]: { score, total: qs.length, date: todayStr(), best: Math.max(prevQ.best || 0, prevQ.score || 0, score) } }); save(); addXP(score * 15); renderStats();
@@ -1922,6 +1935,92 @@ function dropRun(slot) {
 }
 addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') { saveRun(); if (runTimer) flushRun(); } });
 addEventListener('pagehide', () => { saveRun(); if (runTimer) flushRun(); });
+
+
+/* =====================================================================
+   12. HỎI BÀI — chat with "BS. Mỏ Hỗn" through the artifact's `sample` capability.
+   Opened from a lesson, a text or a question, the chat carries that text (and, once the text is
+   submitted, the question's answer) as context. History stays on this device (last 40 messages).
+   ===================================================================== */
+const CHAT_KEY = 'tdm_chat';
+let CHAT = (() => { try { return Object.assign({ msgs: [], ctx: null }, JSON.parse(localStorage.getItem(CHAT_KEY) || 'null')); } catch (e) { return { msgs: [], ctx: null }; } })();
+let CHAT_ABORT = null;
+function chatSave() { CHAT.msgs = CHAT.msgs.slice(-40); try { localStorage.setItem(CHAT_KEY, JSON.stringify(CHAT)); } catch (e) { } }
+const CHAT_SYS = `Bạn là "BS. Mỏ Hỗn" — gia sư luyện TestAS Fachmodul Medizin cho một bạn người Việt, tiếng Đức còn yếu, tăng động (ADHD), rất ghét đọc dài.
+CÁCH TRẢ LỜI:
+- Tiếng Việt, NGẮN (khoảng 80–180 từ) trừ khi bạn ấy xin giải thích kỹ. Câu ngắn, mỗi ý một dòng.
+- Giải thích như cho học sinh lớp 8: bản chất trước, chi tiết sau; luôn có 1 so sánh đời thường hoặc ví dụ hài bựa, giọng mỏ hỗn trêu nhẹ (không xúc phạm thật, không tục).
+- Thuật ngữ tiếng Đức/Latin giữ nguyên + nghĩa tiếng Việt trong ngoặc; bộ phận cơ thể thì ghi cả tên thông dụng (Ösophagus = Speiseröhre). Câu đùa tiếng Đức phải kèm nghĩa tiếng Việt.
+- Kiến thức phải CHÍNH XÁC theo sinh lý/hoá sinh tiền lâm sàng. Không chắc thì nói thẳng là không chắc. Không bịa số liệu.
+- Nếu có NGỮ CẢNH (Fachtext/câu hỏi) thì bám vào đó và trích cụm tiếng Đức then chốt trong text.
+- Nếu ngữ cảnh ghi "CHƯA NỘP" thì TUYỆT ĐỐI không nói đáp án đúng; chỉ gợi ý tìm câu nào trong text, dịch câu đó, hỏi ngược lại để bạn ấy tự suy ra.
+- Cuối câu trả lời: 1 mẹo nhớ (Eselsbrücke) HOẶC 1 câu hỏi kiểm tra nhanh.
+ĐỊNH DẠNG: chữ thường, **in đậm** cho ý chính, gạch đầu dòng bằng "- ". Không dùng bảng, không dùng tiêu đề #, không dùng markdown khác.`;
+function chatCtx(ctx) {
+  const L = ctx && S.fach.find(l => l.id === ctx.lid); if (!L) return null;
+  const texts = lessonTexts(L), T = ctx.ti != null ? texts[ctx.ti] : null, q = T && ctx.qi != null ? T.questions[ctx.qi] : null;
+  const submitted = T && (L.quizzes || {})[ctx.ti];
+  const label = `${dayLabel(L)} · ${L.title}${T ? ` · Text ${ctx.ti + 1}` : ''}${q ? ` · câu ${ctx.ti + 1}.${ctx.qi + 1}` : ''}`;
+  let text = `BÀI: ${L.title}\nPHẢI HIỂU: ${(L.guide?.must || []).join('; ')}\n`;
+  if (T) text += `\nFACHTEXT (tiếng Đức) — ${T.title_de}:\n${T.text_de}\n${T.table ? 'BẢNG: ' + T.table.head.join(' | ') + '\n' + T.table.rows.map(r => r.join(' | ')).join('\n') + '\n' : ''}`;
+  else text += `\nCÁC MỤC BÀI GIẢNG: ${L.lecture.sections.map(x => x.heading).join('; ')}\n`;
+  if (q) text += `\nCÂU HỎI ${ctx.ti + 1}.${ctx.qi + 1}: ${q.q}\n${q.options.map((o, k) => `(${'ABCD'[k]}) ${o}`).join('\n')}\n` + (submitted
+    ? `ĐÃ NỘP. Đáp án đúng: (${'ABCD'[q.answer]}). ${ctx.pick != null ? `Người học chọn: (${'ABCD'[ctx.pick]}).` : 'Người học bỏ trống.'}\nGiải thích có sẵn: ${q.explain_vi}\n`
+    : 'CHƯA NỘP — không được nói đáp án.\n');
+  else if (T && !submitted) text += '\nText này CHƯA NỘP — không được nói đáp án của các câu hỏi.\n';
+  return { label, text };
+}
+function openChat(ctx) { CHAT.ctx = ctx || null; chatSave(); go('chat'); setTimeout(() => $('#chat-in')?.focus(), 50); }
+function chatBubble(m) {
+  return m.role === 'user' ? `<div class="flex justify-end"><div class="panel px-3 py-2 max-w-[85%] text-sm" style="border-color:rgba(0,229,255,.35)">${md(m.text)}</div></div>`
+    : `<div class="flex gap-2 items-start"><div class="text-2xl">😈</div><div class="bubble text-sm max-w-[90%]">${m.text ? md(m.text) : '<span class="text-slate-500">Đang gõ… (đừng thúc, tôi đang lục não)</span>'}</div></div>`;
+}
+function renderChat() {
+  const c = chatCtx(CHAT.ctx);
+  const chips = (c && CHAT.ctx.qi != null ? ['Vì sao đáp án đúng lại đúng?', 'Giải thích lại đoạn liên quan như cho học sinh lớp 5', 'Dịch câu hỏi và 4 đáp án sang tiếng Việt']
+    : c ? ['Tóm tắt text này trong 5 dòng', 'Dịch 3 câu khó nhất trong text', 'Đố tôi 3 câu nhanh về text này'] : ['Sympathikus và Parasympathikus khác gì nhau?', 'Glykolyse là gì, nói như cho học sinh lớp 5', 'Cho tôi mẹo nhớ các loại Rezeptor của VNS']);
+  $('#view').innerHTML = `
+    <section class="panel p-4" style="border-color:rgba(255,46,136,.45)">
+      <div class="flex flex-wrap items-center justify-between gap-2"><div><div class="text-lg font-bold">💬 Hỏi bài BS. Mỏ Hỗn</div>
+        <div class="text-xs text-slate-400">Hỏi gì cũng được, tôi giải thích ngắn, dễ hiểu và chửi nhẹ. Hỏi từ một text/câu hỏi thì tôi đọc luôn text đó.</div></div>
+        <button class="btn btn-ghost text-xs" onclick="chatClear()">🧹 Xoá cuộc trò chuyện</button></div>
+      ${c ? `<div class="mt-2 text-xs flex flex-wrap items-center gap-2"><span class="optbtn on">📌 Đang hỏi về: ${esc(c.label)}</span><button class="text-slate-400 hover:text-white" onclick="CHAT.ctx=null;chatSave();renderChat()">✕ bỏ ngữ cảnh</button>${CHAT.ctx.lid ? `<button class="text-cyan-300 hover:text-white" onclick="${CHAT.ctx.ti != null ? `openFachText('${CHAT.ctx.lid}',${CHAT.ctx.ti})` : `openFach('${CHAT.ctx.lid}')`}">↩ quay lại bài</button>` : ''}</div>` : ''}
+    </section>
+    <div id="chat-log" class="space-y-3 mt-4">${CHAT.msgs.length ? CHAT.msgs.map(chatBubble).join('') : '<div class="text-sm text-slate-500 text-center py-6">Chưa hỏi gì. Hỏi đi, không ai cười đâu (trừ tôi).</div>'}</div>
+    <div class="flex flex-wrap gap-2 mt-4">${chips.map(t => `<button class="optbtn text-xs" onclick="chatSend(${esc(JSON.stringify(t))})">${esc(t)}</button>`).join('')}</div>
+    <form class="flex gap-2 mt-3 items-end" onsubmit="event.preventDefault();chatSend($('#chat-in').value)">
+      <textarea id="chat-in" rows="2" class="flex-1 min-w-0" placeholder="Gõ câu hỏi… (Enter để gửi, Shift+Enter xuống dòng)" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();chatSend(this.value)}"></textarea>
+      ${CHAT_ABORT ? '<button type="button" class="btn btn-ghost" onclick="CHAT_ABORT&&CHAT_ABORT.abort()">Dừng</button>' : '<button class="btn btn-pink">Gửi</button>'}
+    </form>`;
+  const log = $('#chat-log'); if (log && CHAT.msgs.length) log.lastElementChild?.scrollIntoView({ block: 'end' });
+}
+function chatClear() { CHAT.msgs = []; chatSave(); renderChat(); }
+async function chatSend(text) {
+  text = String(text || '').trim(); if (!text || CHAT_ABORT) return;
+  await capReady;
+  CHAT.msgs.push({ role: 'user', text });
+  if (!CAP.sample) { CHAT.msgs.push({ role: 'assistant', text: 'Hộp chat này chỉ chạy khi mở app trên claude.ai (cần quyền "hỏi Claude"). Ở đây tôi bị bịt mỏ rồi.' }); chatSave(); return currentTab === 'chat' && renderChat(); }
+  const ans = { role: 'assistant', text: '' }; CHAT.msgs.push(ans); chatSave();
+  CHAT_ABORT = new AbortController();
+  if (currentTab === 'chat') renderChat();
+  const c = chatCtx(CHAT.ctx);
+  const turns = CHAT.msgs.slice(0, -1).slice(-12).filter(m => m.text);
+  while (turns.length && turns[0].role !== 'user') turns.shift();
+  const input = turns.map((m, k) => ({ role: m.role, content: k === 0 ? `${CHAT_SYS}\n\n${c ? 'NGỮ CẢNH:\n' + c.text : 'Không có ngữ cảnh bài cụ thể.'}\n\nCÂU HỎI CỦA NGƯỜI HỌC:\n${m.text}` : m.text }));
+  const paint = () => { const log = $('#chat-log'); if (currentTab === 'chat' && log?.lastElementChild) { log.lastElementChild.outerHTML = chatBubble(ans); log.lastElementChild.scrollIntoView({ block: 'end' }); } };
+  try {
+    const r = await CAP.sample(input, { cache: false, modelTier: 'default', signal: CHAT_ABORT.signal, onText: ({ text }) => { ans.text = text; paint(); } });
+    ans.text = r.text || ans.text || '(không trả lời được, hỏi lại đi)';
+    if (r.truncated) ans.text += '\n\n(…bị cắt vì dài quá — hỏi "nói tiếp" nếu cần)';
+  } catch (e) {
+    ans.text = (e?.text || ans.text || '') + (e?.name === 'AbortError' || e?.code === 'cancelled' || e?.code === 'aborted' ? '\n(đã dừng)'
+      : e?.code === 'rate_limited' ? '\n(Hỏi dồn quá, Claude bắt nghỉ một chút. Thử lại sau ít phút.)'
+      : e?.code === 'not_granted' ? '\n(Bạn chưa cho phép trang này hỏi Claude. Mở menu quyền của trang để bật.)'
+      : `\n(Lỗi: ${e?.message || e?.code || 'không rõ'})`);
+  }
+  CHAT_ABORT = null; chatSave();
+  if (currentTab === 'chat') renderChat();
+}
 
 const slug = s => stripVN(s).replace(/ /g, '-').slice(0, 50) || 'bai';
 async function downloadBlob(content, type, filename) {
