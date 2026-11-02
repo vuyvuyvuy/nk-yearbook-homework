@@ -260,10 +260,12 @@ function loadState() {
   return base;
 }
 let S = loadState();
-// rescue plan: day 1 = 02/11/2026 (applied once per device; newest start date wins in sync)
+// rescue plan: day 1 = 02/11/2026, restarted on 03/11 when the rebuilt day-1/2 lessons arrived
+// (applied once per device; newest start date wins in sync)
 const SRS_RESET_1029 = 1793248419976;
 if ((S.srsResetAt || 0) < SRS_RESET_1029) { S.srsResetAt = SRS_RESET_1029; S.srs = {}; }
 try { if (!localStorage.getItem('tdm_start_1102')) { S.startDate = '2026-11-02'; S.startDateSetAt = Math.max(Date.now(), (S.startDateSetAt || 0) + 1); S.lastDeadmanCheck = todayStr(); S.pendingPunishment = false; /* fresh start: no punishment for the days before the new plan */ localStorage.setItem('tdm_start_1102', '1'); } } catch (e) { }
+try { if (!localStorage.getItem('tdm_start_1103')) { S.startDate = '2026-11-03'; S.startDateSetAt = Math.max(Date.now(), (S.startDateSetAt || 0) + 1); S.lastDeadmanCheck = ''; S.pendingPunishment = false; localStorage.setItem('tdm_start_1103', '1'); } } catch (e) { }
 function save() {
   S.updatedAt = Date.now();
   try { localStorage.setItem(LS_KEY, JSON.stringify(S)); }
@@ -394,7 +396,7 @@ const RANKS = [
   [1500, 'Assistenzarzt khóc trong toilet'], [2500, 'Oberarzt mỏ hỗn'], [4000, 'Chefarzt của sự hỗn loạn']
 ];
 const rankOf = xp => RANKS.filter(r => xp >= r[0]).pop()[1];
-const PLAN_DAYS = 24;          // rescue plan: 02/11 → 25/11, exam on 26/11
+const PLAN_DAYS = 23;          // rescue plan: 03/11 → 25/11, exam on 26/11
 const KERN_DAYS = 20;          // 180 Kern exercises = 20 days × 9; days 21–24 have no new Kern
 const dayNumber = () => Math.min(PLAN_DAYS, Math.max(1, daysBetween(S.startDate, todayStr()) + 1));
 
@@ -554,7 +556,7 @@ const dayLabel = L => L && L.bonus ? '🏛 Đề mẫu' : `Ngày ${L ? L.day : '
 // physiology, anatomy, physics, psychology) to spread the vocabulary. ★ = in the Medicine practice test or
 // reported from the real exam; anatomy axes/planes, visual pathway and heart physiology are also named by a
 // former test-taker (Reddit). "(lướt)" = only the parts a TestAS text could ask about.
-const FACH_DAYS = 24;
+const FACH_DAYS = 23;
 const FACH_PLAN = [
   { topics: ['Die Zelle', 'Stofftransport'] },
   { topics: ['Signaltransduktion', 'Ruhe- und Aktionspotenzial'], star: true },
@@ -578,8 +580,7 @@ const FACH_PLAN = [
   { topics: ['Atemwege und Lunge', 'Atemmechanik', 'Gastransport im Blut'] },
   { topics: ['Säure-Basen-Haushalt', 'Niere (lướt)', 'Übersicht des Verdauungssystems (lướt)'], extra: ['Wasser- und Elektrolythaushalt', 'Tubuläre Transportprozesse'] },
   { topics: ['THI THỬ: phần Medicine trong quyển Practice Test (57 câu / 90 phút)'], exam: true },
-  { topics: ['Ôn chủ đề sai nhiều nhất + Terminologie (tên thông dụng: Speiseröhre, Bauchspeicheldrüse, Schienbein…)'], exam: true },
-  { topics: ['Ôn Anki nhẹ, ngủ sớm — mai thi'], exam: true }
+  { topics: ['Ôn chủ đề sai nhiều nhất + Terminologie (tên thông dụng: Speiseröhre, Bauchspeicheldrüse, Schienbein…), tối ngủ sớm — mai thi'], exam: true }
 ];
 // AMBOSS chapters left out: M1-only or never asked in a TestAS text
 const FACH_SKIP = ['Handbuch / Kreuztipps / Erstes Staatsexamen', 'Medizinische Statistik und Testtheorie', 'Grundlagen wissenschaftlicher Studien', 'Grundlagen des Rechnens', 'Biochemische Labormethoden',
@@ -871,7 +872,8 @@ setInterval(() => {
 function checkDeadman() {
   const t = todayStr();
   if (S.lastDeadmanCheck !== t) {
-    const last = S.checkins.length ? S.checkins[S.checkins.length - 1] : addDays(S.startDate, -1);
+    const before = addDays(S.startDate, -1), lastCi = S.checkins.length ? S.checkins[S.checkins.length - 1] : before;
+    const last = lastCi > before ? lastCi : before;   // days before the plan started are never counted as missed
     const gap = daysBetween(last, t);
     S.lastDeadmanCheck = t;
     if (gap >= 2) { S.pendingPunishment = true; S.streak = 0; S.missedDays = gap - 1; }
@@ -1599,6 +1601,7 @@ function fachQuiz(L, ti = 0, restore = null) {
   const texts = lessonTexts(L);
   if (!texts.length) { $('#fach-body').innerHTML = '<div class="panel p-5 text-slate-400">Bài này chưa có câu hỏi TestAS.</div>'; return; }
   stopTimer();
+  if (!(ti >= 0 && ti < texts.length)) { ti = 0; restore = null; }   // e.g. a paused text of an older, longer version of the lesson
   if (!restore) stashRun('quiz');   // a text left half-done goes to the resume bar instead of being thrown away
   const T = texts[ti], qs = T.questions, sum = lessonScore(L), G = glossaryRegex(L, hintMode(L));
   FQ = { id: L.id, ti, sel: restore ? Object.assign({}, restore.sel) : {}, t: restore ? restore.t : qs.length * 95, done: false };   // ~1 min 35 s per question, like the real module
