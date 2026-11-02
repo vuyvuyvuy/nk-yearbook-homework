@@ -96,6 +96,13 @@
   .heartbeat{animation:hb 1s infinite}
   @keyframes hb{0%,100%{transform:scale(1)}15%{transform:scale(1.18)}30%{transform:scale(1)}45%{transform:scale(1.12)}}
 
+
+/* ---------- TestAS text + questions: the text stays in view while the questions scroll ---------- */
+.fq-split{display:grid;gap:1rem}
+.fq-text{position:sticky;top:0;z-index:5;max-height:42vh;overflow:auto;background:#0b1020;box-shadow:0 10px 24px rgba(0,0,0,.55)}
+@media (min-width:1024px),(min-width:700px) and (orientation:landscape){.fq-split{grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start}.fq-text{top:.75rem;max-height:calc(100vh - 1.5rem);box-shadow:none}}
+.path-step{display:grid;grid-template-columns:auto minmax(0,1fr);gap:.75rem;align-items:start}
+.path-dot{width:2rem;height:2rem;border-radius:99px;display:grid;place-items:center;font-weight:700;border:1px solid rgba(255,255,255,.2)}
 /* ---------- pomodoro + duck ---------- */
 #pomo{position:fixed;left:.75rem;z-index:60;width:min(300px,calc(100vw - 1.5rem));bottom:calc(9.5rem + env(safe-area-inset-bottom,0px));--pm:var(--neon)}
 @media (min-width:768px){#pomo{bottom:calc(.75rem + env(safe-area-inset-bottom,0px))}}
@@ -1481,7 +1488,7 @@ function importFach(file) {
 
 // --- lesson view: lecture / TestAS quiz / Anki
 let FV = null;
-function openFach(id, part = 'lecture') {
+function openFach(id, part = 'path') {
   stopTimer(); RUNVIEW = null; if (currentTab !== 'fach') { currentTab = 'fach'; renderTabs(); }
   const L = S.fach.find(l => l.id === id); if (!L) return go('fach');
   if (!L.bonus && lockedByDebt(+L.day)) { go('fach'); return debtBlock(`Bài Fach ngày ${L.day}`); }
@@ -1491,10 +1498,35 @@ function openFach(id, part = 'lecture') {
     <div class="flex flex-wrap items-center justify-between gap-2 mb-3"><button class="btn btn-ghost text-sm" onclick="go('fach')">← Fachmodul</button>
       <div class="text-xs mono text-slate-400">${L.bonus ? 'ĐỀ MẪU CHÍNH THỨC' : 'NGÀY ' + L.day} · ${new Date(L.createdAt).toLocaleDateString('vi-VN')} · nguồn: ${esc(L.source)}${L.sourceFiles?.length ? ' · 📎 ' + esc(L.sourceFiles.join(', ')) : ''}</div></div>
     <h2 class="text-2xl font-bold text-pink-300">${esc(L.title)}</h2>
-    <nav class="flex gap-1 overflow-x-auto mt-3 p-1 panel">${tab('lecture', '🤪 Giảng bài bựa')}${tab('quiz', `📝 TestAS: ${lessonTexts(L).length} text · ${lessonQs(L).length} câu`)}${tab('vocab', `🇩🇪 Từ vựng (${L.vocab.length})`)}${tab('anki', `🃏 Thẻ (${lessonCards(L).length})`)}</nav>
+    <nav class="flex gap-1 overflow-x-auto mt-3 p-1 panel">${tab('path', '🎯 Lộ trình')}${tab('lecture', '🤪 Giảng bài bựa')}${tab('quiz', `📝 TestAS: ${lessonTexts(L).length} text · ${lessonQs(L).length} câu`)}${tab('vocab', `🇩🇪 Từ vựng (${L.vocab.length})`)}${tab('anki', `🃏 Thẻ (${lessonCards(L).length})`)}</nav>
     <div id="fach-body" class="mt-4"></div>`;
-  ({ lecture: fachLecture, quiz: fachQuiz, vocab: fachVocab, anki: fachAnki })[part](L);
+  ({ path: fachPath, lecture: fachLecture, quiz: fachQuiz, vocab: fachVocab, anki: fachAnki })[part](L);
   renderResume();
+}
+function fachPath(L) {
+  const texts = lessonTexts(L), cs = lessonCards(L), now = Date.now(), qz = L.quizzes || {};
+  const cur = texts.findIndex((t, k) => !qz[k]);
+  const steps = texts.map((t, k) => {
+    const mine = cs.filter(c => c.chunk === k), nw = mine.filter(c => !cardState(c) || cardState(c).state === 'new').length, due = mine.filter(c => isDueCard(cardState(c), now)).length;
+    const r = qz[k], done = !!r, here = k === cur;
+    return `<div class="path-step panel p-3 ${here ? 'pulse-neon' : ''}" style="${done ? 'border-color:rgba(0,255,163,.45)' : here ? 'border-color:var(--neon)' : ''}">
+      <div class="path-dot" style="${done ? 'background:rgba(0,255,163,.2);color:#6ee7b7' : here ? 'background:var(--neon);color:#000' : ''}">${done ? '✓' : k + 1}</div>
+      <div class="min-w-0"><div class="font-semibold">${esc(t.title_de.replace(/^Text\s*\d+\s*:\s*/i, ''))}</div>
+        <div class="text-xs text-slate-400 mt-0.5">${mine.length} thẻ (${nw} mới${due ? ` · ${due} đến hạn` : ''}) · ${t.questions.length} câu${r ? ` · <b class="${r.best / r.total >= PASS ? 'text-emerald-300' : 'text-red-300'}">đã làm ${r.best ?? r.score}/${r.total}</b>` : ''}</div>
+        <div class="flex flex-wrap gap-2 mt-2"><button class="btn ${here && (nw || due) ? 'btn-neon' : 'btn-ghost'} text-xs" ${nw || due ? `onclick="startDeck('${L.id}',${k})"` : 'disabled'}>① 🃏 ${nw || due ? `Thẻ (${nw + due})` : 'Thẻ xong'}</button>
+          <button class="btn ${here && !(nw || due) ? 'btn-pink' : 'btn-ghost'} text-xs" onclick="openFachText('${L.id}',${k})">② 📖 Đọc + ③ 📝 làm ${t.questions.length} câu</button></div></div></div>`;
+  }).join('');
+  const total = texts.length, doneN = texts.filter((t, k) => qz[k]).length;
+  $('#fach-body').innerHTML = `
+    <section class="panel p-4 mb-3" style="border-color:rgba(0,229,255,.45)">
+      <div class="font-bold">🎯 Học từng miếng nhỏ — ${doneN}/${total} bước xong</div>
+      <p class="text-sm text-slate-400 mt-1">Không cần đọc hết bài. Mỗi bước ~10–15 phút (vừa 1 pomodoro): ① học thẻ của đoạn đó (từ vựng trước, rồi ý chính) → ② đọc lướt đoạn tiếng Đức (đoạn văn đứng yên bên cạnh câu hỏi) → ③ làm 6 câu. Bước đang sáng là bước tiếp theo của bạn.</p>
+      <div class="bar mt-3"><div style="width:${total ? doneN / total * 100 : 0}%;background:linear-gradient(90deg,var(--neon),var(--cyan))"></div></div>
+    </section>
+    <details class="panel p-4 mb-3"><summary class="cursor-pointer font-semibold">👀 Bức tranh toàn cảnh trong 2 phút (tuỳ chọn)</summary>
+      <div class="space-y-2 mt-3 text-sm">${L.lecture.sections.map(sec => `<div><b class="text-cyan-200">${esc(sec.heading)}</b>${sec.mnemonic ? `<div class="text-slate-300">🤪 ${md(sec.mnemonic)}</div>` : ''}</div>`).join('')}</div>
+      <button class="btn btn-ghost text-xs mt-3" onclick="openFach('${L.id}','lecture')">Đọc bài giảng đầy đủ →</button></details>
+    <div class="space-y-2">${steps}</div>`;
 }
 function fachLecture(L) {
   const lec = L.lecture, stage = germanStage(L.day), G = glossaryRegex(L, hintMode(L));
@@ -1537,8 +1569,8 @@ function fachQuiz(L, ti = 0, restore = null) {
     <div class="flex flex-wrap gap-2 mb-3 items-center"><span class="text-xs text-slate-400">Chạm vào từ gạch chân để xem nghĩa:</span>${hintBar(L)}</div>
     <div class="flex items-center justify-between mb-2"><div class="text-sm text-slate-400">Text ${ti + 1}/${texts.length} · ${qs.length} câu · ~1:35/câu · chỉ dùng thông tin trong text${sum ? ` · tổng đã làm ${sum.score}/${sum.total}` : ''}</div>
       <div id="fq-time" class="mono text-2xl font-bold text-cyan-300">${fmtMS(FQ.t)}</div></div>
-    <div class="grid lg:grid-cols-2 gap-4">
-      <article class="panel p-5 detext lg:max-h-[75vh] lg:overflow-auto"><h3 class="text-lg font-bold text-cyan-300">${esc(T.title_de)}</h3>
+    <div class="fq-split">
+      <article class="panel p-5 detext fq-text"><h3 class="text-lg font-bold text-cyan-300">${esc(T.title_de)}</h3>
         ${T.text_de.split(/\n\s*\n/).map(p => `<p>${deHTML(p, G)}</p>`).join('')}${table}</article>
       <div class="space-y-4" id="fq-list">${qs.map((q, i) => `
         <div class="panel p-4"><div class="font-semibold">${ti + 1}.${i + 1} ${esc(q.q)}</div>
@@ -1579,7 +1611,7 @@ function fqSubmit() {
   $('#fq-submit').outerHTML = `<div class="panel ${score / qs.length >= .7 ? 'neon' : 'danger'} p-4 text-center"><div class="text-4xl font-bold">${score}/${qs.length}</div>
     <div class="flex flex-wrap justify-center gap-2 mt-3"><button class="btn btn-ghost" onclick="fachQuiz(S.fach.find(l=>l.id==='${L.id}'),${FQ.ti})">Làm lại</button>
     ${debts().length ? `<button class="btn btn-red" onclick="payDebt()">💸 Trả nợ tiếp</button>` : ''}
-    ${next ? `<button class="btn btn-neon" onclick="fachQuiz(S.fach.find(l=>l.id==='${L.id}'),${FQ.ti + 1});window.scrollTo({top:0})">Text ${FQ.ti + 2} →</button>` : `<button class="btn btn-neon" onclick="openFach('${L.id}','anki')">🃏 Học thẻ bài này</button>`}</div></div>`;
+    <button class="btn btn-neon" onclick="openFach('${L.id}','path');window.scrollTo({top:0})">${next ? `🎯 Bước ${FQ.ti + 2}: thẻ → Text ${FQ.ti + 2}` : '🎯 Xem lộ trình'}</button></div></div>`;
   score / qs.length >= .7 ? praise(`${score}/${qs.length}. Đọc tiếng Đức cũng không tệ. Đừng tự mãn.`) : roast(`${score}/${qs.length}. Mở mục 🇩🇪 Từ vựng ra học đi rồi đọc lại Fachtext.`);
 }
 function fachVocab(L) {
@@ -1648,13 +1680,38 @@ const isDueCard = (c, at = Date.now()) => c && c.state !== 'new' && c.due <= at 
 
 // cards of a lesson: flashcards, lecture sections, Kernsätze (cloze), vocabulary German → Vietnamese
 function hashStr(t) { let h = 5381; for (let i = 0; i < t.length; i++) h = (h * 33 + t.charCodeAt(i)) >>> 0; return h.toString(36); }
+// Cards are grouped by the TestAS text they belong to, so one step of a lesson is:
+// that text's vocabulary → its knowledge cards → read the text → its 6 questions.
+// A card belongs to the text that contains most of its German terms; cards with no match keep
+// their place in the lecture order. Card ids do not depend on the order (schedules are kept).
+const CARD_CACHE = new Map();
 function lessonCards(L) {
-  const out = [], add = (type, front, back) => out.push({ id: type + '-' + hashStr(front), lid: L.id, type, front, back });
-  // vocabulary first, so a lesson's German words are known before its knowledge cards
-  L.vocab.forEach(v => add('vocab', v.de, v.vi));
+  const texts = lessonTexts(L), key = L.id + ':' + (L.rev || 0) + ':' + texts.length + ':' + L.vocab.length + ':' + L.cards.length;
+  if (CARD_CACHE.has(key)) return CARD_CACHE.get(key);
+  const out = [], add = (type, front, back, extra = '') => out.push({ id: type + '-' + hashStr(front), lid: L.id, type, front, back, _t: (front + ' ' + back + ' ' + extra).toLowerCase() });
+  L.vocab.forEach(v => add('vocab', v.de, v.vi, glossTerms(v).join(' ')));
   L.cards.forEach(c => add('card', c.front, c.back));
-  L.lecture.sections.forEach(s => { if (s.heading) add('sec', s.heading, `${s.explanation}${s.mnemonic ? '\n\n🤪 Mẹo bựa: ' + s.mnemonic : ''}`); });
+  L.lecture.sections.forEach(s => { if (s.heading) add('sec', s.heading, `${s.explanation}${s.mnemonic ? '\n\n🤪 Mẹo bựa: ' + s.mnemonic : ''}`, s.kernsaetze.map(k => k.de).join(' ')); });
   L.lecture.sections.forEach(s => s.kernsaetze.forEach(k => clozeOf(k) ? add('cloze', `Điền từ còn thiếu:\n${clozeOf(k)}`, `${k.de}\n\n→ ${k.vi}`) : add('ks', k.de, k.vi)));
+  const n = texts.length, bodies = texts.map(t => (t.title_de + ' ' + t.text_de + ' ' + (t.table ? JSON.stringify(t.table) : '')).toLowerCase());
+  const terms = [...new Set(L.vocab.flatMap(glossTerms).map(t => t.toLowerCase()).filter(t => t.length >= 4))];
+  const DF = new Map(terms.map(t => [t, Math.max(1, bodies.filter(b => b.includes(t)).length)]));
+  const ORDER = { vocab: 0, card: 1, sec: 2, cloze: 3, ks: 3 };
+  const counters = { vocab: 0, card: 0, sec: 0, cloze: 0, ks: 0 }, totals = {};
+  out.forEach(c => { totals[c.type] = (totals[c.type] || 0) + 1; });
+  out.forEach((c, i) => {
+    let best = -1, bestScore = 0;
+    if (n) {
+      // a word: the first text that uses it; a knowledge card: the text sharing most of its rarer terms (a term found in every text counts little)
+      if (c.type === 'vocab') { const own = glossTerms(L.vocab.find(v => v.de === c.front) || { de: c.front }).map(t => t.toLowerCase()); best = bodies.findIndex(b => own.some(t => b.includes(t))); }
+      else bodies.forEach((b, k) => { const sc = terms.filter(t => c._t.includes(t) && b.includes(t)).reduce((a, t) => a + 1 / DF.get(t), 0); if (sc > bestScore + 1e-9) { bestScore = sc; best = k; } });
+    }
+    const pos = counters[c.type]++;
+    c.chunk = best >= 0 ? best : n ? Math.min(n - 1, Math.floor(pos * n / totals[c.type])) : 0;
+    c.ord = i; delete c._t;
+  });
+  out.sort((a, b) => a.chunk - b.chunk || ORDER[a.type] - ORDER[b.type] || a.ord - b.ord);
+  CARD_CACHE.set(key, out);
   return out;
 }
 const cardState = c => ((S.srs || {})[c.lid] || {})[c.id];
@@ -1707,16 +1764,16 @@ function renderAnki() {
       <div class="space-y-1 mt-2">${rows || '<div class="text-slate-500 text-sm p-3">Chưa có bài Fach nào, nên chưa có thẻ.</div>'}</div>
     </section>`;
 }
-function startDeck(lid) {
-  const now = Date.now(), p = ankiPlan(now);
-  const pool = ankiLessons().filter(L => lessonOpen(L) && (!lid || L.id === lid)).flatMap(lessonCards);
+function startDeck(lid, chunk) {
+  const now = Date.now(), p = ankiPlan(now), step = chunk === undefined || chunk === null ? null : +chunk;
+  const pool = ankiLessons().filter(L => lessonOpen(L) && (!lid || L.id === lid)).flatMap(lessonCards).filter(c => step === null || c.chunk === step);
   const due = pool.filter(c => isDueCard(cardState(c), now)).sort((a, b) => cardState(a).due - cardState(b).due);
   const nw = pool.filter(c => !cardState(c) || cardState(c).state === 'new').slice(0, p.newLeft);
   const items = [...due, ...nw];
   if (!items.length) { tutorSay(pool.some(c => !cardState(c)) ? 'Bạn đã học hết thẻ mới của các bài đang mở. Muốn có thêm thì mở khoá bài tiếp theo.' : 'Không còn thẻ đến hạn hay thẻ mới. Hiếm lắm mới thấy bạn sạch nợ.', 'praise'); return; }
   if (currentTab !== 'anki') { stopTimer(); currentTab = 'anki'; renderTabs(); }
   stashRun('anki');   // a deck left half-done stays resumable once this one is finished
-  ANKI = { items, i: 0, revealed: false, done: false, again: 0, answered: 0, title: lid ? dayLabel(S.fach.find(l => l.id === lid)) : 'Tất cả bài', nDue: due.length, nNew: nw.length };
+  ANKI = { items, i: 0, revealed: false, done: false, again: 0, answered: 0, title: (lid ? dayLabel(S.fach.find(l => l.id === lid)) : 'Tất cả bài') + (step !== null ? ` · Bước ${step + 1}` : ''), lid, step, nDue: due.length, nNew: nw.length };
   renderAnkiCard(); window.scrollTo({ top: 0 });
 }
 function renderAnkiCard() {
@@ -1724,7 +1781,7 @@ function renderAnkiCard() {
   if (ANKI.done) {
     $('#view').innerHTML = `<section class="panel neon p-6 text-center"><div class="text-4xl">🃏</div><div class="text-2xl font-bold mt-2">Xong phiên thẻ</div>
       <div class="mono mt-1">${ANKI.answered} lượt chấm · ${ANKI.again} lần quên</div><p class="text-sm text-slate-400 mt-1">Thẻ quên sẽ tự quay lại trong bộ thẻ khi đến giờ.</p>
-      <button class="btn btn-neon mt-4" onclick="ANKI=null;renderAnki()">Về bộ thẻ</button></section>`;
+      <div class="flex flex-wrap justify-center gap-2 mt-4">${ANKI.step !== null && ANKI.step !== undefined && ANKI.lid ? `<button class="btn btn-pink" onclick="const s=ANKI.step,l=ANKI.lid;ANKI=null;openFachText(l,s)">📖 Đọc + làm Text ${ANKI.step + 1} →</button><button class="btn btn-ghost" onclick="const l=ANKI.lid;ANKI=null;openFach(l,'path')">🎯 Lộ trình</button>` : ''}<button class="btn btn-neon" onclick="ANKI=null;renderAnki()">Về bộ thẻ</button></div></section>`;
     ANKI.done && ANKI.again > ANKI.answered / 3 ? roast(`Quên ${ANKI.again}/${ANKI.answered} lượt. Não bạn là cái rổ, không phải cái bình.`) : praise('Hết phiên. Nhớ được bao nhiêu thì mai tôi kiểm tra lại.');
     return;
   }
