@@ -103,6 +103,10 @@
 @media (min-width:1024px),(min-width:700px) and (orientation:landscape){.fq-split{grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start}.fq-text{top:.75rem;max-height:calc(100vh - 1.5rem);box-shadow:none}}
 .path-step{display:grid;grid-template-columns:auto minmax(0,1fr);gap:.75rem;align-items:start}
 .path-dot{width:2rem;height:2rem;border-radius:99px;display:grid;place-items:center;font-weight:700;border:1px solid rgba(255,255,255,.2)}
+.sent{border-radius:4px;transition:background .15s}
+.fq-text.picking .sent{cursor:pointer;background:rgba(0,229,255,.06)}
+.fq-text.picking .sent:hover{background:rgba(0,229,255,.22)}
+.sent.ev{background:rgba(250,204,21,.18);box-shadow:inset 0 -2px 0 rgba(250,204,21,.7)}
 /* ---------- pomodoro + duck ---------- */
 #pomo{position:fixed;left:.75rem;z-index:60;width:min(300px,calc(100vw - 1.5rem));bottom:calc(9.5rem + env(safe-area-inset-bottom,0px));--pm:var(--neon)}
 @media (min-width:768px){#pomo{bottom:calc(.75rem + env(safe-area-inset-bottom,0px))}}
@@ -1271,7 +1275,8 @@ function renderFach() {
         <label class="btn btn-ghost">⬆ Nhập bài (.json từ Claude)<input type="file" accept="application/json,.json" class="hidden" onchange="importFach(this.files[0])"></label>
       </div>
     </section>
-    ${S.fach.filter(l => l.bonus).map(l => { const q = lessonScore(l); return `<section class="panel p-4 mt-4" style="border-color:rgba(250,204,21,.5)">
+    ${coldPanel()}
+    ${S.fach.filter(l => l.bonus && !l.cold).map(l => { const q = lessonScore(l); return `<section class="panel p-4 mt-4" style="border-color:rgba(250,204,21,.5)">
       <div class="text-xs mono text-yellow-300">🏛 ĐỀ MẪU CHÍNH THỨC · ngoài lịch chính, không tính nợ</div>
       <button class="text-left font-bold text-pink-200 hover:text-white mt-1" onclick="openFach('${l.id}')">${esc(l.title)}${q ? ` <span class="text-xs text-slate-400">(${q.score}/${q.total})</span>` : ''}</button>
       <div class="text-xs text-slate-400 mt-1">Làm bài này để biết đề thật hỏi kiểu gì. Mục cuối phần giảng so sánh đề thật với đề app soạn.</div></section>`; }).join('')}
@@ -1553,22 +1558,28 @@ function fachPath(L) {
   const texts = lessonTexts(L), cs = lessonCards(L), now = Date.now(), qz = L.quizzes || {};
   const cur = texts.findIndex((t, k) => !qz[k]);
   const steps = texts.map((t, k) => {
-    const mine = cs.filter(c => c.chunk === k), nw = mine.filter(c => !cardState(c) || cardState(c).state === 'new').length, due = mine.filter(c => isDueCard(cardState(c), now)).length;
-    const r = qz[k], done = !!r, here = k === cur;
-    return `<div class="path-step panel p-3 ${here ? 'pulse-neon' : ''}" style="${done ? 'border-color:rgba(0,255,163,.45)' : here ? 'border-color:var(--neon)' : ''}">
-      <div class="path-dot" style="${done ? 'background:rgba(0,255,163,.2);color:#6ee7b7' : here ? 'background:var(--neon);color:#000' : ''}">${done ? '✓' : k + 1}</div>
+    const mine = cs.filter(c => c.chunk === k), cnt = list => ({ nw: list.filter(c => !cardState(c) || cardState(c).state === 'new').length, due: list.filter(c => isDueCard(cardState(c), now)).length });
+    const v = cnt(mine.filter(c => c.type === 'vocab')), kn = cnt(mine.filter(c => c.type !== 'vocab'));
+    const r = qz[k], done = !!r, here = k === cur, vLeft = v.nw + v.due, kLeft = kn.nw + kn.due;
+    const nextBtn = !done ? (vLeft ? 1 : 2) : kLeft ? 3 : 0;
+    const cls = n => here && nextBtn === n ? 'btn-neon' : 'btn-ghost';
+    return `<div class="path-step panel p-3 ${here ? 'pulse-neon' : ''}" style="${done && !kLeft ? 'border-color:rgba(0,255,163,.45)' : here ? 'border-color:var(--neon)' : ''}">
+      <div class="path-dot" style="${done && !kLeft ? 'background:rgba(0,255,163,.2);color:#6ee7b7' : here ? 'background:var(--neon);color:#000' : ''}">${done && !kLeft ? '✓' : k + 1}</div>
       <div class="min-w-0"><div class="font-semibold">${esc(t.title_de.replace(/^Text\s*\d+\s*:\s*/i, ''))}</div>
-        <div class="text-xs text-slate-400 mt-0.5">${mine.length} thẻ (${nw} mới${due ? ` · ${due} đến hạn` : ''}) · ${t.questions.length} câu${r ? ` · <b class="${r.best / r.total >= PASS ? 'text-emerald-300' : 'text-red-300'}">đã làm ${r.best ?? r.score}/${r.total}</b>` : ''}</div>
-        <div class="flex flex-wrap gap-2 mt-2"><button class="btn ${here && (nw || due) ? 'btn-neon' : 'btn-ghost'} text-xs" ${nw || due ? `onclick="startDeck('${L.id}',${k})"` : 'disabled'}>① 🃏 ${nw || due ? `Thẻ (${nw + due})` : 'Thẻ xong'}</button>
-          <button class="btn ${here && !(nw || due) ? 'btn-pink' : 'btn-ghost'} text-xs" onclick="openFachText('${L.id}',${k})">② 📖 Đọc + ③ 📝 làm ${t.questions.length} câu</button></div></div></div>`;
+        <div class="text-xs text-slate-400 mt-0.5">${t.questions.length} câu${r ? ` · <b class="${r.best / r.total >= PASS ? 'text-emerald-300' : 'text-red-300'}">đã làm ${r.best ?? r.score}/${r.total}</b>${r.proven != null ? ` · có bằng chứng ${r.proven}/${r.score}` : ''}` : ''}</div>
+        <div class="flex flex-wrap gap-2 mt-2">
+          <button class="btn ${cls(1)} text-xs" ${vLeft ? `onclick="startDeck('${L.id}',${k},'vocab')"` : 'disabled'}>① 🇩🇪 ${vLeft ? `Từ vựng (${vLeft})` : 'Từ vựng xong'}</button>
+          <button class="btn ${cls(2)} text-xs" onclick="openFachText('${L.id}',${k})">② 📖 Text lạnh + ${t.questions.length} câu</button>
+          <button class="btn ${cls(3)} text-xs" ${done && kLeft ? `onclick="startDeck('${L.id}',${k},'know')"` : 'disabled'} title="${done ? '' : 'Mở sau khi làm text, để điểm text đo đúng khả năng đọc'}">③ 🧠 ${!done ? 'Thẻ kiến thức 🔒 sau text' : kLeft ? `Thẻ kiến thức (${kLeft})` : 'Kiến thức xong'}</button></div></div></div>`;
   }).join('');
   const total = texts.length, doneN = texts.filter((t, k) => qz[k]).length;
   $('#fach-body').innerHTML = `
     <section class="panel p-4 mb-3" style="border-color:rgba(0,229,255,.45)">
       <div class="flex flex-wrap items-center justify-between gap-2"><div class="font-bold">🎯 Học từng miếng nhỏ — ${doneN}/${total} bước xong</div><button class="btn btn-ghost text-xs" onclick="openChat({ lid: '${L.id}' })">💬 Hỏi về bài này</button></div>
-      <p class="text-sm text-slate-400 mt-1">Không cần đọc hết bài. Mỗi bước ~10–15 phút (vừa 1 pomodoro): ① học thẻ của đoạn đó (từ vựng trước, rồi ý chính) → ② đọc lướt đoạn tiếng Đức (đoạn văn đứng yên bên cạnh câu hỏi) → ③ làm 6 câu. Bước đang sáng là bước tiếp theo của bạn.</p>
+      <p class="text-sm text-slate-400 mt-1">Mỗi bước ~10–15 phút: ① học <b>từ vựng</b> của đoạn → ② đọc text <b>"lạnh"</b> và làm 6 câu (chưa học kiến thức, giống đi thi: đọc câu hỏi trước, rồi tìm câu chứng minh trong text) → ③ học <b>thẻ kiến thức</b> để chốt lại. Thẻ kiến thức chỉ mở sau khi làm text, để điểm đo đúng khả năng đọc chứ không phải trí nhớ.</p>
       <div class="bar mt-3"><div style="width:${total ? doneN / total * 100 : 0}%;background:linear-gradient(90deg,var(--neon),var(--cyan))"></div></div>
     </section>
+    ${L.cold ? '' : (() => { const i = coldToday(), d = i >= 0 && (coldLesson().quizzes || {})[i]; return d ? '' : `<div class="panel p-3 mb-3 text-sm" style="border-color:rgba(125,211,252,.5)">🧊 Hôm nay còn <b>1 text lạ</b> (~10 phút) để luyện đọc đề chưa học. <button class="btn btn-ghost text-xs ml-2" onclick="go('fach')">Tới text lạ →</button></div>`; })()}
     <details class="panel p-4 mb-3"><summary class="cursor-pointer font-semibold">👀 Bức tranh toàn cảnh trong 2 phút (tuỳ chọn)</summary>
       <div class="space-y-2 mt-3 text-sm">${L.lecture.sections.map(sec => `<div><b class="text-cyan-200">${esc(sec.heading)}</b>${sec.mnemonic ? `<div class="text-slate-300">🤪 ${md(sec.mnemonic)}</div>` : ''}</div>`).join('')}</div>
       <button class="btn btn-ghost text-xs mt-3" onclick="openFach('${L.id}','lecture')">Đọc bài giảng đầy đủ →</button></details>
@@ -1604,7 +1615,7 @@ function fachQuiz(L, ti = 0, restore = null) {
   if (!(ti >= 0 && ti < texts.length)) { ti = 0; restore = null; }   // e.g. a paused text of an older, longer version of the lesson
   if (!restore) stashRun('quiz');   // a text left half-done goes to the resume bar instead of being thrown away
   const T = texts[ti], qs = T.questions, sum = lessonScore(L), G = glossaryRegex(L, hintMode(L));
-  FQ = { id: L.id, ti, sel: restore ? Object.assign({}, restore.sel) : {}, t: restore ? restore.t : qs.length * 95, done: false };   // ~1 min 35 s per question, like the real module
+  FQ = { id: L.id, ti, ev: restore && restore.ev ? Object.assign({}, restore.ev) : {}, evQ: null, sel: restore ? Object.assign({}, restore.sel) : {}, t: restore ? restore.t : qs.length * 95, done: false };   // ~1 min 35 s per question, like the real module
   RUNVIEW = 'quiz'; if (restore) delete PAUSED.quiz;   // timer: ~1 min 35 s per question, like the real module
   const chips = texts.map((x, k) => { const r = (L.quizzes || {})[k];
     return `<button class="optbtn text-xs ${k === ti ? 'on' : ''}" style="${r ? (r.score / r.total >= .7 ? 'border-color:var(--neon)' : 'border-color:var(--red)') : ''}" onclick="fachQuiz(S.fach.find(l=>l.id==='${L.id}'),${k})">Text ${k + 1}${r ? ` · ${r.score}/${r.total}` : ''}</button>`; }).join('');
@@ -1618,15 +1629,17 @@ function fachQuiz(L, ti = 0, restore = null) {
       <div id="fq-time" class="mono text-2xl font-bold text-cyan-300">${fmtMS(FQ.t)}</div></div>
     <div class="fq-split">
       <article class="panel p-5 detext fq-text"><h3 class="text-lg font-bold text-cyan-300">${esc(T.title_de)}</h3>
-        ${T.text_de.split(/\n\s*\n/).map(p => `<p>${deHTML(p, G)}</p>`).join('')}${table}</article>
+        ${(() => { let n = 0; return T.text_de.split(/\n\s*\n/).map(p => `<p>${splitSentences(p).map(x => `<span class="sent" id="fq-s-${n}" onclick="fqEvidence(${n++})">${deHTML(x, G)}</span>`).join(' ')}</p>`).join(''); })()}${table}</article>
       <div class="space-y-4" id="fq-list">${qs.map((q, i) => `
-        <div class="panel p-4"><div class="font-semibold">${ti + 1}.${i + 1} ${esc(q.q)}</div>
+        <div class="panel p-4" id="fq-q-${i}"><div class="font-semibold">${ti + 1}.${i + 1} ${esc(q.q)}</div>
           <div class="space-y-2 mt-3">${q.options.map((o, k) => `<button class="opt" id="fq-${i}-${k}" onclick="fqPick(${i},${k})"><span class="k">(${'ABCD'[k]})</span>${esc(o)}</button>`).join('')}</div>
+          <button class="btn btn-ghost text-xs mt-2" id="fq-evb-${i}" onclick="fqEvidenceFor(${i})">📌 Chọn câu chứng minh trong text</button><div id="fq-evt-${i}" class="text-xs text-cyan-200 mt-1"></div>
           <div id="fq-exp-${i}"></div></div>`).join('')}
         <button class="btn btn-neon w-full" id="fq-submit" onclick="fqSubmit()">Nộp Text ${ti + 1}</button>
       </div>
     </div>`;
   Object.entries(FQ.sel).forEach(([i, k]) => $(`#fq-${i}-${k}`)?.classList.add('on'));
+  Object.keys(FQ.ev).forEach(fqEvidenceShow);
   TIMER = setInterval(() => {
     FQ.t--; const el = $('#fq-time'); if (!el) return stopTimer();
     el.textContent = fmtMS(FQ.t); if (FQ.t <= 60) el.classList.add('text-red-400');
@@ -1638,27 +1651,54 @@ function fqPick(i, k) {
   for (let x = 0; x < 4; x++) $(`#fq-${i}-${x}`).classList.toggle('on', x === k);
   saveRun();
 }
+// --- evidence: for every question the student taps the sentence in the text that proves the answer.
+// A right answer without evidence counts as "guessed / remembered" in the statistics (not in the score).
+const splitSentences = p => p.split(/(?<=[.!?])\s+(?=[A-ZÄÖÜ0-9„(])/);
+function fqEvidenceFor(i) {
+  if (FQ.done) return;
+  FQ.evQ = FQ.evQ === i ? null : i;
+  document.querySelectorAll('[id^="fq-evb-"]').forEach(b => b.classList.toggle('btn-pink', b.id === 'fq-evb-' + FQ.evQ));
+  document.querySelector('.fq-text')?.classList.toggle('picking', FQ.evQ !== null);
+  if (FQ.evQ !== null) tutorSay('Giờ chạm vào câu trong text chứng minh cho đáp án của câu ' + (FQ.ti + 1) + '.' + (i + 1) + '.');
+}
+function fqEvidence(n) {
+  if (FQ.done || FQ.evQ === null) return;
+  const i = FQ.evQ; FQ.ev[i] = n; FQ.evQ = null;
+  document.querySelector('.fq-text')?.classList.remove('picking');
+  document.querySelectorAll('[id^="fq-evb-"]').forEach(b => b.classList.remove('btn-pink'));
+  fqEvidenceShow(i); saveRun();
+}
+function fqEvidenceShow(i) {
+  const n = FQ.ev[i], el = $('#fq-evt-' + i), sEl = $('#fq-s-' + n); if (!el || !sEl) return;
+  el.innerHTML = `📌 <i>${esc(sEl.textContent.slice(0, 120))}${sEl.textContent.length > 120 ? '…' : ''}</i>`;
+  document.querySelectorAll('.sent.ev').forEach(x => x.classList.remove('ev'));
+  Object.values(FQ.ev).forEach(k => $('#fq-s-' + k)?.classList.add('ev'));
+  const b = $('#fq-evb-' + i); if (b) b.textContent = '📌 Đổi câu chứng minh';
+}
 // what the student sees as chosen is what gets graded: read the highlighted option first, the stored pick second
 const fqPicked = i => { for (let k = 0; k < 4; k++) if ($(`#fq-${i}-${k}`)?.classList.contains('on')) return k; return FQ.sel[i] === undefined ? undefined : Number(FQ.sel[i]); };
 function fqSubmit() {
   if (FQ.done) return; FQ.done = true; stopTimer();
   if (PAUSED.quiz && PAUSED.quiz.id === FQ.id && PAUSED.quiz.ti === FQ.ti) delete PAUSED.quiz;   // a stale copy of this very text must not come back as "dở"
   saveRun();
-  const L = S.fach.find(l => l.id === FQ.id); const texts = lessonTexts(L); const qs = texts[FQ.ti].questions; let score = 0;
+  const L = S.fach.find(l => l.id === FQ.id); const texts = lessonTexts(L); const qs = texts[FQ.ti].questions; let score = 0, proven = 0;
+  document.querySelector('.fq-text')?.classList.remove('picking');
   qs.forEach((q, i) => {
-    const pick = fqPicked(i), ok = pick === Number(q.answer); if (ok) score++;
+    const pick = fqPicked(i), ok = pick === Number(q.answer); if (ok) { score++; if (FQ.ev[i] !== undefined) proven++; }
+    const evb = $('#fq-evb-' + i); if (evb) evb.remove();
+    if (ok && FQ.ev[i] === undefined) $('#fq-evt-' + i).innerHTML = '<span class="text-yellow-300">⚠ Đúng nhưng không chỉ ra câu chứng minh → tính là đoán/nhớ.</span>';
     for (let k = 0; k < 4; k++) { const b = $(`#fq-${i}-${k}`); b.classList.remove('on'); if (k === Number(q.answer)) b.classList.add('good'); else if (k === pick) b.classList.add('bad'); }
     const head = pick === undefined ? `<b class="text-yellow-300">⚠ Bạn chưa chọn đáp án nào · đáp án đúng (${'ABCD'[q.answer]})</b>` : ok ? `<b class="text-emerald-300">✓ Đúng · đáp án (${'ABCD'[q.answer]})</b>` : `<b class="text-red-400">✗ Bạn chọn (${'ABCD'[pick]}) · đáp án đúng (${'ABCD'[q.answer]})</b>`;
     $(`#fq-exp-${i}`).innerHTML = `<div class="sol mt-3">${head}<div class="mt-1">${md(q.explain_vi)}</div><button class="btn btn-ghost text-xs mt-2" onclick="openChat({ lid: '${L.id}', ti: ${FQ.ti}, qi: ${i}, pick: ${pick === undefined ? 'null' : pick} })">💬 Vẫn chưa hiểu? Hỏi câu này</button></div>`;
   });
   const prevQ = (L.quizzes || {})[FQ.ti] || {};
-  L.quizzes = Object.assign({}, L.quizzes, { [FQ.ti]: { score, total: qs.length, date: todayStr(), best: Math.max(prevQ.best || 0, prevQ.score || 0, score) } }); save(); addXP(score * 15); renderStats();
+  L.quizzes = Object.assign({}, L.quizzes, { [FQ.ti]: { score, proven, total: qs.length, date: todayStr(), best: Math.max(prevQ.best || 0, prevQ.score || 0, score) } }); save(); addXP(score * 15); renderStats();
   setTimeout(autoCheckin, 1500);
   const next = FQ.ti + 1 < texts.length;
-  $('#fq-submit').outerHTML = `<div class="panel ${score / qs.length >= .7 ? 'neon' : 'danger'} p-4 text-center"><div class="text-4xl font-bold">${score}/${qs.length}</div>
+  $('#fq-submit').outerHTML = `<div class="panel ${score / qs.length >= .7 ? 'neon' : 'danger'} p-4 text-center"><div class="text-4xl font-bold">${score}/${qs.length}</div><div class="text-sm text-slate-300 mt-1">📌 có bằng chứng trong text: <b>${proven}/${score}</b> câu đúng${score - proven ? ` · ${score - proven} câu đúng nhờ đoán/nhớ` : ''}</div>
     <div class="flex flex-wrap justify-center gap-2 mt-3"><button class="btn btn-ghost" onclick="fachQuiz(S.fach.find(l=>l.id==='${L.id}'),${FQ.ti})">Làm lại</button>
     ${debts().length ? `<button class="btn btn-red" onclick="payDebt()">💸 Trả nợ tiếp</button>` : ''}
-    <button class="btn btn-neon" onclick="openFach('${L.id}','path');window.scrollTo({top:0})">${next ? `🎯 Bước ${FQ.ti + 2}: thẻ → Text ${FQ.ti + 2}` : '🎯 Xem lộ trình'}</button></div></div>`;
+    ${L.cold ? `<button class="btn btn-neon" onclick="go('fach')">🧊 Xem so sánh text lạ / text quen</button>` : `<button class="btn btn-neon" onclick="openFach('${L.id}','path');window.scrollTo({top:0})">③ 🧠 Chốt bằng thẻ kiến thức →</button>`}</div></div>`;
   score / qs.length >= .7 ? praise(`${score}/${qs.length}. Đọc tiếng Đức cũng không tệ. Đừng tự mãn.`) : roast(`${score}/${qs.length}. Mở mục 🇩🇪 Từ vựng ra học đi rồi đọc lại Fachtext.`);
 }
 function fachVocab(L) {
@@ -1831,7 +1871,7 @@ function resetAnki() {
 function renderAnki() {
   if (ANKI && !ANKI.done) return renderAnkiCard();
   const p = ankiPlan(), now = Date.now();
-  const rows = ankiLessons().map(L => { const cs = lessonCards(L); const open = lessonOpen(L);
+  const rows = ankiLessons().filter(L => lessonCards(L).length).map(L => { const cs = lessonCards(L); const open = lessonOpen(L);
     const due = cs.filter(c => isDueCard(cardState(c), now)).length, nw = cs.filter(c => !cardState(c) || cardState(c).state === 'new').length;
     return `<button class="w-full grid grid-cols-[1fr_60px_60px] gap-2 items-center text-left panel px-3 py-2 ${open && (due || nw) ? '' : 'opacity-50'}" ${open && (due || nw) ? `onclick="startDeck('${L.id}')"` : open ? '' : `onclick="debtBlock('Thẻ của bài ngày ${L.day}')"`}>
       <span class="min-w-0"><b class="text-pink-200">${open ? '' : '🔒 '}${dayLabel(L)} · ${esc(L.title)}</b><div class="text-xs text-slate-500">${cs.length} thẻ · đã học ${cs.length - nw}</div></span>
@@ -1854,16 +1894,20 @@ function renderAnki() {
       <div class="space-y-1 mt-2">${rows || '<div class="text-slate-500 text-sm p-3">Chưa có bài Fach nào, nên chưa có thẻ.</div>'}</div>
     </section>`;
 }
-function startDeck(lid, chunk) {
+// new knowledge cards of a text stay closed until that text was read "cold" (vocabulary cards are always open)
+const textDone = c => { const L = S.fach.find(l => l.id === c.lid); return !L || !!(L.quizzes || {})[c.chunk]; };
+const cardOpenNew = c => c.type === 'vocab' || textDone(c);
+function startDeck(lid, chunk, kind) {
   const now = Date.now(), p = ankiPlan(now), step = chunk === undefined || chunk === null ? null : +chunk;
-  const pool = ankiLessons().filter(L => lessonOpen(L) && (!lid || L.id === lid)).flatMap(lessonCards).filter(c => step === null || c.chunk === step);
+  const pool = ankiLessons().filter(L => lessonOpen(L) && (!lid || L.id === lid)).flatMap(lessonCards).filter(c => (step === null || c.chunk === step) && (!kind || (kind === 'vocab') === (c.type === 'vocab')))
+    .filter(c => (cardState(c) && cardState(c).state !== 'new') || cardOpenNew(c));
   const due = pool.filter(c => isDueCard(cardState(c), now)).sort((a, b) => cardState(a).due - cardState(b).due);
   const nw = pool.filter(c => !cardState(c) || cardState(c).state === 'new').slice(0, p.newLeft);
   const items = [...due, ...nw];
   if (!items.length) { tutorSay(pool.some(c => !cardState(c)) ? 'Bạn đã học hết thẻ mới của các bài đang mở. Muốn có thêm thì mở khoá bài tiếp theo.' : 'Không còn thẻ đến hạn hay thẻ mới. Hiếm lắm mới thấy bạn sạch nợ.', 'praise'); return; }
   if (currentTab !== 'anki') { stopTimer(); currentTab = 'anki'; renderTabs(); }
   stashRun('anki');   // a deck left half-done stays resumable once this one is finished
-  ANKI = { items, i: 0, revealed: false, done: false, again: 0, answered: 0, title: (lid ? dayLabel(S.fach.find(l => l.id === lid)) : 'Tất cả bài') + (step !== null ? ` · Bước ${step + 1}` : ''), lid, step, nDue: due.length, nNew: nw.length };
+  ANKI = { items, i: 0, revealed: false, done: false, again: 0, answered: 0, title: (lid ? dayLabel(S.fach.find(l => l.id === lid)) : 'Tất cả bài') + (step !== null ? ` · Bước ${step + 1}` : '') + (kind === 'vocab' ? ' · từ vựng' : kind === 'know' ? ' · kiến thức' : ''), lid, step, kind, nDue: due.length, nNew: nw.length };
   renderAnkiCard(); window.scrollTo({ top: 0 });
 }
 function renderAnkiCard() {
@@ -1871,7 +1915,7 @@ function renderAnkiCard() {
   if (ANKI.done) {
     $('#view').innerHTML = `<section class="panel neon p-6 text-center"><div class="text-4xl">🃏</div><div class="text-2xl font-bold mt-2">Xong phiên thẻ</div>
       <div class="mono mt-1">${ANKI.answered} lượt chấm · ${ANKI.again} lần quên</div><p class="text-sm text-slate-400 mt-1">Thẻ quên sẽ tự quay lại trong bộ thẻ khi đến giờ.</p>
-      <div class="flex flex-wrap justify-center gap-2 mt-4">${ANKI.step !== null && ANKI.step !== undefined && ANKI.lid ? `<button class="btn btn-pink" onclick="const s=ANKI.step,l=ANKI.lid;ANKI=null;openFachText(l,s)">📖 Đọc + làm Text ${ANKI.step + 1} →</button><button class="btn btn-ghost" onclick="const l=ANKI.lid;ANKI=null;openFach(l,'path')">🎯 Lộ trình</button>` : ''}<button class="btn btn-neon" onclick="ANKI=null;renderAnki()">Về bộ thẻ</button></div></section>`;
+      <div class="flex flex-wrap justify-center gap-2 mt-4">${ANKI.step !== null && ANKI.step !== undefined && ANKI.lid && ANKI.kind !== 'know' ? `<button class="btn btn-pink" onclick="const s=ANKI.step,l=ANKI.lid;ANKI=null;openFachText(l,s)">② 📖 Đọc text lạnh + làm câu →</button><button class="btn btn-ghost" onclick="const l=ANKI.lid;ANKI=null;openFach(l,'path')">🎯 Lộ trình</button>` : ANKI.lid && ANKI.kind === 'know' ? `<button class="btn btn-pink" onclick="const l=ANKI.lid;ANKI=null;openFach(l,'path')">🎯 Bước tiếp theo</button>` : ''}<button class="btn btn-neon" onclick="ANKI=null;renderAnki()">Về bộ thẻ</button></div></section>`;
     ANKI.done && ANKI.again > ANKI.answered / 3 ? roast(`Quên ${ANKI.again}/${ANKI.answered} lượt. Não bạn là cái rổ, không phải cái bình.`) : praise('Hết phiên. Nhớ được bao nhiêu thì mai tôi kiểm tra lại.');
     return;
   }
@@ -1931,7 +1975,7 @@ const liveAnki = () => !!(ANKI && !ANKI.done && ANKI.i < ANKI.items.length);
 const liveQuiz = () => !!(FQ && !FQ.done && Object.keys(FQ.sel).length);
 function snapshot(slot) {
   if (slot === 'anki') return liveAnki() ? { title: ANKI.title, nDue: ANKI.nDue, nNew: ANKI.nNew, again: ANKI.again, answered: ANKI.answered, refs: ANKI.items.slice(ANKI.i).map(c => [c.lid, c.id]) } : null;
-  return liveQuiz() ? { id: FQ.id, ti: FQ.ti, sel: FQ.sel, t: FQ.t } : null;
+  return liveQuiz() ? { id: FQ.id, ti: FQ.ti, sel: FQ.sel, ev: FQ.ev, t: FQ.t } : null;
 }
 const isLive = slot => slot === 'anki' ? liveAnki() : liveQuiz();
 const isViewing = slot => RUNVIEW === slot && isLive(slot);
@@ -1991,7 +2035,7 @@ function resumeRun(slot) {
     currentTab = 'anki'; renderTabs(); renderAnkiCard();
   } else {
     const L = S.fach.find(l => l.id === P.id); if (!L) return dropRun('quiz');
-    const keep = { sel: P.sel, t: P.t }; delete PAUSED.quiz; currentTab = 'fach'; renderTabs();
+    const keep = { sel: P.sel, ev: P.ev, t: P.t }; delete PAUSED.quiz; currentTab = 'fach'; renderTabs();
     openFachText(L.id, P.ti, keep);
     if (!FQ || FQ.id !== L.id) { PAUSED.quiz = P; saveRun(); renderResume(); }   // e.g. the lesson is locked by a debt
   }
@@ -2090,6 +2134,73 @@ async function chatSend(text) {
   }
   CHAT_ABORT = null; chatSave();
   if (currentTab === 'chat') renderChat();
+}
+
+/* =====================================================================
+   13. TEXT LẠ — one unseen text per day on a topic outside the plan, written by Claude in the official
+   question style and done "cold" (no cards before). Kept as a bonus lesson so it syncs like the others;
+   its scores are compared with the scores of the studied ("familiar") texts.
+   ===================================================================== */
+const COLD_ID = 'fach-cold-texts';
+const COLD_TOPICS = ['Spezifisches Immunsystem: B-Zellen, T-Zellen und Antikörper', 'Impfung: aktive und passive Immunisierung', 'Embryonalentwicklung: die ersten Wochen',
+  'Bakterien und Antibiotika-Resistenz', 'Viren und ihre Vermehrung', 'Milz und lymphatisches System', 'Wundheilung der Haut', 'Knochenaufbau und Knochenumbau (Osteoblasten, Osteoklasten)',
+  'Muskelkontraktion (Aktin, Myosin, Calcium)', 'Thermoregulation und Fieber', 'Schlaf und innere Uhr', 'Magen und Magensäure', 'Dünndarm und Resorption der Nährstoffe',
+  'Calciumhaushalt und Nebenschilddrüse', 'Phenylketonurie und Neugeborenen-Screening', 'Pharmakokinetik: Aufnahme, Verteilung, Abbau eines Arzneimittels', 'Sauerstoffmangel in großer Höhe',
+  'Gedächtnisformen', 'Stress und Cortisol', 'Sehschwächen: Kurz- und Weitsichtigkeit', 'Hörverlust und Lärm', 'Blutzuckermessung und Diabetes Typ 1 vs. Typ 2', 'Anämie durch Eisenmangel', 'Allergie und Histamin'];
+const coldLesson = () => S.fach.find(l => l.id === COLD_ID);
+function ensureColdLesson() {
+  let L = coldLesson();
+  if (!L) { L = { id: COLD_ID, rev: 1, bonus: true, cold: true, day: 0, title: '🧊 Text lạ — đề chưa học', createdAt: new Date().toISOString(), source: 'Claude (soạn theo kiểu đề g.a.s.t.)', sourceFiles: [],
+    guide: { must: [], skip: [] }, lecture: { intro: '', outro: '', sections: [] }, testas: { texts: [] }, vocab: [], cards: [], quizzes: {} }; S.fach.push(L); }
+  return L;
+}
+const coldToday = () => { const L = coldLesson(); if (!L) return -1; return lessonTexts(L).findIndex(t => t.date === todayStr()); };
+function quizStats(filter) {
+  let sc = 0, tot = 0, pr = 0, n = 0;
+  S.fach.filter(filter).forEach(L => Object.values(L.quizzes || {}).forEach(q => { sc += q.best ?? q.score; tot += q.total; pr += q.proven || 0; n++; }));
+  return { n, pct: tot ? Math.round(sc / tot * 100) : null, proven: sc ? Math.round(pr / sc * 100) : null };
+}
+function coldPanel() {
+  const i = coldToday(), L = coldLesson(), cs = quizStats(l => l.cold), fs = quizStats(l => !l.cold && !l.bonus);
+  const gap = cs.pct != null && fs.pct != null ? fs.pct - cs.pct : null;
+  const done = i >= 0 && (L.quizzes || {})[i];
+  return `<section class="panel p-4 mt-4" style="border-color:rgba(125,211,252,.55)">
+    <div class="flex flex-wrap items-center justify-between gap-2"><div><div class="text-xs mono text-sky-300">🧊 TEXT LẠ HÔM NAY · ~10 phút · không học thẻ trước</div>
+      <div class="text-sm text-slate-300 mt-1">Chủ đề bạn chưa học, giống phòng thi. Đọc câu hỏi trước, rồi tìm câu chứng minh trong text.</div></div>
+      ${i >= 0 ? `<button class="btn ${done ? 'btn-ghost' : 'btn-neon'}" onclick="openFachText('${COLD_ID}',${i})">${done ? '✓ Xem lại' : '📖 Làm text lạ'}: ${esc(lessonTexts(L)[i].topic || '')}</button>`
+        : `<button class="btn btn-neon" id="cold-gen" onclick="makeColdText()">✨ Tạo text lạ hôm nay</button>`}</div>
+    <div class="grid sm:grid-cols-3 gap-2 mt-3 text-sm">
+      <div class="panel p-2"><div class="text-[11px] text-slate-400 mono">TEXT QUEN (đã học)</div><b>${fs.pct ?? '–'}%</b> đúng${fs.proven != null ? ` · 📌 ${fs.proven}% có bằng chứng` : ''}</div>
+      <div class="panel p-2"><div class="text-[11px] text-slate-400 mono">TEXT LẠ (${cs.n} bài)</div><b>${cs.pct ?? '–'}%</b> đúng${cs.proven != null ? ` · 📌 ${cs.proven}% có bằng chứng` : ''}</div>
+      <div class="panel p-2"><div class="text-[11px] text-slate-400 mono">CHÊNH LỆCH</div>${gap == null ? 'chưa đủ dữ liệu' : gap > 15 ? `<b class="text-red-300">${gap} điểm</b> — đang dựa vào trí nhớ, tập đọc text nhiều hơn` : `<b class="text-emerald-300">${gap} điểm</b> — kỹ năng đọc ổn`}</div>
+    </div></section>`;
+}
+async function makeColdText() {
+  await capReady;
+  if (!CAP.sample) return tutorSay('Tạo text lạ cần mở app trên claude.ai (quyền "hỏi Claude"). Ở đây tôi không gọi được Claude.', 'roast');
+  const btn = $('#cold-gen'); if (btn) { btn.disabled = true; btn.textContent = '⏳ Claude đang viết text… (~30–60 giây)'; }
+  const L = ensureColdLesson(), used = new Set(lessonTexts(L).map(t => t.topic));
+  const free = COLD_TOPICS.filter(t => !used.has(t)), topic = (free.length ? free : COLD_TOPICS)[Math.floor(Math.random() * (free.length || COLD_TOPICS.length))];
+  const prompt = `Bạn là người ra đề TestAS Fachmodul Medizin (bản digital của g.a.s.t.). Viết MỘT Übungsaufgabe về chủ đề: "${topic}".
+YÊU CẦU:
+- Fachtext tiếng Đức 250–350 từ, văn phong sách giáo khoa tiền lâm sàng, câu rõ ràng; có thể kèm 1 bảng nhỏ nếu hợp. Kiến thức phải CHÍNH XÁC.
+- 6 câu hỏi tiếng Đức, mỗi câu 4 lựa chọn, đúng 1 đáp án; MỌI câu giải được chỉ bằng text + suy luận (người đọc chưa học chủ đề này).
+- Tối đa 2 câu đọc hiểu trực tiếp; ít nhất 4 câu áp dụng: ca lâm sàng ngắn, thông tin mới trong câu hỏi ghép với text, đảo vai/đảo chiều, điều kiện cần/đủ, tính toán từ quy tắc hay bảng, suy ngược nguyên nhân. Có thể 1 câu đáp án đúng là "Eine klare Aussage ist nicht möglich." nếu dữ kiện thật sự không đủ.
+- Đáp án sai dựng bằng cách đảo quan hệ, nhầm số/mốc, khái quát quá đà; không có lựa chọn vô lý. Đáp án đúng phân bố ngẫu nhiên.
+- explain_vi: tiếng Việt, ghi dạng câu (VD "Dạng ĐẢO VAI"), trích cụm tiếng Đức chứng minh trong text, nói vì sao đáp án sai bị loại.
+Trả về DUY NHẤT JSON: {"title_de":"Text: …","text_de":"đoạn 1\\n\\nđoạn 2","table":null hoặc {"caption":"…","head":["…"],"rows":[["…"]]},"questions":[{"q":"…","options":["…","…","…","…"],"answer":0,"explain_vi":"…"}]}`;
+  try {
+    const raw = await CAP.sample.json(prompt, { modelTier: 'complex' });
+    const [t] = normTexts({ texts: [raw] });
+    if (!t || t.questions.length < 4) throw new Error('Claude trả về text không hợp lệ');
+    Object.assign(t, { topic, date: todayStr(), title_de: t.title_de || 'Text: ' + topic });
+    L.testas.texts = [...lessonTexts(L), t]; L.rev = (L.rev || 0) + 1; save();
+    tutorSay('Text lạ xong rồi. Không học thẻ gì hết, vào đọc như đi thi thật.', 'roast');
+    openFachText(COLD_ID, lessonTexts(L).length - 1);
+  } catch (e) {
+    if (btn) { btn.disabled = false; btn.textContent = '✨ Thử tạo lại'; }
+    tutorSay('Không tạo được text lạ (' + (e?.code || e?.message || 'lỗi') + '). Bấm thử lại sau ít phút.', 'roast');
+  }
 }
 
 const slug = s => stripVN(s).replace(/ /g, '-').slice(0, 50) || 'bai';
