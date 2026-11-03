@@ -1631,7 +1631,7 @@ function fachQuiz(L, ti = 0, restore = null) {
     return `<button class="optbtn text-xs ${k === ti ? 'on' : ''}" style="${r ? (r.score / r.total >= .7 ? 'border-color:var(--neon)' : 'border-color:var(--red)') : ''}" onclick="fachQuiz(S.fach.find(l=>l.id==='${L.id}'),${k})">Text ${k + 1}${r ? ` · ${r.score}/${r.total}` : ''}</button>`; }).join('');
   const table = T.table ? `<div class="overflow-x-auto mt-3"><table class="w-full text-sm border border-slate-700">${T.table.caption ? `<caption class="text-left text-xs text-slate-400 pb-1">${esc(T.table.caption)}</caption>` : ''}
     <thead><tr>${T.table.head.map(h => `<th class="border border-slate-700 px-2 py-1 text-left text-cyan-200">${esc(h)}</th>`).join('')}</tr></thead>
-    <tbody>${T.table.rows.map(r => `<tr>${r.map(c => `<td class="border border-slate-700 px-2 py-1 align-top">${md(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>` : '';
+    <tbody>${T.table.rows.map((r, ri) => `<tr class="sent" id="fq-s-${1000 + ri}" onclick="fqEvidence(${1000 + ri})">${r.map(c => `<td class="border border-slate-700 px-2 py-1 align-top">${md(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>` : '';
   $('#fach-body').innerHTML = `
     <div class="flex flex-wrap gap-2 mb-3">${chips}</div>
     <div class="flex flex-wrap gap-2 mb-3 items-center"><button class="btn btn-ghost text-xs" onclick="openChat({ lid: '${L.id}', ti: ${ti} })">💬 Hỏi về text này</button><span class="text-xs text-slate-400">Chạm vào từ gạch chân để xem nghĩa:</span>${hintBar(L)}</div>
@@ -1692,7 +1692,8 @@ function fqEvidencePaint() {
 }
 function fqEvidenceShow(i) {
   const el = $('#fq-evt-' + i); if (!el) return;
-  const list = evList(i).map(n => $('#fq-s-' + n)?.textContent || '').filter(Boolean);
+  const txt = el => !el ? '' : el.tagName === 'TR' ? '📊 ' + [...el.cells].map(c => c.textContent.trim()).join(' · ') : el.textContent;   // table rows count as evidence too
+  const list = evList(i).map(n => txt($('#fq-s-' + n))).filter(Boolean);
   el.innerHTML = list.map(t => `📌 <i>${esc(t.slice(0, 110))}${t.length > 110 ? '…' : ''}</i>`).join('<br>');
   fqEvidenceLabel(i); fqEvidencePaint();
 }
