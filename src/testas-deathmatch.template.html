@@ -2233,18 +2233,26 @@ Trả về DUY NHẤT JSON: {"title_de":"Text: …","text_de":"đoạn 1\\n\\nđ
    that text. Saved words are studied after the text ("🇩🇪 Học n từ bạn vừa lưu").
    ===================================================================== */
 const savedWordsOf = (lid, ti) => ((S.myWords || {})[lid] || []).filter(w => !w.del && (ti == null || +w.chunk === +ti));
-let WL = null, WL_TIMER = null, WL_FIRED = false;
+let WL = null, WL_TIMER = null, WL_FIRED = false, WL_START = null;
+// Find the word under a point by measuring each word of the text nodes under the finger. (caretRangeFromPoint
+// is not used: Safari returns nothing for text with user-select:none, which the quiz needs against the iOS copy menu.)
 function wordAt(x, y) {
-  let node, off;
-  if (document.caretRangeFromPoint) { const rg = document.caretRangeFromPoint(x, y); if (!rg) return null; node = rg.startContainer; off = rg.startOffset; }
-  else if (document.caretPositionFromPoint) { const ps = document.caretPositionFromPoint(x, y); if (!ps) return null; node = ps.offsetNode; off = ps.offset; }
-  if (!node || node.nodeType !== 3) return null;
-  const t = node.textContent, isW = ch => /[A-Za-zÄÖÜäöüß\-]/.test(ch);
-  let a = off, b = off; while (a > 0 && isW(t[a - 1])) a--; while (b < t.length && isW(t[b])) b++;
-  const word = t.slice(a, b).replace(/^-+|-+$/g, '');
-  if (word.length < 2) return null;
-  const host = node.parentElement.closest('.sent, [id^="fq-q-"] > .font-semibold, button.opt');
-  return { word, ctx: (host ? host.textContent : t).replace(/\s+/g, ' ').trim().slice(0, 220) };
+  const el = document.elementFromPoint(x, y); if (!el) return null;
+  const root = el.closest('.sent, p, button.opt, [id^="fq-q-"] > .font-semibold, td, th, h3') || el;
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), rg = document.createRange(), re = /[A-Za-zÄÖÜäöüß][A-Za-zÄÖÜäöüß\-]*/g;
+  let node;
+  while ((node = walker.nextNode())) {
+    let m; re.lastIndex = 0;
+    while ((m = re.exec(node.textContent))) {
+      rg.setStart(node, m.index); rg.setEnd(node, m.index + m[0].length);
+      for (const b of rg.getClientRects()) if (x >= b.left - 2 && x <= b.right + 2 && y >= b.top - 2 && y <= b.bottom + 2) {
+        const word = m[0].replace(/-+$/, ''); if (word.length < 2) return null;
+        const host = node.parentElement.closest('.sent, [id^="fq-q-"] > .font-semibold, button.opt');
+        return { word, ctx: (host ? host.textContent : node.textContent).replace(/\s+/g, ' ').trim().slice(0, 220) };
+      }
+    }
+  }
+  return null;
 }
 function wordLookupAt(x, y) {
   if (!FQ) return;
@@ -2291,10 +2299,12 @@ function wlSave() {
 // gestures: long-press on touch screens, double-click with a mouse; the native text menu is suppressed in the quiz
 addEventListener('touchstart', e => {
   const t = e.target.closest('.fq-text, #fq-list'); if (!t || e.touches.length !== 1) return;
-  const { clientX: x, clientY: y } = e.touches[0]; WL_FIRED = false; clearTimeout(WL_TIMER);
-  WL_TIMER = setTimeout(() => { WL_FIRED = true; wordLookupAt(x, y); }, 500);
+  const { clientX: x, clientY: y } = e.touches[0]; WL_FIRED = false; clearTimeout(WL_TIMER); WL_START = { x, y };
+  WL_TIMER = setTimeout(() => { WL_FIRED = true; wordLookupAt(x, y); }, 450);
 }, { passive: true });
-['touchmove', 'touchcancel'].forEach(ev => addEventListener(ev, () => clearTimeout(WL_TIMER), { passive: true }));
+// a finger always trembles a little: only a real drag (> 12 px) cancels the long-press
+addEventListener('touchmove', e => { if (!WL_START || !e.touches[0]) return; const dx = e.touches[0].clientX - WL_START.x, dy = e.touches[0].clientY - WL_START.y; if (dx * dx + dy * dy > 144) clearTimeout(WL_TIMER); }, { passive: true });
+addEventListener('touchcancel', () => clearTimeout(WL_TIMER), { passive: true });
 addEventListener('touchend', e => { clearTimeout(WL_TIMER); if (WL_FIRED) { e.preventDefault(); WL_FIRED = false; } }, { passive: false });
 addEventListener('dblclick', e => { if (e.target.closest('.fq-text, #fq-list') && !e.target.closest('button.opt, .btn')) { e.preventDefault(); wordLookupAt(e.clientX, e.clientY); } });
 addEventListener('contextmenu', e => { if (e.target.closest('.fq-text, #fq-list')) e.preventDefault(); });
