@@ -1731,14 +1731,57 @@ function hashStr(t) { let h = 5381; for (let i = 0; i < t.length; i++) h = (h * 
 // that text's vocabulary → its knowledge cards → read the text → its 6 questions.
 // A card belongs to the text that contains most of its German terms; cards with no match keep
 // their place in the lecture order. Card ids do not depend on the order (schedules are kept).
+// A lecture section becomes several small cards, each readable in ~15 s (≤ ~180 visible characters):
+// "Term: explanation" → asks for the term; otherwise the first **bold** word is blanked out; the mnemonic gets its own card.
+const CARD_MAX = 180;
+const plainLen = t => t.replace(/\*\*/g, '').length;
+function packPieces(line, max = CARD_MAX) {
+  if (plainLen(line) <= max) return [line];
+  let parts = line.split(/(?<=[.;!?])\s+/);
+  parts = parts.flatMap(pt => plainLen(pt) <= max ? [pt] : pt.split(/(?<=,)\s+|\s+(?=→ [②-⑨])/));
+  const out = []; let cur = '';
+  parts.forEach(pt => { if (cur && plainLen(cur + ' ' + pt) > max) { out.push(cur); cur = pt; } else cur = cur ? cur + ' ' + pt : pt; });
+  if (cur) out.push(cur);
+  // a cut inside **bold** must close it here and reopen it in the next piece
+  let open = false;
+  return out.map(pt => { let t = (open ? '**' : '') + pt; const odd = (t.match(/\*\*/g) || []).length % 2 === 1; if (odd) t += '**'; open = odd; return t.replace(/\*\*\s*\*\*/g, ' ').replace(/^\*\*\*\*/, ''); });
+}
+const balBold = t => (t.match(/\*\*/g) || []).length % 2 ? t + '**' : t;
+// a long answer becomes several cards "(1/2)", "(2/2)" with the same question
+function splitBack(front, back, max = CARD_MAX) {
+  const parts = String(back).split('\n').filter(x => x.trim()).flatMap(x => packPieces(x.trim(), max)).map(balBold);
+  if (parts.length <= 1) return [[front, back]];
+  const groups = []; let cur = '';
+  parts.forEach(pt => { if (cur && plainLen(cur + '\n' + pt) > max) { groups.push(cur); cur = pt; } else cur = cur ? cur + '\n' + pt : pt; });
+  if (cur) groups.push(cur);
+  return groups.length <= 1 ? [[front, back]] : groups.map((g, i) => [`${front} (${i + 1}/${groups.length})`, g]);
+}
+function secCards(s) {
+  const cards = [], head = s.heading.replace(/\*\*/g, '');
+  const lines = String(s.explanation || '').split('\n').map(x => x.replace(/^\s*(?:[•\-]|\d+\.)\s+/, '').trim()).filter(x => x && !x.startsWith('|'));
+  let k = 0;
+  lines.flatMap(l => packPieces(l)).map(balBold).forEach(piece => {
+    if (/:\s*$/.test(piece.replace(/\*\*/g, ''))) return;   // a bare "Table:" header carries no fact
+    k++;
+    const colon = piece.match(/^(.{2,60}?):\s+(.+)$/);
+    if (colon && !/\*\*[^*]*$/.test(colon[1])) cards.push([`${head} (${k})\n${colon[1]}: …?`, colon[2]]);
+    else {
+      const m = piece.match(/\*\*([^*]+)\*\*/);
+      if (m) cards.push([`${head} (${k})\nĐiền chỗ trống:\n${piece.replace(m[0], '____')}`, `**${m[1]}**`]);
+      else cards.push([`${head} (${k})\nNhớ lại ý này rồi lật:`, piece]);
+    }
+  });
+  if (s.mnemonic) cards.push(...splitBack(`🤪 Mẹo nhớ: ${head}`, s.mnemonic));
+  return cards;
+}
 const CARD_CACHE = new Map();
 function lessonCards(L) {
   const texts = lessonTexts(L), key = L.id + ':' + (L.rev || 0) + ':' + texts.length + ':' + L.vocab.length + ':' + L.cards.length;
   if (CARD_CACHE.has(key)) return CARD_CACHE.get(key);
   const out = [], add = (type, front, back, extra = '') => out.push({ id: type + '-' + hashStr(front), lid: L.id, type, front, back, _t: (front + ' ' + back + ' ' + extra).toLowerCase() });
   L.vocab.forEach(v => add('vocab', v.de, v.vi, glossTerms(v).join(' ')));
-  L.cards.forEach(c => add('card', c.front, c.back));
-  L.lecture.sections.forEach(s => { if (s.heading) add('sec', s.heading, `${s.explanation}${s.mnemonic ? '\n\n🤪 Mẹo bựa: ' + s.mnemonic : ''}`, s.kernsaetze.map(k => k.de).join(' ')); });
+  L.cards.forEach(c => splitBack(c.front, c.back).forEach(([f, bk]) => add('card', f, bk)));
+  L.lecture.sections.forEach(s => { if (s.heading) secCards(s).forEach(([f, bk]) => add('sec', f, bk, s.kernsaetze.map(k => k.de).join(' '))); });
   L.lecture.sections.forEach(s => s.kernsaetze.forEach(k => clozeOf(k) ? add('cloze', `Điền từ còn thiếu:\n${clozeOf(k)}`, `${k.de}\n\n→ ${k.vi}`) : add('ks', k.de, k.vi)));
   const n = texts.length, bodies = texts.map(t => (t.title_de + ' ' + t.text_de + ' ' + (t.table ? JSON.stringify(t.table) : '')).toLowerCase());
   const terms = [...new Set(L.vocab.flatMap(glossTerms).map(t => t.toLowerCase()).filter(t => t.length >= 4))];
