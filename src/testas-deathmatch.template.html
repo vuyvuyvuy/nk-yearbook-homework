@@ -99,7 +99,7 @@
 
 /* ---------- TestAS text + questions: the text stays in view while the questions scroll ---------- */
 .fq-split{display:grid;gap:1rem}
-.fq-text{position:sticky;top:0;z-index:5;max-height:42vh;overflow:auto;background:#0b1020;box-shadow:0 10px 24px rgba(0,0,0,.55)}
+.fq-text{position:sticky;top:0;z-index:5;max-height:42vh;overflow:auto;padding-bottom:6rem !important;scroll-padding-bottom:6rem;background:#0b1020;box-shadow:0 10px 24px rgba(0,0,0,.55)}
 @media (min-width:1024px),(min-width:700px) and (orientation:landscape){.fq-split{grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start}.fq-text{top:.75rem;max-height:calc(100vh - 1.5rem);box-shadow:none}}
 .path-step{display:grid;grid-template-columns:auto minmax(0,1fr);gap:.75rem;align-items:start}
 .path-dot{width:2rem;height:2rem;border-radius:99px;display:grid;place-items:center;font-weight:700;border:1px solid rgba(255,255,255,.2)}
@@ -133,6 +133,7 @@
 .pomo-set{display:grid;grid-template-columns:1fr 1fr;gap:6px 8px;margin-top:8px;padding-top:8px;border-top:1px dashed rgba(255,255,255,.18)}.pomo-set.hidden{display:none}
 .pomo-f{display:grid;gap:2px;font-size:11px;color:#94a3b8}.pomo-f input{width:100%;padding:4px 6px;font-size:13px}
 #pomo-count{white-space:nowrap}.pomo-c input{width:auto!important;flex:none}.pomo-c{grid-column:1/-1;font-size:12px;color:#cbd5e1;display:flex;gap:6px;align-items:center}
+#pomo.ghost{opacity:.45;transition:opacity .2s}#pomo.ghost:hover,#pomo.ghost:active{opacity:1}
 #pomo.min{width:auto}#pomo.min .pomo-card{padding:4px 10px 4px 4px;border-radius:99px}#pomo.min .pomo-body>div:not(#pomo-time){display:none}#pomo.min .pomo-duckbtn{width:38px;height:38px}#pomo.min .pomo-time{font-size:20px}#pomo.min .pomo-set{display:none}
 </style>
 </head>
@@ -2576,7 +2577,8 @@ function pomoRender() {
   const left = pomoLeft(), mm = fmtMS(left), [label, color] = POMO_PHASE[PM.phase], total = pomoDur(PM.phase);
   const mood = PM.phase !== 'focus' ? (PM.running ? 'break' : 'sleepy') : PM.running ? 'focus' : 'sleepy';
   const pct = total ? Math.min(100, (1 - left / total) * 100) : 0;
-  root.classList.toggle('min', PM.min);
+  const inQuiz = !!document.querySelector('.fq-text');
+  root.classList.toggle('min', PM.min || inQuiz); root.classList.toggle('ghost', inQuiz);
   root.style.setProperty('--pm', color);
   if (!root.dataset.built) {
     root.dataset.built = '1';
