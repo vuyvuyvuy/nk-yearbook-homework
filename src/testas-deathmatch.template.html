@@ -108,6 +108,8 @@
 .fq-text.picking .sent:hover{background:rgba(0,229,255,.22)}
 .sent.ev{background:rgba(250,204,21,.18);box-shadow:inset 0 -2px 0 rgba(250,204,21,.7)}
 .sent.ev-cur{background:rgba(250,204,21,.38);box-shadow:inset 0 -3px 0 #facc15}
+.fq-text,#fq-list{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+#wl-pop{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(1rem + env(safe-area-inset-bottom,0px));z-index:90;width:min(520px,calc(100vw - 1.5rem))}
 /* ---------- pomodoro + duck ---------- */
 #pomo{position:fixed;left:.75rem;z-index:60;width:min(300px,calc(100vw - 1.5rem));bottom:calc(9.5rem + env(safe-area-inset-bottom,0px));--pm:var(--neon)}
 @media (min-width:768px){#pomo{bottom:calc(.75rem + env(safe-area-inset-bottom,0px))}}
@@ -328,6 +330,12 @@ function mergeState(a, r) {
   m.bestStreak = Math.max(a.bestStreak || 0, r.bestStreak || 0, m.streak);
   ['xp', 'deaths', 'punishments'].forEach(k => { m[k] = Math.max(a[k] || 0, r[k] || 0); });
   m.srsResetAt = Math.max(a.srsResetAt || 0, r.srsResetAt || 0);
+  m.myWords = {};
+  [...new Set([...Object.keys(a.myWords || {}), ...Object.keys(r.myWords || {})])].forEach(lid => {
+    const byDe = new Map();
+    [...((r.myWords || {})[lid] || []), ...((a.myWords || {})[lid] || [])].forEach(w => { const o = byDe.get(w.de); if (!o || (w.at || 0) >= (o.at || 0)) byDe.set(w.de, w); });
+    m.myWords[lid] = [...byDe.values()];
+  });
   if ((r.startDateSetAt || 0) > (a.startDateSetAt || 0)) { m.startDate = r.startDate; m.startDateSetAt = r.startDateSetAt; }
   else if (!a.startDateSetAt && !r.startDateSetAt && r.startDate < a.startDate) m.startDate = r.startDate;   // neither chose: earliest first-use wins
   m.erCleared = [...new Set([...(a.erCleared || []), ...(r.erCleared || [])])].sort((x, y) => x - y);
@@ -1627,7 +1635,7 @@ function fachQuiz(L, ti = 0, restore = null) {
     <div class="flex flex-wrap gap-2 mb-3">${chips}</div>
     <div class="flex flex-wrap gap-2 mb-3 items-center"><button class="btn btn-ghost text-xs" onclick="openChat({ lid: '${L.id}', ti: ${ti} })">💬 Hỏi về text này</button><span class="text-xs text-slate-400">Chạm vào từ gạch chân để xem nghĩa:</span>${hintBar(L)}</div>
     <div class="flex items-center justify-between mb-2"><div class="text-sm text-slate-400">Text ${ti + 1}/${texts.length} · ${qs.length} câu · ~1:35/câu · chỉ dùng thông tin trong text${sum ? ` · tổng đã làm ${sum.score}/${sum.total}` : ''}</div>
-      <div id="fq-time" class="mono text-2xl font-bold text-cyan-300">${fmtMS(FQ.t)}</div></div>
+      <div class="text-[11px] text-slate-500 hidden md:block">Nhấn giữ (hoặc nhấp đúp) một từ để dịch + lưu vào Anki</div><div id="fq-time" class="mono text-2xl font-bold text-cyan-300">${fmtMS(FQ.t)}</div></div>
     <div class="fq-split">
       <article class="panel p-5 detext fq-text"><h3 class="text-lg font-bold text-cyan-300">${esc(T.title_de)}</h3>
         ${(() => { let n = 0; return T.text_de.split(/\n\s*\n/).map(p => `<p>${splitSentences(p).map(x => `<span class="sent" id="fq-s-${n}" onclick="fqEvidence(${n++})">${deHTML(x, G)}</span>`).join(' ')}</p>`).join(''); })()}${table}</article>
@@ -1707,7 +1715,7 @@ function fqSubmit() {
   L.quizzes = Object.assign({}, L.quizzes, { [FQ.ti]: { score, proven, total: qs.length, date: todayStr(), best: Math.max(prevQ.best || 0, prevQ.score || 0, score) } }); save(); addXP(score * 15); renderStats();
   setTimeout(autoCheckin, 1500);
   const next = FQ.ti + 1 < texts.length;
-  $('#fq-submit').outerHTML = `<div class="panel ${score / qs.length >= .7 ? 'neon' : 'danger'} p-4 text-center"><div class="text-4xl font-bold">${score}/${qs.length}</div><div class="text-sm text-slate-300 mt-1">📌 có bằng chứng trong text: <b>${proven}/${score}</b> câu đúng${score - proven ? ` · ${score - proven} câu đúng nhờ đoán/nhớ` : ''}</div>
+  $('#fq-submit').outerHTML = `<div class="panel ${score / qs.length >= .7 ? 'neon' : 'danger'} p-4 text-center"><div class="text-4xl font-bold">${score}/${qs.length}</div><div class="text-sm text-slate-300 mt-1">📌 có bằng chứng trong text: <b>${proven}/${score}</b> câu đúng${score - proven ? ` · ${score - proven} câu đúng nhờ đoán/nhớ` : ''}</div>${(() => { const n = savedWordsOf(L.id, FQ.ti).length; return n ? `<button class="btn btn-pink mt-3" onclick="startDeck('${L.id}',${FQ.ti},'mine')">🇩🇪 Học ${n} từ bạn vừa lưu</button>` : ''; })()}
     <div class="flex flex-wrap justify-center gap-2 mt-3"><button class="btn btn-ghost" onclick="fachQuiz(S.fach.find(l=>l.id==='${L.id}'),${FQ.ti})">Làm lại</button>
     ${debts().length ? `<button class="btn btn-red" onclick="payDebt()">💸 Trả nợ tiếp</button>` : ''}
     ${L.cold ? `<button class="btn btn-neon" onclick="go('fach')">🧊 Xem so sánh text lạ / text quen</button>` : `<button class="btn btn-neon" onclick="openFach('${L.id}','path');window.scrollTo({top:0})">③ 🧠 Chốt bằng thẻ kiến thức →</button>`}</div></div>`;
@@ -1828,7 +1836,7 @@ function secCards(s) {
 }
 const CARD_CACHE = new Map();
 function lessonCards(L) {
-  const texts = lessonTexts(L), key = L.id + ':' + (L.rev || 0) + ':' + texts.length + ':' + L.vocab.length + ':' + L.cards.length;
+  const mine = ((S.myWords || {})[L.id] || []).filter(w => !w.del), texts = lessonTexts(L), key = L.id + ':' + (L.rev || 0) + ':' + texts.length + ':' + L.vocab.length + ':' + L.cards.length + ':' + mine.map(w => w.de + w.vi).join('|');
   if (CARD_CACHE.has(key)) return CARD_CACHE.get(key);
   const out = [], add = (type, front, back, extra = '') => out.push({ id: type + '-' + hashStr(front), lid: L.id, type, front, back, _t: (front + ' ' + back + ' ' + extra).toLowerCase() });
   L.vocab.forEach(v => add('vocab', v.de, v.vi, glossTerms(v).join(' ')));
@@ -1852,6 +1860,10 @@ function lessonCards(L) {
     c.chunk = best >= 0 ? best : n ? Math.min(n - 1, Math.floor(pos * n / totals[c.type])) : 0;
     c.ord = i; delete c._t;
   });
+  // words the student saved while reading go to the text where they were found, before its other cards
+  const have = new Set(out.map(c => c.id));
+  mine.forEach((w, k) => { const id = 'vocab-' + hashStr(w.de); if (have.has(id)) return; have.add(id);
+    out.push({ id, lid: L.id, type: 'vocab', mine: true, front: w.de, back: w.vi + (w.ctx ? `\n\n„${w.ctx}“` : ''), chunk: Math.min(Math.max(0, +w.chunk || 0), Math.max(0, n - 1)), ord: -1000 + k }); });
   out.sort((a, b) => a.chunk - b.chunk || ORDER[a.type] - ORDER[b.type] || a.ord - b.ord);
   CARD_CACHE.set(key, out);
   return out;
@@ -1911,7 +1923,7 @@ const textDone = c => { const L = S.fach.find(l => l.id === c.lid); return !L ||
 const cardOpenNew = c => c.type === 'vocab' || textDone(c);
 function startDeck(lid, chunk, kind) {
   const now = Date.now(), p = ankiPlan(now), step = chunk === undefined || chunk === null ? null : +chunk;
-  const pool = ankiLessons().filter(L => lessonOpen(L) && (!lid || L.id === lid)).flatMap(lessonCards).filter(c => (step === null || c.chunk === step) && (!kind || (kind === 'vocab') === (c.type === 'vocab')))
+  const pool = ankiLessons().filter(L => lessonOpen(L) && (!lid || L.id === lid)).flatMap(lessonCards).filter(c => (step === null || c.chunk === step) && (!kind || (kind === 'mine' ? c.mine : (kind === 'vocab') === (c.type === 'vocab'))))
     .filter(c => (cardState(c) && cardState(c).state !== 'new') || cardOpenNew(c));
   const due = pool.filter(c => isDueCard(cardState(c), now)).sort((a, b) => cardState(a).due - cardState(b).due);
   const nw = pool.filter(c => !cardState(c) || cardState(c).state === 'new').slice(0, p.newLeft);
@@ -1919,7 +1931,7 @@ function startDeck(lid, chunk, kind) {
   if (!items.length) { tutorSay(pool.some(c => !cardState(c)) ? 'Bạn đã học hết thẻ mới của các bài đang mở. Muốn có thêm thì mở khoá bài tiếp theo.' : 'Không còn thẻ đến hạn hay thẻ mới. Hiếm lắm mới thấy bạn sạch nợ.', 'praise'); return; }
   if (currentTab !== 'anki') { stopTimer(); currentTab = 'anki'; renderTabs(); }
   stashRun('anki');   // a deck left half-done stays resumable once this one is finished
-  ANKI = { items, i: 0, revealed: false, done: false, again: 0, answered: 0, title: (lid ? dayLabel(S.fach.find(l => l.id === lid)) : 'Tất cả bài') + (step !== null ? ` · Bước ${step + 1}` : '') + (kind === 'vocab' ? ' · từ vựng' : kind === 'know' ? ' · kiến thức' : ''), lid, step, kind, nDue: due.length, nNew: nw.length };
+  ANKI = { items, i: 0, revealed: false, done: false, again: 0, answered: 0, title: (lid ? dayLabel(S.fach.find(l => l.id === lid)) : 'Tất cả bài') + (step !== null ? ` · Bước ${step + 1}` : '') + (kind === 'vocab' ? ' · từ vựng' : kind === 'know' ? ' · kiến thức' : kind === 'mine' ? ' · từ bạn lưu' : ''), lid, step, kind, nDue: due.length, nNew: nw.length };
   renderAnkiCard(); window.scrollTo({ top: 0 });
 }
 function renderAnkiCard() {
@@ -2214,6 +2226,78 @@ Trả về DUY NHẤT JSON: {"title_de":"Text: …","text_de":"đoạn 1\\n\\nđ
     tutorSay('Không tạo được text lạ (' + (e?.code || e?.message || 'lỗi') + '). Bấm thử lại sau ít phút.', 'roast');
   }
 }
+
+/* =====================================================================
+   14. LOOK UP A WORD — long-press (touch) or double-click any German word in a TestAS text or question:
+   a short translation (lesson vocabulary first, else Claude), and a button to save it as an Anki card of
+   that text. Saved words are studied after the text ("🇩🇪 Học n từ bạn vừa lưu").
+   ===================================================================== */
+const savedWordsOf = (lid, ti) => ((S.myWords || {})[lid] || []).filter(w => !w.del && (ti == null || +w.chunk === +ti));
+let WL = null, WL_TIMER = null, WL_FIRED = false;
+function wordAt(x, y) {
+  let node, off;
+  if (document.caretRangeFromPoint) { const rg = document.caretRangeFromPoint(x, y); if (!rg) return null; node = rg.startContainer; off = rg.startOffset; }
+  else if (document.caretPositionFromPoint) { const ps = document.caretPositionFromPoint(x, y); if (!ps) return null; node = ps.offsetNode; off = ps.offset; }
+  if (!node || node.nodeType !== 3) return null;
+  const t = node.textContent, isW = ch => /[A-Za-zÄÖÜäöüß\-]/.test(ch);
+  let a = off, b = off; while (a > 0 && isW(t[a - 1])) a--; while (b < t.length && isW(t[b])) b++;
+  const word = t.slice(a, b).replace(/^-+|-+$/g, '');
+  if (word.length < 2) return null;
+  const host = node.parentElement.closest('.sent, [id^="fq-q-"] > .font-semibold, button.opt');
+  return { word, ctx: (host ? host.textContent : t).replace(/\s+/g, ' ').trim().slice(0, 220) };
+}
+function wordLookupAt(x, y) {
+  if (!FQ) return;
+  const w = wordAt(x, y); if (!w) return;
+  WL = { word: w.word, ctx: w.ctx, lid: FQ.id, ti: FQ.ti, de: null, vi: null, busy: true }; wlRender(); wlTranslate();
+}
+async function wlTranslate() {
+  const cur = WL, L = S.fach.find(l => l.id === cur.lid), low = cur.word.toLowerCase();
+  const hit = (L?.vocab || []).find(v => glossTerms(v).some(t => t.toLowerCase() === low || low.startsWith(t.toLowerCase().slice(0, Math.max(4, t.length - 2)))));
+  if (hit) { Object.assign(cur, { de: hit.de, vi: hit.vi, busy: false }); return WL === cur && wlRender(); }
+  await capReady;
+  if (!CAP.sample) { Object.assign(cur, { de: cur.word, vi: '', busy: false, manual: true }); return WL === cur && wlRender(); }
+  try {
+    const j = await CAP.sample.json(`Dịch từ tiếng Đức "${cur.word}" trong câu sau sang tiếng Việt, theo đúng nghĩa trong ngữ cảnh.
+Câu: "${cur.ctx}"
+Trả về DUY NHẤT JSON {"de":"dạng từ điển: danh từ kèm der/die/das và số nhiều nếu cần, động từ ở nguyên mẫu (vd. hemmt → hemmen), tính từ ở dạng gốc","vi":"nghĩa tiếng Việt ngắn (tối đa 8 từ) đúng ngữ cảnh"}`, { modelTier: 'quick' });
+    Object.assign(cur, { de: String(j.de || cur.word).slice(0, 60), vi: String(j.vi || '').slice(0, 80), busy: false });
+  } catch (e) { Object.assign(cur, { de: cur.word, vi: '', busy: false, manual: true }); }
+  if (WL === cur) wlRender();
+}
+function wlRender() {
+  let el = $('#wl-pop'); if (!WL) { el?.remove(); return; }
+  if (!el) { el = document.createElement('div'); el.id = 'wl-pop'; document.body.appendChild(el); }
+  const saved = ((S.myWords || {})[WL.lid] || []).some(w => !w.del && w.de === WL.de);
+  el.innerHTML = `<div class="panel p-4" style="border-color:var(--pink)">
+    <div class="flex items-start justify-between gap-3"><div class="min-w-0"><div class="text-xl font-bold text-cyan-200">${esc(WL.de || WL.word)}</div>
+      ${WL.busy ? '<div class="text-sm text-slate-400 mt-1">Đang tra… 🦆</div>' : WL.manual ? `<input id="wl-vi" class="mt-2 w-full" placeholder="Không tra được tự động — gõ nghĩa tiếng Việt" value="${esc(WL.vi || '')}">` : `<div class="text-base mt-1">${esc(WL.vi)}</div>`}
+      <div class="text-xs text-slate-500 mt-2 italic">„${esc(WL.ctx.slice(0, 140))}${WL.ctx.length > 140 ? '…' : ''}“</div></div>
+      <button class="text-slate-400 hover:text-white text-lg" onclick="WL=null;wlRender()">✕</button></div>
+    <div class="flex gap-2 mt-3">${saved ? '<span class="btn btn-ghost text-sm" style="cursor:default">✓ Đã có trong Anki của text này</span>' : `<button class="btn btn-pink text-sm" ${WL.busy ? 'disabled' : ''} onclick="wlSave()">➕ Thêm vào Anki</button>`}
+      <button class="btn btn-ghost text-sm" onclick="WL=null;wlRender()">Đóng</button></div></div>`;
+}
+function wlSave() {
+  if (!WL || WL.busy) return;
+  const vi = WL.manual ? ($('#wl-vi')?.value || '').trim() : WL.vi;
+  if (!vi) return tutorSay('Gõ nghĩa tiếng Việt vào đã rồi mới lưu.', 'roast');
+  S.myWords = S.myWords || {};
+  const list = (S.myWords[WL.lid] || []).filter(w => w.de !== WL.de);
+  list.push({ de: WL.de, vi, ctx: WL.ctx.slice(0, 160), chunk: WL.ti, at: Date.now() });
+  S.myWords[WL.lid] = list; save();
+  tutorSay(`Lưu "${WL.de}". Làm xong text thì học nó, đừng để nó mốc trong kho.`);
+  WL = null; wlRender();
+}
+// gestures: long-press on touch screens, double-click with a mouse; the native text menu is suppressed in the quiz
+addEventListener('touchstart', e => {
+  const t = e.target.closest('.fq-text, #fq-list'); if (!t || e.touches.length !== 1) return;
+  const { clientX: x, clientY: y } = e.touches[0]; WL_FIRED = false; clearTimeout(WL_TIMER);
+  WL_TIMER = setTimeout(() => { WL_FIRED = true; wordLookupAt(x, y); }, 500);
+}, { passive: true });
+['touchmove', 'touchcancel'].forEach(ev => addEventListener(ev, () => clearTimeout(WL_TIMER), { passive: true }));
+addEventListener('touchend', e => { clearTimeout(WL_TIMER); if (WL_FIRED) { e.preventDefault(); WL_FIRED = false; } }, { passive: false });
+addEventListener('dblclick', e => { if (e.target.closest('.fq-text, #fq-list') && !e.target.closest('button.opt, .btn')) { e.preventDefault(); wordLookupAt(e.clientX, e.clientY); } });
+addEventListener('contextmenu', e => { if (e.target.closest('.fq-text, #fq-list')) e.preventDefault(); });
 
 const slug = s => stripVN(s).replace(/ /g, '-').slice(0, 50) || 'bai';
 async function downloadBlob(content, type, filename) {
