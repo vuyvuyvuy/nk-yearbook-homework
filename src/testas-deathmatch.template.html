@@ -315,12 +315,22 @@ function streakFrom(checkins) {
   for (let i = checkins.length - 1; i > 0 && daysBetween(checkins[i - 1], checkins[i]) === 1; i--) n++;
   return n;
 }
+// The synced store may reorder object keys, so lessons are compared by their questions only (not by raw JSON).
+const qSig = L => (L.testas?.texts || []).map(t => (t.questions || []).map(q => q.q + '|' + q.answer).join('#')).join('§');
 function mergeLesson(a, b) {
+  if (a.cold && b.cold) {   // daily unseen texts: keep the texts of both devices, numbered by first appearance
+    const seen = new Set(), texts = [];
+    [...(a.testas?.texts || []), ...(b.testas?.texts || [])].forEach(t => { const k = t.date + '|' + t.title_de; if (!seen.has(k)) { seen.add(k); texts.push(t); } });
+    const remap = (L) => Object.fromEntries(Object.entries(L.quizzes || {}).map(([k, v]) => { const t = (L.testas?.texts || [])[k]; return [texts.findIndex(x => t && x.date === t.date && x.title_de === t.title_de), v]; }).filter(([k]) => k >= 0));
+    const qa = remap(a), qb = remap(b), q = Object.assign({}, qb, qa);
+    Object.keys(qb).forEach(k => { if (qa[k]) q[k] = Object.assign({}, qa[k], { best: Math.max(qa[k].best ?? qa[k].score, qb[k].best ?? qb[k].score) }); });
+    return Object.assign({}, a, { rev: Math.max(a.rev || 0, b.rev || 0), testas: { texts }, quizzes: q });
+  }
   const [hi, lo] = (b.rev || 0) > (a.rev || 0) ? [b, a] : [a, b];
-  const q = Object.assign({}, JSON.stringify(hi.testas) === JSON.stringify(lo.testas) ? lo.quizzes : {}, hi.quizzes);
-  if (JSON.stringify(hi.testas) === JSON.stringify(lo.testas)) Object.keys(lo.quizzes || {}).forEach(k => {
+  const q = Object.assign({}, hi.quizzes);
+  if (qSig(hi) === qSig(lo)) Object.keys(lo.quizzes || {}).forEach(k => {   // same questions: keep the best of both devices
     const x = lo.quizzes[k], y = (hi.quizzes || {})[k];
-    q[k] = Object.assign({}, !y || (x.date || '') > (y.date || '') ? x : y, { best: Math.max(x.best || x.score || 0, (y && (y.best || y.score)) || 0) });
+    q[k] = !y ? x : Object.assign({}, (x.date || '') > (y.date || '') ? x : y, { best: Math.max(x.best ?? x.score ?? 0, y.best ?? y.score ?? 0), proven: Math.max(x.proven || 0, y.proven || 0) });
   });
   return Object.assign({}, hi, { quizzes: q });
 }
@@ -368,7 +378,8 @@ async function pullSync(quiet) {
     let remote = null, runDoc = null; const lessons = [];
     const srsDocs = {};
     snap.docs.forEach(d => { if (d.id === 'state') remote = d.data(); else if (d.id.startsWith('fach-')) lessons.push(d.data()); else if (d.id.startsWith('srs-')) srsDocs[d.id.slice(4)] = d.data(); else if (d.id === 'run') runDoc = d.data(); });
-    const before = JSON.stringify([S.checkins, S.xp, S.kern, S.timeDev, S.fach.length]);
+    const fachSig = () => JSON.stringify(S.fach.map(l => [l.id, l.quizzes]));
+    const before = JSON.stringify([S.checkins, S.xp, S.kern, S.timeDev]) + fachSig();
     if (remote) S = Object.assign(mergeState(S, remote), { fach: S.fach, settings: S.settings, tutorMin: S.tutorMin, srs: S.srs });
     lessons.forEach(L => { const i = S.fach.findIndex(x => x.id === L.id); if (i < 0) S.fach.push(L); else S.fach[i] = mergeLesson(S.fach[i], L); });
     S.srs = S.srs || {};
@@ -383,8 +394,8 @@ async function pullSync(quiet) {
     } else if (localRunAt() > (runDoc?.at || 0)) flushRun(JSON.stringify(currentRun()), localRunAt());   // ours is newer: publish it
     if (!S.pendingPunishment && $('#punish')) { $('#punish').remove(); }
     SYNC.sent.clear(); SYNC.ready = true; save();
-    if (before !== JSON.stringify([S.checkins, S.xp, S.kern, S.timeDev, S.fach.length])) {
-      renderStats(); if (currentTab === 'dash') renderDash();
+    if (before !== JSON.stringify([S.checkins, S.xp, S.kern, S.timeDev]) + fachSig()) {
+      renderStats(); if (currentTab === 'dash') renderDash(); else if (currentTab === 'fach' && !FQ?.id && !$('#fach-body')) renderFach(); else if (currentTab === 'fach' && FV?.part === 'path' && !(FQ && !FQ.done)) openFach(FV.id, 'path');
       if (!quiet) tutorSay('Đã đồng bộ tiến độ từ máy khác. Học ở đâu tôi cũng thấy hết 👀');
     }
   } catch (e) { console.warn('pull failed', e); }
@@ -399,7 +410,7 @@ FACH_BUILTIN.forEach(l => {
   const i = S.fach.findIndex(x => x.id === l.id);
   if (i < 0) S.fach.push(l);
   else if ((l.rev || 0) > (S.fach[i].rev || 0)) {
-    const same = JSON.stringify(S.fach[i].testas) === JSON.stringify(l.testas);
+    const same = qSig(S.fach[i]) === qSig(l);
     S.fach[i] = Object.assign({}, l, { quizzes: same ? S.fach[i].quizzes || {} : {} });
   }
 });
