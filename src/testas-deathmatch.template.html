@@ -1374,9 +1374,9 @@ Tạo 3 phần:
 (2) CÂU HỎI KIỂU TESTAS bằng TIẾNG ĐỨC, đúng format Fachmodul Medizin bản digital: chia các mục PHẢI HIỂU thành ĐÚNG 6 Fachtext tiếng Đức (6 text = 6 bước = 1 ngày học) (mỗi text 250–400 từ như đề thật, văn phong sách giáo khoa tiền lâm sàng: Physiologie/Anatomie/Biochemie), sao cho MỌI kiến thức quan trọng đều nằm trong ít nhất một text (không chỉ lấy ví dụ minh hoạ). Text có thể kèm 1 bảng (table) nếu tài liệu có so sánh/số liệu, và có thể nêu cơ chế một bệnh làm ví dụ để hỏi suy luận. Mỗi text 6 câu hỏi trắc nghiệm, mỗi câu 4 lựa chọn (A)–(D), chỉ 1 đáp án đúng, MỌI câu đều trả lời được chỉ bằng Fachtext + suy luận logic (không cần kiến thức ngoài).
 CÁCH RA ĐỀ THEO ĐỀ MẪU CHÍNH THỨC g.a.s.t. (bắt buộc): mỗi text tối đa 2 câu đọc hiểu trực tiếp, ít nhất 4 câu ÁP DỤNG/SUY LUẬN, chọn từ các dạng: (a) ca lâm sàng ngắn ("Ein Patient…", "Während einer Untersuchung…") cần áp dụng quy tắc trong text; (b) tính toán/suy ra từ một quy tắc hay bảng (kể cả ngoại suy xu hướng của bảng); (c) câu hỏi đưa THÔNG TIN MỚI trong đề (một bệnh, một đột biến, một thuốc) rồi bắt ghép với cơ chế trong text; (d) đảo vai/đảo chiều (người cho ↔ người nhận, tăng ↔ giảm, trước ↔ sau) — dựng bẫy cho người làm theo phản xạ; (e) điều kiện cần/đủ ("Um sicher zu sein, dass…", "Unter welcher Bedingung…"); (f) di truyền/suy ngược nguyên nhân từ kết quả. Thỉnh thoảng (khoảng 1 câu mỗi bài) cho "Eine klare Aussage ist nicht möglich." làm đáp án ĐÚNG khi dữ kiện thực sự không đủ. Đáp án sai dựng bằng cách đảo quan hệ, nhầm mốc/số, khái quát quá đà, hoặc trái với text — không dùng lựa chọn vô lý ai cũng loại được. Đáp án đúng phân bố ngẫu nhiên A–D. Trong explain_vi ghi rõ dạng câu (VD "Dạng ĐẢO VAI") và vì sao từng đáp án sai bị loại. Giải thích bằng tiếng Việt, trích cụm tiếng Đức then chốt trong Fachtext.
 (0) LỌC BÀI: tài liệu thường là bài AMBOSS đầy đủ. Nếu một chương được đánh dấu "nhẹ" (chương phụ của ngày) thì chỉ lấy ý quan trọng nhất (tối đa 1 Fachtext) và đưa từ vựng quan trọng của chương đó vào vocab/thẻ Anki của ngày. TestAS Fachmodul chỉ hỏi kiến thức TIỀN LÂM SÀNG (Anatomie, Physiologie, Biochemie) và mọi câu trả lời được bằng text, nên: chỉ giảng phần cơ sở; liệt kê mục nào PHẢI HIỂU và mục nào BỎ QUA (thường là Klinik, Diagnostik, Therapie, số liệu dịch tễ, liều thuốc), kèm lý do ngắn. Phần (1)(2)(3) chỉ dùng các mục PHẢI HIỂU.
-(3) ANKI: (từ vựng: với bộ phận cơ thể/bệnh, ghi CẢ tên chuyên ngành lẫn tên thông dụng mà người thường dùng, VD "der Ösophagus = die Speiseröhre", "das Pankreas = die Bauchspeicheldrüse", "die Tibia = das Schienbein", vì TestAS viết cho người chưa học Y) 8–15 flashcard (front ngắn, back = đáp án + mẹo bựa) và 10–25 từ vựng tiếng Đức quan trọng của Fachtext (kèm der/die/das) với nghĩa tiếng Việt.
+(3) ANKI: mỗi section có "qa": 4–7 thẻ hỏi-đáp ngắn (đọc trong 15 giây), câu hỏi tự đủ nghĩa không cần đọc thẻ khác, trả lời tối đa ~15 từ. (từ vựng: với bộ phận cơ thể/bệnh, ghi CẢ tên chuyên ngành lẫn tên thông dụng mà người thường dùng, VD "der Ösophagus = die Speiseröhre", "das Pankreas = die Bauchspeicheldrüse", "die Tibia = das Schienbein", vì TestAS viết cho người chưa học Y) 8–15 flashcard (front ngắn, back = đáp án + mẹo bựa) và 10–25 từ vựng tiếng Đức quan trọng của Fachtext (kèm der/die/das) với nghĩa tiếng Việt.
 ĐỊNH DẠNG: Trả về DUY NHẤT một object JSON hợp lệ (không markdown, không \`\`\`):
-{"title":"tiêu đề ngắn tiếng Việt","guide":{"must":["mục cần hiểu — vì sao"],"skip":["mục bỏ qua — vì sao"]},"lecture":{"intro":"câu mở đầu mỏ hỗn","sections":[{"heading":"...","explanation":"...","explanation_vi":"(chỉ giai đoạn 3)","mnemonic":"...","kernsaetze":[{"de":"...","vi":"...","key":"..."}]}],"outro":"câu chốt cà khịa"},"testas":{"texts":[{"title_de":"Text 1: ...","text_de":"đoạn 1\\n\\nđoạn 2...","table":{"caption":"(tuỳ chọn)","head":["..."],"rows":[["..."]]},"questions":[{"q":"câu hỏi tiếng Đức","options":["A","B","C","D"],"answer":0,"explain_vi":"..."}]}]},"vocab":[{"de":"die Hypophyse","vi":"tuyến yên","hard":false}],"cards":[{"front":"...","back":"..."}]}`;
+{"title":"tiêu đề ngắn tiếng Việt","guide":{"must":["mục cần hiểu — vì sao"],"skip":["mục bỏ qua — vì sao"]},"lecture":{"intro":"câu mở đầu mỏ hỗn","sections":[{"heading":"...","explanation":"...","explanation_vi":"(chỉ giai đoạn 3)","mnemonic":"...","qa":[{"q":"câu hỏi ngắn, tự đủ nghĩa","a":"trả lời ≤ 15 từ"}],"kernsaetze":[{"de":"...","vi":"...","key":"..."}]}],"outro":"câu chốt cà khịa"},"testas":{"texts":[{"title_de":"Text 1: ...","text_de":"đoạn 1\\n\\nđoạn 2...","table":{"caption":"(tuỳ chọn)","head":["..."],"rows":[["..."]]},"questions":[{"q":"câu hỏi tiếng Đức","options":["A","B","C","D"],"answer":0,"explain_vi":"..."}]}]},"vocab":[{"de":"die Hypophyse","vi":"tuyến yên","hard":false}],"cards":[{"front":"...","back":"..."}]}`;
 }
 
 // Claude via the artifact's sample capability: two calls (lecture+Anki, then TestAS) to stay within the answer length
@@ -1497,7 +1497,7 @@ function normalizeLesson(o, day) {
   const L = {
     id: s(o.id) || uid(), rev: +o.rev || 0, bonus: !!o.bonus, day: o.bonus ? 0 : +(o.day || day || dayNumber()), title: s(o.title) || 'Bài Fachmodul', createdAt: o.createdAt || new Date().toISOString(),
     source: s(o.source) || 'import', sourceFiles: o.sourceFiles || [],
-    lecture: { intro: s(o.lecture?.intro), outro: s(o.lecture?.outro), sections: (o.lecture?.sections || []).map(x => ({ heading: s(x.heading), explanation: s(x.explanation), explanation_vi: s(x.explanation_vi), mnemonic: s(x.mnemonic),
+    lecture: { intro: s(o.lecture?.intro), outro: s(o.lecture?.outro), sections: (o.lecture?.sections || []).map(x => ({ heading: s(x.heading), explanation: s(x.explanation), explanation_vi: s(x.explanation_vi), mnemonic: s(x.mnemonic), qa: (x.qa || []).map(q => ({ q: s(q.q), a: s(q.a) })).filter(q => q.q && q.a),
       kernsaetze: (x.kernsaetze || []).map(k => ({ de: s(k.de), vi: s(k.vi), key: s(k.key) })).filter(k => k.de) })) },
     testas: { texts: normTexts(o.testas) },
     guide: { must: (o.guide?.must || []).map(s), skip: (o.guide?.skip || []).map(s) },
@@ -1798,7 +1798,6 @@ const plainLen = t => t.replace(/\*\*/g, '').length;
 function packPieces(line, max = CARD_MAX) {
   if (plainLen(line) <= max) return [line];
   let parts = line.split(/(?<=[.;!?])\s+/);
-  parts = parts.flatMap(pt => plainLen(pt) <= max ? [pt] : pt.split(/(?<=,)\s+|\s+(?=→ [②-⑨])/));
   const out = []; let cur = '';
   parts.forEach(pt => { if (cur && plainLen(cur + ' ' + pt) > max) { out.push(cur); cur = pt; } else cur = cur ? cur + ' ' + pt : pt; });
   if (cur) out.push(cur);
@@ -1818,6 +1817,8 @@ function splitBack(front, back, max = CARD_MAX) {
 }
 function secCards(s) {
   const cards = [], head = s.heading.replace(/\*\*/g, '');
+  // hand-written short question cards win over automatic cutting
+  if (Array.isArray(s.qa) && s.qa.length) { s.qa.forEach(x => cards.push([x.q, x.a])); if (s.mnemonic) cards.push(...splitBack(`🤪 Mẹo nhớ: ${head}`, s.mnemonic)); return cards; }
   const lines = String(s.explanation || '').split('\n').map(x => x.replace(/^\s*(?:[•\-]|\d+\.)\s+/, '').trim()).filter(x => x && !x.startsWith('|'));
   let k = 0;
   lines.flatMap(l => packPieces(l)).map(balBold).forEach(piece => {
