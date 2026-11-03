@@ -107,6 +107,7 @@
 .fq-text.picking .sent{cursor:pointer;background:rgba(0,229,255,.06)}
 .fq-text.picking .sent:hover{background:rgba(0,229,255,.22)}
 .sent.ev{background:rgba(250,204,21,.18);box-shadow:inset 0 -2px 0 rgba(250,204,21,.7)}
+.sent.ev-cur{background:rgba(250,204,21,.38);box-shadow:inset 0 -3px 0 #facc15}
 /* ---------- pomodoro + duck ---------- */
 #pomo{position:fixed;left:.75rem;z-index:60;width:min(300px,calc(100vw - 1.5rem));bottom:calc(9.5rem + env(safe-area-inset-bottom,0px));--pm:var(--neon)}
 @media (min-width:768px){#pomo{bottom:calc(.75rem + env(safe-area-inset-bottom,0px))}}
@@ -1654,26 +1655,37 @@ function fqPick(i, k) {
 // --- evidence: for every question the student taps the sentence in the text that proves the answer.
 // A right answer without evidence counts as "guessed / remembered" in the statistics (not in the score).
 const splitSentences = p => p.split(/(?<=[.!?])\s+(?=[A-ZÄÖÜ0-9„(])/);
+const evList = i => { const v = FQ.ev[i]; return v === undefined ? [] : Array.isArray(v) ? v : [v]; };   // older saves kept a single sentence
 function fqEvidenceFor(i) {
   if (FQ.done) return;
-  FQ.evQ = FQ.evQ === i ? null : i;
-  document.querySelectorAll('[id^="fq-evb-"]').forEach(b => b.classList.toggle('btn-pink', b.id === 'fq-evb-' + FQ.evQ));
+  FQ.evQ = FQ.evQ === i ? null : i;   // second tap on the same button = done
+  document.querySelectorAll('[id^="fq-evb-"]').forEach(b => { const k = +b.id.slice(7); b.classList.toggle('btn-pink', k === FQ.evQ); fqEvidenceLabel(k); });
   document.querySelector('.fq-text')?.classList.toggle('picking', FQ.evQ !== null);
-  if (FQ.evQ !== null) tutorSay('Giờ chạm vào câu trong text chứng minh cho đáp án của câu ' + (FQ.ti + 1) + '.' + (i + 1) + '.');
+  fqEvidencePaint();
+  if (FQ.evQ !== null) tutorSay('Chạm vào MỘT hoặc NHIỀU câu trong text chứng minh cho câu ' + (FQ.ti + 1) + '.' + (i + 1) + ' (chạm lại để bỏ). Xong thì bấm "✓ Xong".');
 }
 function fqEvidence(n) {
   if (FQ.done || FQ.evQ === null) return;
-  const i = FQ.evQ; FQ.ev[i] = n; FQ.evQ = null;
-  document.querySelector('.fq-text')?.classList.remove('picking');
-  document.querySelectorAll('[id^="fq-evb-"]').forEach(b => b.classList.remove('btn-pink'));
+  const i = FQ.evQ, cur = evList(i);
+  FQ.ev[i] = cur.includes(n) ? cur.filter(x => x !== n) : [...cur, n].sort((x, y) => x - y);
+  if (!FQ.ev[i].length) delete FQ.ev[i];
   fqEvidenceShow(i); saveRun();
 }
+function fqEvidenceLabel(i) {
+  const b = $('#fq-evb-' + i); if (!b) return;
+  b.textContent = FQ.evQ === i ? '✓ Xong chọn câu chứng minh' : evList(i).length ? `📌 Sửa câu chứng minh (${evList(i).length})` : '📌 Chọn câu chứng minh trong text';
+}
+// while picking for question i, its sentences are highlighted strongly; all chosen sentences stay lightly marked
+function fqEvidencePaint() {
+  document.querySelectorAll('.sent').forEach(x => x.classList.remove('ev', 'ev-cur'));
+  Object.keys(FQ.ev).forEach(k => evList(k).forEach(n => $('#fq-s-' + n)?.classList.add('ev')));
+  if (FQ.evQ !== null) evList(FQ.evQ).forEach(n => $('#fq-s-' + n)?.classList.add('ev-cur'));
+}
 function fqEvidenceShow(i) {
-  const n = FQ.ev[i], el = $('#fq-evt-' + i), sEl = $('#fq-s-' + n); if (!el || !sEl) return;
-  el.innerHTML = `📌 <i>${esc(sEl.textContent.slice(0, 120))}${sEl.textContent.length > 120 ? '…' : ''}</i>`;
-  document.querySelectorAll('.sent.ev').forEach(x => x.classList.remove('ev'));
-  Object.values(FQ.ev).forEach(k => $('#fq-s-' + k)?.classList.add('ev'));
-  const b = $('#fq-evb-' + i); if (b) b.textContent = '📌 Đổi câu chứng minh';
+  const el = $('#fq-evt-' + i); if (!el) return;
+  const list = evList(i).map(n => $('#fq-s-' + n)?.textContent || '').filter(Boolean);
+  el.innerHTML = list.map(t => `📌 <i>${esc(t.slice(0, 110))}${t.length > 110 ? '…' : ''}</i>`).join('<br>');
+  fqEvidenceLabel(i); fqEvidencePaint();
 }
 // what the student sees as chosen is what gets graded: read the highlighted option first, the stored pick second
 const fqPicked = i => { for (let k = 0; k < 4; k++) if ($(`#fq-${i}-${k}`)?.classList.contains('on')) return k; return FQ.sel[i] === undefined ? undefined : Number(FQ.sel[i]); };
@@ -1682,11 +1694,11 @@ function fqSubmit() {
   if (PAUSED.quiz && PAUSED.quiz.id === FQ.id && PAUSED.quiz.ti === FQ.ti) delete PAUSED.quiz;   // a stale copy of this very text must not come back as "dở"
   saveRun();
   const L = S.fach.find(l => l.id === FQ.id); const texts = lessonTexts(L); const qs = texts[FQ.ti].questions; let score = 0, proven = 0;
-  document.querySelector('.fq-text')?.classList.remove('picking');
+  FQ.evQ = null; document.querySelector('.fq-text')?.classList.remove('picking'); fqEvidencePaint();
   qs.forEach((q, i) => {
-    const pick = fqPicked(i), ok = pick === Number(q.answer); if (ok) { score++; if (FQ.ev[i] !== undefined) proven++; }
+    const pick = fqPicked(i), ok = pick === Number(q.answer); if (ok) { score++; if (evList(i).length) proven++; }
     const evb = $('#fq-evb-' + i); if (evb) evb.remove();
-    if (ok && FQ.ev[i] === undefined) $('#fq-evt-' + i).innerHTML = '<span class="text-yellow-300">⚠ Đúng nhưng không chỉ ra câu chứng minh → tính là đoán/nhớ.</span>';
+    if (ok && !evList(i).length) $('#fq-evt-' + i).innerHTML = '<span class="text-yellow-300">⚠ Đúng nhưng không chỉ ra câu chứng minh → tính là đoán/nhớ.</span>';
     for (let k = 0; k < 4; k++) { const b = $(`#fq-${i}-${k}`); b.classList.remove('on'); if (k === Number(q.answer)) b.classList.add('good'); else if (k === pick) b.classList.add('bad'); }
     const head = pick === undefined ? `<b class="text-yellow-300">⚠ Bạn chưa chọn đáp án nào · đáp án đúng (${'ABCD'[q.answer]})</b>` : ok ? `<b class="text-emerald-300">✓ Đúng · đáp án (${'ABCD'[q.answer]})</b>` : `<b class="text-red-400">✗ Bạn chọn (${'ABCD'[pick]}) · đáp án đúng (${'ABCD'[q.answer]})</b>`;
     $(`#fq-exp-${i}`).innerHTML = `<div class="sol mt-3">${head}<div class="mt-1">${md(q.explain_vi)}</div><button class="btn btn-ghost text-xs mt-2" onclick="openChat({ lid: '${L.id}', ti: ${FQ.ti}, qi: ${i}, pick: ${pick === undefined ? 'null' : pick} })">💬 Vẫn chưa hiểu? Hỏi câu này</button></div>`;
