@@ -1629,7 +1629,7 @@ function fachLecture(L) {
 }
 const hintBar = L => ['all', 'hard', 'off'].map(m => `<button class="optbtn text-xs ${hintMode(L) === m ? 'on' : ''}" onclick="setHint('${L.id}','${m}')">${HINT_LABEL[m]}</button>`).join(' ');
 let FQ = null;
-function fachQuiz(L, ti = 0, restore = null) {
+function fachQuiz(L, ti = 0, restore = null, retry = false) {
   const texts = lessonTexts(L);
   if (!texts.length) { $('#fach-body').innerHTML = '<div class="panel p-5 text-slate-400">Bài này chưa có câu hỏi TestAS.</div>'; return; }
   stopTimer();
@@ -1637,7 +1637,9 @@ function fachQuiz(L, ti = 0, restore = null) {
   if (!restore) stashRun('quiz');   // a text left half-done goes to the resume bar instead of being thrown away
   const T = texts[ti], qs = T.questions, sum = lessonScore(L), G = glossaryRegex(L, hintMode(L));
   FQ = { id: L.id, ti, ev: restore && restore.ev ? Object.assign({}, restore.ev) : {}, evQ: null, sel: restore ? Object.assign({}, restore.sel) : {}, t: restore ? restore.t : qs.length * 95, done: false };   // ~1 min 35 s per question, like the real module
-  RUNVIEW = 'quiz'; if (restore) delete PAUSED.quiz;   // timer: ~1 min 35 s per question, like the real module
+  RUNVIEW = 'quiz'; if (restore) delete PAUSED.quiz;
+  const last = !restore && !retry ? (L.quizzes || {})[ti] : null;
+  if (last) { FQ.sel = Object.fromEntries((last.picks || []).map((k, i) => [i, k]).filter(([, k]) => k != null)); FQ.ev = Object.assign({}, last.ev || {}); }   // timer: ~1 min 35 s per question, like the real module
   const chips = texts.map((x, k) => { const r = (L.quizzes || {})[k];
     return `<button class="optbtn text-xs ${k === ti ? 'on' : ''}" style="${r ? (r.score / r.total >= .7 ? 'border-color:var(--neon)' : 'border-color:var(--red)') : ''}" onclick="fachQuiz(S.fach.find(l=>l.id==='${L.id}'),${k})">Text ${k + 1}${r ? ` · ${r.score}/${r.total}` : ''}</button>`; }).join('');
   const table = T.table ? `<div class="overflow-x-auto mt-3"><table class="w-full text-sm border border-slate-700">${T.table.caption ? `<caption class="text-left text-xs text-slate-400 pb-1">${esc(T.table.caption)}</caption>` : ''}
@@ -1661,6 +1663,7 @@ function fachQuiz(L, ti = 0, restore = null) {
     </div>`;
   Object.entries(FQ.sel).forEach(([i, k]) => $(`#fq-${i}-${k}`)?.classList.add('on'));
   Object.keys(FQ.ev).forEach(fqEvidenceShow);
+  if (last) { $('#fq-time').textContent = '👀'; fqSubmit(true); return; }   // already done: show the last attempt with answers and explanations
   TIMER = setInterval(() => {
     FQ.t--; const el = $('#fq-time'); if (!el) return stopTimer();
     el.textContent = fmtMS(FQ.t); if (FQ.t <= 60) el.classList.add('text-red-400');
@@ -1710,7 +1713,7 @@ function fqEvidenceShow(i) {
 }
 // what the student sees as chosen is what gets graded: read the highlighted option first, the stored pick second
 const fqPicked = i => { for (let k = 0; k < 4; k++) if ($(`#fq-${i}-${k}`)?.classList.contains('on')) return k; return FQ.sel[i] === undefined ? undefined : Number(FQ.sel[i]); };
-function fqSubmit() {
+function fqSubmit(review) {
   if (FQ.done) return; FQ.done = true; stopTimer();
   if (PAUSED.quiz && PAUSED.quiz.id === FQ.id && PAUSED.quiz.ti === FQ.ti) delete PAUSED.quiz;   // a stale copy of this very text must not come back as "dở"
   saveRun();
@@ -1725,13 +1728,18 @@ function fqSubmit() {
     $(`#fq-exp-${i}`).innerHTML = `<div class="sol mt-3">${head}<div class="mt-1">${md(q.explain_vi)}</div><button class="btn btn-ghost text-xs mt-2" onclick="openChat({ lid: '${L.id}', ti: ${FQ.ti}, qi: ${i}, pick: ${pick === undefined ? 'null' : pick} })">💬 Vẫn chưa hiểu? Hỏi câu này</button></div>`;
   });
   const prevQ = (L.quizzes || {})[FQ.ti] || {};
-  L.quizzes = Object.assign({}, L.quizzes, { [FQ.ti]: { score, proven, total: qs.length, date: todayStr(), best: Math.max(prevQ.best || 0, prevQ.score || 0, score) } }); save(); addXP(score * 15); renderStats();
-  setTimeout(autoCheckin, 1500);
+  if (review) { score = prevQ.score ?? score; proven = prevQ.proven ?? proven; }
+  else {
+    const picks = qs.map((q, i) => fqPicked(i) ?? null), ev = Object.fromEntries(Object.entries(FQ.ev).map(([k, v]) => [k, evList(k)]));
+    L.quizzes = Object.assign({}, L.quizzes, { [FQ.ti]: { score, proven, total: qs.length, date: todayStr(), best: Math.max(prevQ.best || 0, prevQ.score || 0, score), picks, ev } }); save(); addXP(score * 15); renderStats();
+    setTimeout(autoCheckin, 1500);
+  }
   const next = FQ.ti + 1 < texts.length;
-  $('#fq-submit').outerHTML = `<div class="panel ${score / qs.length >= .7 ? 'neon' : 'danger'} p-4 text-center"><div class="text-4xl font-bold">${score}/${qs.length}</div><div class="text-sm text-slate-300 mt-1">📌 có bằng chứng trong text: <b>${proven}/${score}</b> câu đúng${score - proven ? ` · ${score - proven} câu đúng nhờ đoán/nhớ` : ''}</div>${(() => { const n = savedWordsOf(L.id, FQ.ti).length; return n ? `<button class="btn btn-pink mt-3" onclick="startDeck('${L.id}',${FQ.ti},'mine')">🇩🇪 Học ${n} từ bạn vừa lưu</button>` : ''; })()}
-    <div class="flex flex-wrap justify-center gap-2 mt-3"><button class="btn btn-ghost" onclick="fachQuiz(S.fach.find(l=>l.id==='${L.id}'),${FQ.ti})">Làm lại</button>
+  $('#fq-submit').outerHTML = `<div class="panel ${score / qs.length >= .7 ? 'neon' : 'danger'} p-4 text-center">${review ? `<div class="text-xs mono text-slate-400 mb-1">👀 XEM LẠI LẦN LÀM GẦN NHẤT · ${esc(prevQ.date || '')}${prevQ.best != null && prevQ.best !== prevQ.score ? ` · điểm cao nhất ${prevQ.best}/${qs.length}` : ''}${prevQ.picks ? '' : ' · lần này app chưa lưu bạn chọn gì, chỉ hiện đáp án đúng'}</div>` : ''}<div class="text-4xl font-bold">${score}/${qs.length}</div><div class="text-sm text-slate-300 mt-1">📌 có bằng chứng trong text: <b>${proven}/${score}</b> câu đúng${score - proven ? ` · ${score - proven} câu đúng nhờ đoán/nhớ` : ''}</div>${(() => { const n = savedWordsOf(L.id, FQ.ti).length; return n ? `<button class="btn btn-pink mt-3" onclick="startDeck('${L.id}',${FQ.ti},'mine')">🇩🇪 Học ${n} từ bạn vừa lưu</button>` : ''; })()}
+    <div class="flex flex-wrap justify-center gap-2 mt-3"><button class="btn btn-ghost" onclick="fachQuiz(S.fach.find(l=>l.id==='${L.id}'),${FQ.ti},null,true)">🔁 Làm lại từ đầu</button>
     ${debts().length ? `<button class="btn btn-red" onclick="payDebt()">💸 Trả nợ tiếp</button>` : ''}
     ${L.cold ? `<button class="btn btn-neon" onclick="go('fach')">🧊 Xem so sánh text lạ / text quen</button>` : `<button class="btn btn-neon" onclick="openFach('${L.id}','path');window.scrollTo({top:0})">③ 🧠 Chốt bằng thẻ kiến thức →</button>`}</div></div>`;
+  if (review) return;
   score / qs.length >= .7 ? praise(`${score}/${qs.length}. Đọc tiếng Đức cũng không tệ. Đừng tự mãn.`) : roast(`${score}/${qs.length}. Mở mục 🇩🇪 Từ vựng ra học đi rồi đọc lại Fachtext.`);
 }
 function fachVocab(L) {
