@@ -315,10 +315,36 @@ function streakFrom(checkins, frozen = S.frozen || []) {
   while (on.has(d) || fz.has(d)) { if (on.has(d)) n++; d = addDays(d, -1); }
   return n;
 }
-// --- STREAK FREEZE: 1 to start, +1 for every 5 check-ins, or buy one for 300 XP; at most 2 in stock.
-// A freeze is used automatically for a missed day: streak kept, no punishment (the work of that day stays as debt).
-const FREEZE_MAX = 2, FREEZE_COST = 300;
-const freezesRaw = () => 1 + (S.freezeBought || 0) + Math.floor((S.checkins || []).length / 5) - (S.frozen || []).length;
+// --- STREAK FREEZE: 1 to start, +1 for every 5 check-ins, +1 for each later plan day finished in advance,
+// or buy one for 300 XP; at most 3 in stock. Freezes are used automatically for missed days (streak kept, no
+// punishment; the work of those days stays as debt). A missed day in the past can also be repaired afterwards.
+const FREEZE_MAX = 3, FREEZE_COST = 300, AHEAD_XP = 150;
+const freezesRaw = () => 1 + (S.freezeBought || 0) + Math.floor((S.checkins || []).length / 5) + (S.aheadDone || []).length - (S.frozen || []).length;
+// a plan day before today without check-in or freeze, counted from the plan start
+const missedDays = () => Array.from({ length: Math.max(0, dayNumber() - 1) }, (_, i) => addDays(S.startDate, i)).filter(d => d < todayStr() && !S.checkins.includes(d) && !(S.frozen || []).includes(d));
+function repairDay(ds) {
+  if (!missedDays().includes(ds)) return;
+  const useStock = freezesLeft() > 0;
+  if (!useStock && S.xp < FREEZE_COST) return tutorSay(`Hết ❄️ và chỉ có ${S.xp} XP; sửa 1 ngày cần ${FREEZE_COST} XP. Học trước một ngày để kiếm ❄️ đi.`, 'roast');
+  askConfirm(`Sửa ngày ${ds} bằng ${useStock ? '1 ❄️ đang có' : FREEZE_COST + ' XP'}? Streak được nối lại; bài của ngày đó vẫn là nợ.`, () => {
+    if (!useStock) { S.xp -= FREEZE_COST; S.freezeBought = (S.freezeBought || 0) + 1; }
+    S.frozen = [...new Set([...(S.frozen || []), ds])].sort();
+    if (!missedDays().length) S.pendingPunishment = false;
+    S.streak = streakFrom(S.checkins); S.bestStreak = Math.max(S.bestStreak || 0, S.streak);
+    save(); renderStats(); if (currentTab === 'dash') renderDash();
+    tutorSay(`Ngày ${ds} đã đóng băng ❄️. Streak giờ là ${S.streak}🔥. Bài ngày đó vẫn nợ nhé, đừng tưởng thoát.`, 'praise');
+  });
+}
+// finishing (≥ 80 %) a later plan day ahead of time: +150 XP and +1 freeze, once per day
+function checkAhead() {
+  const d0 = dayNumber(); let got = 0;
+  for (let n = d0 + 1; n <= PLAN_DAYS; n++) {
+    if ((S.aheadDone || []).includes(n)) continue;
+    const pr = dayProgress(n); if (!pr.pass || (!pr.kernTotal && !pr.fachTotal)) continue;
+    S.aheadDone = [...(S.aheadDone || []), n]; addXP(AHEAD_XP); got++;
+  }
+  if (got) { save(); renderStats(); praise(`Học trước ${got} ngày! +${got * AHEAD_XP} XP và +${got} ❄️ (đang có ${freezesLeft()}/${FREEZE_MAX}). Hôm nào bận thi trên trường thì băng tự lo.`); }
+}
 const freezesLeft = () => Math.max(0, Math.min(FREEZE_MAX, freezesRaw()));
 function buyFreeze() {
   if (freezesLeft() >= FREEZE_MAX) return tutorSay(`Đang giữ ${FREEZE_MAX} ❄️ rồi, tối đa chỉ ${FREEZE_MAX}. Tham vừa thôi.`, 'roast');
@@ -352,6 +378,7 @@ function mergeState(a, r) {
   m.checkins = [...new Set([...(a.checkins || []), ...(r.checkins || [])])].sort();
   m.frozen = [...new Set([...(a.frozen || []), ...(r.frozen || [])])].sort();
   m.freezeBought = Math.max(a.freezeBought || 0, r.freezeBought || 0);
+  m.aheadDone = [...new Set([...(a.aheadDone || []), ...(r.aheadDone || [])])].sort((x, y) => x - y);
   m.streak = streakFrom(m.checkins, m.frozen);
   m.bestStreak = Math.max(a.bestStreak || 0, r.bestStreak || 0, m.streak);
   ['xp', 'deaths', 'punishments'].forEach(k => { m[k] = Math.max(a[k] || 0, r[k] || 0); });
@@ -748,9 +775,10 @@ function renderDash() {
     let cls = 'text-slate-600', bg = 'transparent', label = i + 1;
     if (S.checkins.includes(ds)) { bg = 'rgba(0,255,163,.18)'; cls = 'text-emerald-300'; label = '✓'; }
     else if ((S.frozen || []).includes(ds)) { bg = 'rgba(125,211,252,.18)'; cls = 'text-sky-300'; label = '❄️'; }
-    else if (ds < t) { bg = 'rgba(255,31,61,.18)'; cls = 'text-red-400'; label = '☠'; }
+    else if (ds < t) { bg = 'rgba(255,31,61,.18)'; cls = 'text-red-400 cursor-pointer'; label = '☠'; }
     else if (ds === t) { bg = 'rgba(0,229,255,.12)'; cls = 'text-cyan-300 pulse-neon'; }
-    return `<div class="daycell ${cls}" style="background:${bg}" title="Ngày ${i + 1}: ${ds}">${label}</div>`;
+    const fix = label === '☠' ? ` onclick="repairDay('${ds}')"` : '', ahead = (S.aheadDone || []).includes(i + 1) && !S.checkins.includes(ds) ? '⭐' : '';
+    return `<div class="daycell ${cls}" style="background:${bg}" title="Ngày ${i + 1}: ${ds}${fix ? ' · chạm để sửa streak' : ''}${ahead ? ' · đã học trước' : ''}"${fix}>${label}${ahead}</div>`;
   }).join('');
   const todays = dayExercises(d);
   const fd = fachOfDay(d);
@@ -808,7 +836,7 @@ function renderDash() {
     </section>
     <section class="panel p-5">
       <div class="text-xs text-slate-400 mono mb-2">LỊCH ${PLAN_DAYS} NGÀY (✓ có mặt · ❄️ freeze · ☠ bỏ trốn)</div>
-      <div class="panel p-3 mb-2 flex flex-wrap items-center justify-between gap-2 text-sm" style="border-color:rgba(125,211,252,.45)"><span>❄️ <b>Streak Freeze: ${freezesLeft()}/${FREEZE_MAX}</b> <span class="text-slate-400 text-xs">· tự dùng khi bạn lỡ 1 ngày: giữ streak, không bị phạt (bài vẫn thành nợ) · +1 sau mỗi 5 lần điểm danh${freezesRaw() < FREEZE_MAX ? ` (còn ${5 - (S.checkins.length % 5)} lần nữa)` : ''}</span></span>
+      <div class="panel p-3 mb-2 flex flex-wrap items-center justify-between gap-2 text-sm" style="border-color:rgba(125,211,252,.45)"><span>❄️ <b>Streak Freeze: ${freezesLeft()}/${FREEZE_MAX}</b> <span class="text-slate-400 text-xs">· tự dùng cho ngày bạn lỡ (giữ streak, không bị phạt; bài vẫn thành nợ) · lỡ rồi thì <b>chạm ô ☠</b> để sửa · kiếm thêm: <b>học trước 1 ngày = +1 ❄️ +${AHEAD_XP} XP</b>, hoặc mỗi 5 lần điểm danh${freezesRaw() < FREEZE_MAX ? ` (còn ${5 - (S.checkins.length % 5)} lần)` : ''}</span></span>
         <button class="btn btn-ghost text-xs" onclick="buyFreeze()" ${freezesLeft() >= FREEZE_MAX ? 'disabled' : ''}>Mua 1 ❄️ (${FREEZE_COST} XP)</button></div>
       <div class="grid grid-cols-5 gap-1.5">${cells}</div>
     </section>
@@ -977,7 +1005,7 @@ function doCheckin() {
   renderStats(); if (currentTab === 'dash') renderDash();
 }
 // called after every Kern answer / Fach submission: check in automatically once today's 80 % is reached
-function autoCheckin() { if (!checkedToday() && dayProgress(dayNumber()).pass) doCheckin(); }
+function autoCheckin() { if (!checkedToday() && dayProgress(dayNumber()).pass) doCheckin(); checkAhead(); }
 function startCheckin() {
   const pr = dayProgress(dayNumber());
   if (pr.pass) return doCheckin();
