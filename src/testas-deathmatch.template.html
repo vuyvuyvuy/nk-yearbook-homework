@@ -614,7 +614,18 @@ const exSheet = ex => `<div class="sheet"><img src="${ex.img}" alt="Bài ${ex.id
    ===================================================================== */
 // Day n of the 20-day plan = 3 exercises from each book (books have 60 each, ordered easy → hard)
 const PER_BOOK = 3, PER_DAY = PER_BOOK * 3;
-const dayExercises = n => n > KERN_DAYS ? [] : BOOK_IDS.flatMap(b => KERN[b].ex.slice((n - 1) * PER_BOOK, n * PER_BOOK).map(ex => ({ bid: b, ex })));
+// Days 1–2: 3 exercises from each book. From day 3 on, one book per day in rotation (3 = Lateinische Quadrate,
+// then Figurale Sequenzen, then Mathematische Gleichungen …): 9 exercises of that book, so each book's remaining
+// 54 exercises fill its 6 days and all 180 are done by day 20.
+const KERN_MIX_DAYS = 2, KERN_ROTATION = ['latin', 'fig', 'math'];
+const bookEx = b => KERN[b].ex.filter(e => e.pruef !== 'G');
+const kernBookOfDay = n => n > KERN_MIX_DAYS && n <= KERN_DAYS ? KERN_ROTATION[(n - KERN_MIX_DAYS - 1) % 3] : null;
+const dayExercises = n => {
+  if (n > KERN_DAYS) return [];
+  if (n <= KERN_MIX_DAYS) return BOOK_IDS.flatMap(b => bookEx(b).slice((n - 1) * PER_BOOK, n * PER_BOOK).map(ex => ({ bid: b, ex })));
+  const b = kernBookOfDay(n), k = Math.floor((n - KERN_MIX_DAYS - 1) / 3), from = KERN_MIX_DAYS * PER_BOOK + k * PER_DAY;
+  return bookEx(b).slice(from, from + PER_DAY).map(ex => ({ bid: b, ex }));
+};
 const fachOfDay = n => S.fach.filter(l => +l.day === n && !l.bonus);
 // bonus lessons (official sample tasks) sit outside the plan: no debt, no check-in, always open
 const dayLabel = L => L && L.bonus ? '🏛 Đề mẫu' : `Ngày ${L ? L.day : '?'}`;
@@ -820,7 +831,7 @@ function renderDash() {
     <section class="panel p-5 md:col-span-2">
       <span class="tape" style="background:var(--cyan)">NHIỆM VỤ NGÀY ${d}</span>
       <div class="text-sm mt-2 space-y-3">
-        <div>🧠 <b class="text-cyan-300">Kernmodul</b> (= ER Level ${d}):
+        <div>🧠 <b class="text-cyan-300">Kernmodul</b> (= ER Level ${d})${kernBookOfDay(d) ? ` · hôm nay chỉ 1 dạng: <b>${BOOK_ICON[kernBookOfDay(d)]} ${esc(KERN[kernBookOfDay(d)].title)}</b>` : ''}:
           <div class="flex flex-wrap gap-2 mt-2">${todays.map(({ bid, ex }) => { const r = S.kern[bid][ex.id];
             return `<button class="optbtn text-xs ${r ? (r.ok ? 'on' : '') : ''}" style="${r && !r.ok ? 'border-color:var(--red)' : ''}" onclick="openPractice('${bid}','${ex.id}')">${BOOK_ICON[bid]} Q${BOOK_IDS.indexOf(bid) + 1} · ${ex.id}${r ? (r.ok ? ' ✓' : ' ✗') : ''}</button>`; }).join('')}</div>
         </div>
@@ -1244,7 +1255,7 @@ function renderER() {
     <section class="panel danger p-5">
       <span class="tape" style="background:var(--red);color:#fff">ER SURVIVAL MODE</span>
       <h2 class="text-2xl font-bold mt-1">Phòng Cấp Cứu Sinh Tử 🚑</h2>
-      <p class="text-sm text-slate-400">Level n = nhiệm vụ ngày n: ${PER_DAY} bài lấy từ 3 quyển của bạn (${PER_BOOK} bài/quyển, dễ → khó dần). Chung 1 đồng hồ ${fmtMS(PER_DAY * 75)} (= 75s/bài như đề thật). Sai 1 bài hoặc hết giờ → bệnh nhân CHẾT, hiện lời giải của sách.</p>
+      <p class="text-sm text-slate-400">Level n = nhiệm vụ ngày n: ${PER_DAY} bài (ngày 1–2 trộn 3 quyển; từ ngày 3 mỗi ngày 1 dạng luân phiên: Lateinische Quadrate → Figurale Sequenzen → Mathematische Gleichungen, dễ → khó dần). Chung 1 đồng hồ ${fmtMS(PER_DAY * 75)} (= 75s/bài như đề thật). Sai 1 bài hoặc hết giờ → bệnh nhân CHẾT, hiện lời giải của sách.</p>
       <div class="mono text-sm mt-2"><span class="text-emerald-300">Đã cứu: ${S.erCleared.length}</span> · <span class="text-red-400">Đã giết: ${S.deaths}</span></div>
       ${ecgSVG()}
     </section>
