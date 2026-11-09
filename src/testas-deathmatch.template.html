@@ -378,6 +378,7 @@ function mergeState(a, r) {
   m.checkins = [...new Set([...(a.checkins || []), ...(r.checkins || [])])].sort();
   m.frozen = [...new Set([...(a.frozen || []), ...(r.frozen || [])])].sort();
   m.freezeBought = Math.max(a.freezeBought || 0, r.freezeBought || 0);
+  if (r.kernPlan && (!a.kernPlan || (r.kernPlanAt || 0) < (a.kernPlanAt || 0))) { m.kernPlan = r.kernPlan; m.kernPlanAt = r.kernPlanAt; }   // the first plan made wins everywhere
   m.aheadDone = [...new Set([...(a.aheadDone || []), ...(r.aheadDone || [])])].sort((x, y) => x - y);
   m.streak = streakFrom(m.checkins, m.frozen);
   m.bestStreak = Math.max(a.bestStreak || 0, r.bestStreak || 0, m.streak);
@@ -440,6 +441,7 @@ async function pullSync(quiet) {
       try { applyRun(JSON.parse(runDoc.run || '{}'), true); localStorage.setItem(RUN_KEY, JSON.stringify({ run: currentRun(), at: runDoc.at })); runSig = JSON.stringify(currentRun()); renderResume(); } catch (e) { }
     } else if (localRunAt() > (runDoc?.at || 0)) flushRun(JSON.stringify(currentRun()), localRunAt());   // ours is newer: publish it
     if (!S.pendingPunishment && $('#punish')) { $('#punish').remove(); }
+    ensureKernPlan();   // made only after the first pull, so it uses every device's solved exercises
     SYNC.sent.clear(); SYNC.ready = true; save();
     if (before !== JSON.stringify([S.checkins, S.xp, S.kern, S.timeDev]) + fachSig()) {
       renderStats(); if (currentTab === 'dash') renderDash(); else if (currentTab === 'fach' && !FQ?.id && !$('#fach-body')) renderFach(); else if (currentTab === 'fach' && FV?.part === 'path' && !(FQ && !FQ.done)) openFach(FV.id, 'path');
@@ -625,9 +627,30 @@ const PER_BOOK = 3, PER_DAY = PER_BOOK * 3;
 // 54 exercises fill its 6 days and all 180 are done by day 20.
 const KERN_MIX_DAYS = 2, KERN_ROTATION = ['latin', 'fig', 'math'];
 const bookEx = b => KERN[b].ex.filter(e => e.pruef !== 'G');
-const kernBookOfDay = n => n > KERN_MIX_DAYS && n <= KERN_DAYS ? KERN_ROTATION[(n - KERN_MIX_DAYS - 1) % 3] : null;
+const kernBookOfDayRot = n => n > KERN_MIX_DAYS && n <= KERN_DAYS ? KERN_ROTATION[(n - KERN_MIX_DAYS - 1) % 3] : null;
+// the book of a day (null if the day mixes books)
+const kernBookOfDay = n => { if (n >= KERN_REPLAN_FROM && S.kernPlan && S.kernPlan[n]) { const bs = [...new Set(S.kernPlan[n].map(x => x[0]))]; return bs.length === 1 ? bs[0] : null; } return kernBookOfDayRot(n); };
+// Re-plan (09/11, user request): from day 5 on, Latin squares first until the book is done, then figures and
+// equations in alternating 9-exercise blocks. Day 5 keeps its already-solved exercises; its unsolved ones are
+// replaced by Latin squares. Frozen once in S.kernPlan (day → [[book, id]]) so every device studies the same set.
+const KERN_REPLAN_FROM = 5;
+function buildKernPlan() {
+  const rot = n => { const b = kernBookOfDayRot(n), k = Math.floor((n - KERN_MIX_DAYS - 1) / 3), from = KERN_MIX_DAYS * PER_BOOK + k * PER_DAY; return bookEx(b).slice(from, from + PER_DAY).map(ex => ({ bid: b, ex })); };
+  const used = new Set(), key = (b, id) => b + '|' + id;
+  for (let n = 1; n < KERN_REPLAN_FROM; n++) (n <= KERN_MIX_DAYS ? BOOK_IDS.flatMap(b => bookEx(b).slice((n - 1) * PER_BOOK, n * PER_BOOK).map(ex => ({ bid: b, ex }))) : rot(n)).forEach(x => used.add(key(x.bid, x.ex.id)));
+  const keep5 = rot(KERN_REPLAN_FROM).filter(x => kernSolved(x.bid, x.ex)); keep5.forEach(x => used.add(key(x.bid, x.ex.id)));
+  const left = b => bookEx(b).filter(ex => !used.has(key(b, ex.id))).map(ex => [b, ex.id]);
+  const lat = left('latin'), fig = left('fig'), math = left('math'), rest = [];
+  const off = (keep5.length + lat.length) % PER_DAY; if (off) rest.push(...fig.splice(0, PER_DAY - off));   // finish the last Latin day with figures
+  for (let turn = 0; fig.length || math.length; turn++) { const src = turn % 2 === 0 ? (math.length ? math : fig) : (fig.length ? fig : math); rest.push(...src.splice(0, PER_DAY)); }   // then whole days, alternating
+  const seq = [...keep5.map(x => [x.bid, x.ex.id]), ...lat, ...rest], plan = {};
+  for (let n = KERN_REPLAN_FROM, i = 0; n <= KERN_DAYS; n++, i += PER_DAY) plan[n] = seq.slice(i, i + PER_DAY);
+  return plan;
+}
+function ensureKernPlan() { if (!S.kernPlan && dayNumber() >= KERN_REPLAN_FROM) { S.kernPlan = buildKernPlan(); S.kernPlanAt = Date.now(); save(); } }
 const dayExercises = n => {
   if (n > KERN_DAYS) return [];
+  if (n >= KERN_REPLAN_FROM && S.kernPlan && S.kernPlan[n]) return S.kernPlan[n].map(([b, id]) => ({ bid: b, ex: exById(b, id) })).filter(x => x.ex);
   if (n <= KERN_MIX_DAYS) return BOOK_IDS.flatMap(b => bookEx(b).slice((n - 1) * PER_BOOK, n * PER_BOOK).map(ex => ({ bid: b, ex })));
   const b = kernBookOfDay(n), k = Math.floor((n - KERN_MIX_DAYS - 1) / 3), from = KERN_MIX_DAYS * PER_BOOK + k * PER_DAY;
   return bookEx(b).slice(from, from + PER_DAY).map(ex => ({ bid: b, ex }));
@@ -1261,7 +1284,7 @@ function renderER() {
     <section class="panel danger p-5">
       <span class="tape" style="background:var(--red);color:#fff">ER SURVIVAL MODE</span>
       <h2 class="text-2xl font-bold mt-1">Phòng Cấp Cứu Sinh Tử 🚑</h2>
-      <p class="text-sm text-slate-400">Level n = nhiệm vụ ngày n: ${PER_DAY} bài (ngày 1–2 trộn 3 quyển; từ ngày 3 mỗi ngày 1 dạng luân phiên: Lateinische Quadrate → Figurale Sequenzen → Mathematische Gleichungen, dễ → khó dần). Chung 1 đồng hồ ${fmtMS(PER_DAY * 75)} (= 75s/bài như đề thật). Sai 1 bài hoặc hết giờ → bệnh nhân CHẾT, hiện lời giải của sách.</p>
+      <p class="text-sm text-slate-400">Level n = nhiệm vụ ngày n: ${PER_DAY} bài (ngày 1–2 trộn 3 quyển; ngày 3–4 mỗi ngày 1 dạng; từ ngày 5 làm hết Lateinische Quadrate trước, rồi xen kẽ Figurale Sequenzen và Mathematische Gleichungen). Chung 1 đồng hồ ${fmtMS(PER_DAY * 75)} (= 75s/bài như đề thật). Sai 1 bài hoặc hết giờ → bệnh nhân CHẾT, hiện lời giải của sách.</p>
       <div class="mono text-sm mt-2"><span class="text-emerald-300">Đã cứu: ${S.erCleared.length}</span> · <span class="text-red-400">Đã giết: ${S.deaths}</span></div>
       ${ecgSVG()}
     </section>
@@ -2753,6 +2776,7 @@ function pomoInit() {
 
 pomoInit();
 loadRun(); renderTabs(); renderStats(); go('dash');
+capReady.then(() => { if (!CAP.db || !CAP.user) { ensureKernPlan(); renderStats(); if (currentTab === 'dash') renderDash(); } });
 if (S.tutorMin) toggleTutor(true);
 tutorSay(examRoast() + ' ' + (checkedToday() ? 'Lại là bạn à. Hôm nay điểm danh rồi, giờ đi làm ' + PER_DAY + ' bài Kern của ngày hôm nay đi.'
   : `Ngày ${dayNumber()}/${PLAN_DAYS}. Bạn CHƯA điểm danh. Đồng hồ đang chạy về 07:00 sáng mai... tick tock 😈`));
