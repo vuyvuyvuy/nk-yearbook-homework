@@ -2017,16 +2017,22 @@ function resetAnki() {
 function renderAnki() {
   if (ANKI && !ANKI.done) return renderAnkiCard();
   const p = ankiPlan(), now = Date.now();
-  const rows = ankiLessons().filter(L => lessonCards(L).length).map(L => { const cs = lessonCards(L); const open = lessonOpen(L);
-    const due = cs.filter(c => isDueCard(cardState(c), now)).length, nw = cs.filter(c => !cardState(c) || cardState(c).state === 'new').length;
-    return `<button class="w-full grid grid-cols-[1fr_60px_60px] gap-2 items-center text-left panel px-3 py-2 ${open && (due || nw) ? '' : 'opacity-50'}" ${open && (due || nw) ? `onclick="startDeck('${L.id}')"` : open ? '' : `onclick="debtBlock('Thẻ của bài ngày ${L.day}')"`}>
-      <span class="min-w-0"><b class="text-pink-200">${open ? '' : '🔒 '}${dayLabel(L)} · ${esc(L.title)}</b><div class="text-xs text-slate-500">${cs.length} thẻ · đã học ${cs.length - nw}</div></span>
-      <span class="mono text-lg text-right ${due ? 'text-emerald-300' : 'text-slate-600'}">${due}</span><span class="mono text-lg text-right ${nw ? 'text-cyan-300' : 'text-slate-600'}">${nw}</span></button>`; }).join('');
+  // each lesson: one row for its vocabulary deck and one for its knowledge deck
+  const rows = ankiLessons().filter(L => lessonCards(L).length).map(L => { const open = lessonOpen(L), all = lessonCards(L);
+    const row = (kind, label) => {
+      const cs = all.filter(c => (c.type === 'vocab') === (kind === 'vocab')), isNew = c => !cardState(c) || cardState(c).state === 'new';
+      const due = cs.filter(c => isDueCard(cardState(c), now)).length, nw = cs.filter(c => isNew(c) && cardOpenNew(c)).length, locked = cs.filter(c => isNew(c) && !cardOpenNew(c)).length;
+      const go = open && (due || nw);
+      return `<button class="w-full grid grid-cols-[1fr_60px_60px] gap-2 items-center text-left panel px-3 py-2 ${go ? '' : 'opacity-50'}" ${go ? `onclick="startDeck('${L.id}',null,'${kind}')"` : open ? '' : `onclick="debtBlock('Thẻ của bài ngày ${L.day}')"`}>
+        <span class="min-w-0 pl-3">${label}<div class="text-xs text-slate-500">${cs.length} thẻ · đã học ${cs.filter(c => !isNew(c)).length}${locked ? ` · 🔒 ${locked} mở sau khi làm text` : ''}</div></span>
+        <span class="mono text-lg text-right ${due ? 'text-emerald-300' : 'text-slate-600'}">${due}</span><span class="mono text-lg text-right ${nw ? 'text-cyan-300' : 'text-slate-600'}">${nw}</span></button>`;
+    };
+    return `<div class="space-y-1"><div class="font-bold text-pink-200 text-sm px-1 pt-2">${open ? '' : '🔒 '}${dayLabel(L)} · ${esc(L.title)}</div>${row('vocab', '🇩🇪 Từ vựng')}${row('know', '🧠 Kiến thức')}</div>`; }).join('');
   $('#view').innerHTML = `
     <section class="panel p-5" style="border-color:rgba(0,229,255,.45)">
       <span class="tape" style="background:var(--cyan)">ANKI TRÊN WEB</span>
       <h2 class="text-2xl font-bold mt-1">Bộ thẻ hôm nay 🃏</h2>
-      <p class="text-sm text-slate-400 mt-1">Thẻ lấy từ bài Fach của bạn. Thẻ mới đi theo từng bài: từ vựng Đức → Việt trước, rồi mới tới thẻ kiến thức (flashcard, mục giảng, Kernsätze đục lỗ). Lịch ôn kiểu Anki; mọi lịch ôn kết thúc trước ngày thi 1 hôm.</p>
+      <p class="text-sm text-slate-400 mt-1">Thẻ lấy từ bài Fach của bạn, mỗi ngày tách 2 bộ: 🇩🇪 Từ vựng và 🧠 Kiến thức (thẻ kiến thức mới của một text mở sau khi bạn làm text đó). Lịch ôn kiểu Anki; mọi lịch ôn kết thúc trước ngày thi 1 hôm.</p>
       <div class="grid sm:grid-cols-3 gap-3 mt-3 text-sm">
         <div class="panel p-3"><div class="text-xs text-slate-400 mono">THẺ MỚI HÔM NAY</div><div class="text-2xl font-bold ${p.newLeft ? 'text-cyan-300' : 'text-emerald-300'}">${p.learnedToday}</div><div class="text-[11px] text-slate-500">không giới hạn · kịp hạn cần ~${p.quota}/ngày</div></div>
         <div class="panel p-3"><div class="text-xs text-slate-400 mono">ĐẾN HẠN ÔN</div><div class="text-2xl font-bold ${p.due ? 'text-emerald-300' : 'text-slate-500'}">${p.due}</div></div>
