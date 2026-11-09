@@ -395,7 +395,12 @@ function mergeState(a, r) {
   m.kern = {};
   BOOK_IDS.forEach(b => {
     const x = (a.kern || {})[b] || {}, y = (r.kern || {})[b] || {}; m.kern[b] = Object.assign({}, x);
-    Object.keys(y).forEach(id => { if (!x[id] || (y[id].last || '') > (x[id].last || '') || ((y[id].last || '') === (x[id].last || '') && (y[id].n > x[id].n || (y[id].n === x[id].n && y[id].ok && !x[id].ok)))) m.kern[b][id] = y[id]; });
+    Object.keys(y).forEach(id => {
+      const u = x[id], v = y[id];
+      const newer = !u || (v.at || 0) > (u.at || 0) || (!(v.at || u.at) && ((v.last || '') > (u.last || '') || ((v.last || '') === (u.last || '') && (v.n > u.n || (v.n === u.n && v.ok && !u.ok)))));
+      const w = Object.assign({}, newer ? v : u); if ((u && (u.ok || u.solved)) || v.ok || v.solved) w.solved = true;
+      w.n = Math.max(u?.n || 0, v.n || 0); m.kern[b][id] = w;
+    });
   });
   const ek = e => [e.bid, e.pruef, e.date, e.score, e.secs].join('|');
   m.exams = [...new Map([...(r.exams || []), ...(a.exams || [])].map(e => [ek(e), e])).values()];
@@ -602,9 +607,10 @@ function solutionHTML(ex) {
   }).join('');
   return `<div class="sol mt-3"><div class="font-bold text-emerald-300 mb-1">Đáp án (${ex.pruef === 'G' ? 'đề chính thức g.a.s.t.' : 'theo sách'}): ${esc(ex.answerLine)}</div>${lines}</div>`;
 }
+const kernSolved = (bid, ex) => { const r = S.kern[bid][ex.id]; return !!r && (r.ok || r.solved); };
 function recordKern(bid, ex, ok) {
   const r = S.kern[bid][ex.id] || { ok: false, n: 0, wrong: 0 };
-  r.n++; if (!ok) r.wrong = (r.wrong || 0) + 1; r.ok = ok; r.last = todayStr();
+  r.n++; if (!ok) r.wrong = (r.wrong || 0) + 1; r.ok = ok; r.last = todayStr(); r.at = Date.now(); if (ok) r.solved = true;   // once solved, a later wrong try (mock exam, other device) never undoes it
   S.kern[bid][ex.id] = r; save(); renderStats(); if (ok) autoCheckin();
 }
 const exSheet = ex => `<div class="sheet"><img src="${ex.img}" alt="Bài ${ex.id}"></div>`;
@@ -672,7 +678,7 @@ const FACH_SKIP = ['Handbuch / Kreuztipps / Erstes Staatsexamen', 'Medizinische 
 // Kern = each of the day's 9 exercises must be solved correctly (last attempt right);
 // Fach = the day's lesson must exist and every one of its texts must be submitted.
 function dayDebt(n) {
-  const kern = dayExercises(n).filter(({ bid, ex }) => !(S.kern[bid][ex.id] || {}).ok);
+  const kern = dayExercises(n).filter(({ bid, ex }) => !kernSolved(bid, ex));
   const fach = { missingLesson: false, texts: [], questions: 0 };
   if (n <= FACH_DAYS && !FACH_PLAN[n - 1].exam) {
     const ls = fachOfDay(n);
@@ -833,7 +839,7 @@ function renderDash() {
       <div class="text-sm mt-2 space-y-3">
         <div>🧠 <b class="text-cyan-300">Kernmodul</b> (= ER Level ${d})${kernBookOfDay(d) ? ` · hôm nay chỉ 1 dạng: <b>${BOOK_ICON[kernBookOfDay(d)]} ${esc(KERN[kernBookOfDay(d)].title)}</b>` : ''}:
           <div class="flex flex-wrap gap-2 mt-2">${todays.map(({ bid, ex }) => { const r = S.kern[bid][ex.id];
-            return `<button class="optbtn text-xs ${r ? (r.ok ? 'on' : '') : ''}" style="${r && !r.ok ? 'border-color:var(--red)' : ''}" onclick="openPractice('${bid}','${ex.id}')">${BOOK_ICON[bid]} Q${BOOK_IDS.indexOf(bid) + 1} · ${ex.id}${r ? (r.ok ? ' ✓' : ' ✗') : ''}</button>`; }).join('')}</div>
+            return `<button class="optbtn text-xs ${r ? (r.ok || r.solved ? 'on' : '') : ''}" style="${r && !(r.ok || r.solved) ? 'border-color:var(--red)' : ''}" onclick="openPractice('${bid}','${ex.id}')">${BOOK_ICON[bid]} Q${BOOK_IDS.indexOf(bid) + 1} · ${ex.id}${r ? (r.ok ? ' ✓' : ' ✗') : ''}</button>`; }).join('')}</div>
         </div>
         <div>🩺 <b class="text-pink-300">Fachmodul ngày ${d}:</b> ${esc(fachPlanText(d))}
           <div class="mt-1">${fd.length ? fd.map(l => `<button class="optbtn text-xs" onclick="openFach('${l.id}')">${esc(l.title)}</button>`).join(' ') : `<span class="text-slate-400 text-xs">${d <= FACH_DAYS && !FACH_PLAN[d - 1].exam ? 'Chưa có bài. Gửi bài AMBOSS cho Claude, hoặc tự tạo trong tab 🩺 Fachmodul.' : ''}</span>`}</div></div>
@@ -985,7 +991,7 @@ const PASS = 0.8;
 let CHK = null;
 function dayProgress(n) {
   const ex = dayExercises(n);
-  const kernOk = ex.filter(({ bid, ex }) => (S.kern[bid][ex.id] || {}).ok).length;
+  const kernOk = ex.filter(({ bid, ex }) => kernSolved(bid, ex)).length;
   const fachNeeded = n <= FACH_DAYS && !FACH_PLAN[n - 1].exam;
   const ls = fachOfDay(n);
   let fachScore = 0, fachTotal = 0;
@@ -1125,7 +1131,7 @@ function openBook(bid, focus) {
     ${PRUEF_SETS(bid).map(p => `<section id="set-${p}" class="panel p-4 mb-3" ${p === 'G' ? 'style="border-color:rgba(250,204,21,.5)"' : ''}><div class="flex items-center justify-between"><div class="font-bold ${p === 'G' ? 'text-yellow-300' : 'text-cyan-300'}">${pruefLabel(p)}</div>
       ${p === 'G' ? '<span class="text-xs text-slate-400">6 bài · dễ → khó · lời giải dịch từ đáp án chính thức</span>' : `<button class="btn btn-red text-xs" onclick="startExam('${bid}',${p})">⏱ Thi thử 25 phút</button>`}</div>
       <div class="grid grid-cols-5 sm:grid-cols-10 gap-1.5 mt-3">${b.ex.filter(e => e.pruef === p).map(e => { const r = S.kern[bid][e.id];
-        const st = !r ? '' : r.ok ? 'background:rgba(0,255,163,.18);border-color:rgba(0,255,163,.5);color:#6ee7b7' : 'background:rgba(255,31,61,.15);border-color:rgba(255,31,61,.5);color:#fca5a5';
+        const st = !r ? '' : r.ok || r.solved ? 'background:rgba(0,255,163,.18);border-color:rgba(0,255,163,.5);color:#6ee7b7' : 'background:rgba(255,31,61,.15);border-color:rgba(255,31,61,.5);color:#fca5a5';
         return `<div class="exnum" style="${st}" onclick="openPractice('${bid}','${e.id}')" title="${esc(e.level || '')}">${e.id}</div>`; }).join('')}</div></section>`).join('')}
     <div class="text-xs text-slate-500">Xanh = lần gần nhất đúng · Đỏ = lần gần nhất sai.</div>`;
   if (focus) $('#set-' + focus)?.scrollIntoView({ block: 'start' });
