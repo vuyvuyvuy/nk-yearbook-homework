@@ -1687,7 +1687,7 @@ function fachPath(L) {
     return `<div class="path-step panel p-3 ${here ? 'pulse-neon' : ''}" style="${done && !kLeft ? 'border-color:rgba(0,255,163,.45)' : here ? 'border-color:var(--neon)' : ''}">
       <div class="path-dot" style="${done && !kLeft ? 'background:rgba(0,255,163,.2);color:#6ee7b7' : here ? 'background:var(--neon);color:#000' : ''}">${done && !kLeft ? '✓' : k + 1}</div>
       <div class="min-w-0"><div class="font-semibold">${esc(t.title_de.replace(/^Text\s*\d+\s*:\s*/i, ''))}</div>
-        <div class="text-xs text-slate-400 mt-0.5">${t.questions.length} câu${r ? ` · <b class="${r.best / r.total >= PASS ? 'text-emerald-300' : 'text-red-300'}">đã làm ${r.best ?? r.score}/${r.total}</b>${r.proven != null ? ` · có bằng chứng ${r.proven}/${r.score}` : ''}` : ''}</div>
+        <div class="text-xs text-slate-400 mt-0.5">${t.questions.length} câu${r ? ` · <b class="${r.best / r.total >= PASS ? 'text-emerald-300' : 'text-red-300'}">đã làm ${r.best ?? r.score}/${r.total}</b>${r.proven != null ? ` · có bằng chứng ${r.proven}/${r.score}` : ''}${r.sec != null ? ` · ⏱ <span class="${r.sec > t.questions.length * 95 ? 'text-red-300' : ''}">${fmtMS(r.sec)}</span>` : ''}` : ''}</div>
         <div class="flex flex-wrap gap-2 mt-2">
           <button class="btn ${cls(1)} text-xs" ${vLeft ? `onclick="startDeck('${L.id}',${k},'vocab')"` : 'disabled'}>① 🇩🇪 ${vLeft ? `Từ vựng (${vLeft})` : 'Từ vựng xong'}</button>
           <button class="btn ${cls(2)} text-xs" onclick="openFachText('${L.id}',${k})">② 📖 Text lạnh + ${t.questions.length} câu</button>
@@ -1736,7 +1736,7 @@ function fachQuiz(L, ti = 0, restore = null, retry = false) {
   if (!(ti >= 0 && ti < texts.length)) { ti = 0; restore = null; }   // e.g. a paused text of an older, longer version of the lesson
   if (!restore) stashRun('quiz');   // a text left half-done goes to the resume bar instead of being thrown away
   const T = texts[ti], qs = T.questions, sum = lessonScore(L), G = glossaryRegex(L, hintMode(L));
-  FQ = { id: L.id, ti, ev: restore && restore.ev ? Object.assign({}, restore.ev) : {}, evQ: null, sel: restore ? Object.assign({}, restore.sel) : {}, t: restore ? restore.t : qs.length * 95, done: false };   // ~1 min 35 s per question, like the real module
+  FQ = { id: L.id, ti, ev: restore && restore.ev ? Object.assign({}, restore.ev) : {}, evQ: null, sel: restore ? Object.assign({}, restore.sel) : {}, t: restore ? restore.t : qs.length * 95, t0: qs.length * 95, done: false };   // ~1 min 35 s per question, like the real module
   RUNVIEW = 'quiz'; if (restore) delete PAUSED.quiz;
   const last = !restore && !retry ? (L.quizzes || {})[ti] : null;
   if (last) { FQ.sel = Object.fromEntries((last.picks || []).map((k, i) => [i, k]).filter(([, k]) => k != null)); FQ.ev = Object.assign({}, last.ev || {}); }   // timer: ~1 min 35 s per question, like the real module
@@ -1831,11 +1831,11 @@ function fqSubmit(review) {
   if (review) { score = prevQ.score ?? score; proven = prevQ.proven ?? proven; }
   else {
     const picks = qs.map((q, i) => fqPicked(i) ?? null), ev = Object.fromEntries(Object.entries(FQ.ev).map(([k, v]) => [k, evList(k)]));
-    L.quizzes = Object.assign({}, L.quizzes, { [FQ.ti]: { score, proven, total: qs.length, date: todayStr(), best: Math.max(prevQ.best || 0, prevQ.score || 0, score), picks, ev } }); save(); addXP(score * 15); renderStats();
+    L.quizzes = Object.assign({}, L.quizzes, { [FQ.ti]: { score, proven, total: qs.length, date: todayStr(), best: Math.max(prevQ.best || 0, prevQ.score || 0, score), picks, ev, sec: Math.max(0, FQ.t0 - FQ.t) } }); save(); addXP(score * 15); renderStats();
     setTimeout(autoCheckin, 1500);
   }
   const next = FQ.ti + 1 < texts.length;
-  $('#fq-submit').outerHTML = `<div class="panel ${score / qs.length >= .7 ? 'neon' : 'danger'} p-4 text-center">${review ? `<div class="text-xs mono text-slate-400 mb-1">👀 XEM LẠI LẦN LÀM GẦN NHẤT · ${esc(prevQ.date || '')}${prevQ.best != null && prevQ.best !== prevQ.score ? ` · điểm cao nhất ${prevQ.best}/${qs.length}` : ''}${prevQ.picks ? '' : ' · lần này app chưa lưu bạn chọn gì, chỉ hiện đáp án đúng'}</div>` : ''}<div class="text-4xl font-bold">${score}/${qs.length}</div><div class="text-sm text-slate-300 mt-1">📌 có bằng chứng trong text: <b>${proven}/${score}</b> câu đúng${score - proven ? ` · ${score - proven} câu đúng nhờ đoán/nhớ` : ''}</div>${(() => { const n = savedWordsOf(L.id, FQ.ti).length; return n ? `<button class="btn btn-pink mt-3" onclick="startDeck('${L.id}',${FQ.ti},'mine')">🇩🇪 Học ${n} từ bạn vừa lưu</button>` : ''; })()}
+  $('#fq-submit').outerHTML = `<div class="panel ${score / qs.length >= .7 ? 'neon' : 'danger'} p-4 text-center">${review ? `<div class="text-xs mono text-slate-400 mb-1">👀 XEM LẠI LẦN LÀM GẦN NHẤT · ${esc(prevQ.date || '')}${prevQ.best != null && prevQ.best !== prevQ.score ? ` · điểm cao nhất ${prevQ.best}/${qs.length}` : ''}${prevQ.picks ? '' : ' · lần này app chưa lưu bạn chọn gì, chỉ hiện đáp án đúng'}</div>` : ''}<div class="text-4xl font-bold">${score}/${qs.length}</div><div class="text-sm text-slate-300 mt-1">📌 có bằng chứng trong text: <b>${proven}/${score}</b> câu đúng${score - proven ? ` · ${score - proven} câu đúng nhờ đoán/nhớ` : ''}</div>${(() => { const sec = review ? prevQ.sec : Math.max(0, FQ.t0 - FQ.t); return sec != null ? `<div class="text-sm mt-1 ${sec > FQ.t0 ? 'text-red-300' : 'text-slate-300'}">⏱ dùng ${fmtMS(sec)} / chuẩn đề thật ${fmtMS(FQ.t0)}${sec > FQ.t0 ? ' — quá giờ, ngày thi sẽ không kịp' : ''}</div>` : ''; })()}${(() => { const n = savedWordsOf(L.id, FQ.ti).length; return n ? `<button class="btn btn-pink mt-3" onclick="startDeck('${L.id}',${FQ.ti},'mine')">🇩🇪 Học ${n} từ bạn vừa lưu</button>` : ''; })()}
     <div class="flex flex-wrap justify-center gap-2 mt-3"><button class="btn btn-ghost" onclick="fachQuiz(S.fach.find(l=>l.id==='${L.id}'),${FQ.ti},null,true)">🔁 Làm lại từ đầu</button>
     ${debts().length ? `<button class="btn btn-red" onclick="payDebt()">💸 Trả nợ tiếp</button>` : ''}
     ${L.cold ? `<button class="btn btn-neon" onclick="go('fach')">🧊 Xem so sánh text lạ / text quen</button>` : `<button class="btn btn-neon" onclick="openFach('${L.id}','path');window.scrollTo({top:0})">③ 🧠 Chốt bằng thẻ kiến thức →</button>`}</div></div>`;
