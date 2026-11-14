@@ -138,21 +138,22 @@
 .trip-card-name{position:absolute;left:10px;bottom:8px;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.6)}.trip-card-stamp{position:absolute;right:10px;top:10px;border:2px solid #dc2626;color:#dc2626;background:#fff;border-radius:10px;padding:0 8px;font-weight:800;transform:rotate(8deg)}
 .trip-alb{border:1px solid var(--line);border-radius:12px;padding:.5rem;text-align:center;background:rgba(255,255,255,.03);color:var(--text)}.trip-alb.off{opacity:.35}
 /* ---------- Latin-square step-by-step pictures ---------- */
-.lq-board{display:grid;grid-template-columns:22px repeat(5,var(--lc));grid-template-rows:22px repeat(5,var(--lc));--lc:min(54px,calc((100vw - 110px)/5.5));justify-content:center}
+.lq-wrap{display:grid;gap:1rem;align-items:start}@media (min-width:760px){.lq-wrap{grid-template-columns:auto minmax(0,1fr)}}
+.lq-board{display:grid;grid-template-columns:22px repeat(5,var(--lc));grid-template-rows:22px repeat(5,var(--lc));--lc:min(58px,calc((100vw - 110px)/5.5));justify-content:center}
 .lq-gl{display:flex;align-items:end;justify-content:center;font-style:italic;color:#94a3b8}.lq-rl{display:flex;align-items:center;justify-content:center;color:#94a3b8;font-weight:700}
 .lq-cell{border:1.5px solid #cbd5e1;margin:-1px 0 0 -1px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:calc(var(--lc)*.45);position:relative;color:#e2e8f0}
-.lq-cell.hl{background:rgba(250,204,21,.22)}.lq-cell.q{background:rgba(148,163,184,.35)}.lq-cell.q.hl{background:rgba(250,204,21,.38)}
-.lq-cell.ded{color:#7dd3fc;font-weight:600}.lq-cell.new{color:#38bdf8}.lq-cell.new::after{content:"";position:absolute;inset:5px;border:2px solid #38bdf8;border-radius:50%}
-.lq-cell.blk::after{content:"";position:absolute;inset:4px;border:2px dashed #f87171;border-radius:6px}.lq-cell.ans{color:#34d399}
+.lq-cell.hl{background:rgba(250,204,21,.22)}.lq-cell.q{background:rgba(148,163,184,.4)}.lq-cell.q.hl{background:rgba(250,204,21,.4)}
+.lq-cell.kn{color:var(--cyan);font-size:calc(var(--lc)*.6)}.lq-cell.tmp{color:#f87171}.lq-cell.ans{color:#34d399}
+.lq-pt{position:absolute;left:-6px;bottom:-6px;font-size:calc(var(--lc)*.36)}
 .lq-hand-cap{font-size:.8rem;color:#94a3b8;text-align:center}
-.lq-hand{display:flex;justify-content:center;align-items:flex-end;gap:10px;margin-top:6px;height:96px}
-.lq-f{display:flex;flex-direction:column;align-items:center;gap:3px}.lq-flab{font-size:.7rem;color:#94a3b8}
-.lq-finger{width:38px;border-radius:19px 19px 8px 8px;display:flex;align-items:flex-start;justify-content:center;padding-top:6px;font-weight:800;color:#bfdbfe}
-.lq-finger.up{height:72px;background:#1e3a8a;border:1.5px solid #3b82f6}.lq-finger.up.tq{height:84px;color:#fde68a}
-.lq-finger.down{height:30px;border:1.5px dashed #64748b;color:#e2e8f0;align-items:center;padding:0}
-.lq-finger.nw{background:#0e7490;border-color:#22d3ee;color:#fff}
-.lq-chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:center;margin-top:8px}
-.lq-chip{min-width:30px;padding:2px 8px;border-radius:8px;text-align:center;font-weight:800}.lq-chip.on{background:#1e3a8a;color:#bfdbfe}.lq-chip.miss{border:1.5px dashed #64748b;color:#64748b}.lq-chip.ans{background:#065f46;color:#6ee7b7}.lq-arrow{color:#94a3b8;font-weight:800}
+.lq-hand{display:flex;justify-content:center;align-items:flex-end;gap:10px;margin-top:6px;height:100px}
+.lq-f{display:flex;flex-direction:column;align-items:center;gap:3px}.lq-flab{font-size:.68rem;color:#94a3b8;text-align:center;line-height:1.15}
+.lq-finger{width:38px;border-radius:19px 19px 8px 8px;display:flex;align-items:flex-start;justify-content:center;padding-top:6px;font-weight:800;color:#fde68a}
+.lq-finger.up{height:72px;background:#1e3a8a;border:1.5px solid #3b82f6}.lq-finger.up.tq{height:84px}
+.lq-finger.down{height:28px;border:1.5px dashed #64748b;background:transparent}.lq-finger.nw{box-shadow:0 0 0 3px #22d3ee}
+.lq-chips{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center;margin-top:8px}
+.lq-chip{padding:3px 10px;border-radius:8px;font-weight:800}.lq-chip.on{background:#1e3a8a;color:#bfdbfe}
+.lq-held{margin-top:8px;text-align:center;color:#f87171;font-weight:700}
 .lq-step{border-left:3px solid var(--cyan);background:rgba(0,229,255,.06);padding:.6rem .8rem;border-radius:0 10px 10px 0}
 /* ---------- floating countdown for a TestAS text: stays visible while the questions scroll ---------- */
 .fq-clock{position:fixed;top:calc(.6rem + env(safe-area-inset-top,0px));right:.75rem;z-index:85;padding:.35rem .8rem;border-radius:999px;background:rgba(10,12,20,.94);border:1px solid rgba(0,229,255,.55);box-shadow:0 0 18px rgba(0,229,255,.25);font-size:1.35rem;line-height:1.2;pointer-events:none}
@@ -632,7 +633,7 @@ function solutionHTML(ex) {
     return `<div>${t}</div>`;
   }).join('');
   const bid = Object.keys(KERN).find(k => KERN[k].ex.includes(ex));
-  return `<div class="sol mt-3"><div class="font-bold text-emerald-300 mb-1">Đáp án (${ex.pruef === 'G' ? 'đề chính thức g.a.s.t.' : 'theo sách'}): ${esc(ex.answerLine)}</div>${ex.lq ? `<button class="btn btn-neon text-xs my-2" onclick="lqOpen('${bid}','${ex.id}')">🔎 Xem lời giải từng bước có hình</button>` : ''}${lines}</div>`;
+  return `<div class="sol mt-3"><div class="font-bold text-emerald-300 mb-1">Đáp án (${ex.pruef === 'G' ? 'đề chính thức g.a.s.t.' : 'theo sách'}): ${esc(ex.answerLine)}</div>${ex.grid ? `<button class="btn btn-neon text-xs my-2" onclick="lqOpen('${bid}','${ex.id}')">🖐 Lời giải từng bước (cách ngón tay)</button>` : ''}${lines}</div>`;
 }
 const kernSolved = (bid, ex) => { const r = S.kern[bid][ex.id]; return !!r && (r.ok || r.solved); };
 function recordKern(bid, ex, ok) {
@@ -643,136 +644,252 @@ function recordKern(bid, ex, ok) {
 const exSheet = ex => `<div class="sheet"><img src="${ex.img}" alt="Bài ${ex.id}"></div>`;
 
 /* =====================================================================
-   5b. LATEIN-QUADRATE: STEP-BY-STEP PICTURE SOLUTION
-   ex.lq = the puzzle as 5 rows of A–E, "_" = empty, "?" = asked cell (digitised from the book page).
-   A small solver finds the shortest chain of deductions that ends in "?" and every step is drawn:
-   the board (line being read in yellow, blocking letter in a red dashed box, new letter circled),
-   and the line as a hand: 5 fingers = 5 cells, a folded finger = already filled, a standing finger = still empty.
+   5b. LATEIN-QUADRATE: lời giải từng bước (src/lq-finger.js is inlined here; tests in test/lq-finger.test.js)
    ===================================================================== */
-const LQ_L = 'ABCDE', LQ_G = ['α', 'β', 'γ', 'δ', 'ε'];
-const lqName = (r, c) => LQ_G[c] + (r + 1);
-const lqLine = (k, i) => k === 'row' ? 'hàng ' + (i + 1) : 'cột ' + LQ_G[i];
-const lqCap = s => s[0].toUpperCase() + s.slice(1);
-const lqCells = (k, i) => [0, 1, 2, 3, 4].map(j => k === 'row' ? [i, j] : [j, i]);
-const lqCross = (k, r, c) => k === 'row' ? ['col', c] : ['row', r];
-function lqParse(s) {
-  let tr = -1, tc = -1;
-  const g = s.split('/').map((row, r) => [...row].map((x, c) => { if (x === '?') { tr = r; tc = c; } return LQ_L.indexOf(x); }));
-  return { g, tr, tc };
-}
-function lqSolve(giv, tr, tc) {
-  const g = giv.map(r => r.slice()), src = g.map(r => r.map(() => -1)), steps = [];
-  const find = (k, i, v) => lqCells(k, i).find(([r, c]) => g[r][c] === v) || null;
-  for (let guard = 0; g[tr][tc] < 0 && guard < 40; guard++) {
-    let best = null; const take = s => { if (!best || s.p < best.p) best = s; };
-    for (const k of ['row', 'col']) for (let i = 0; i < 5; i++) {
-      const cells = lqCells(k, i), emp = cells.filter(([r, c]) => g[r][c] < 0), filled = cells.filter(([r, c]) => g[r][c] >= 0);
-      const have = new Set(filled.map(([r, c]) => g[r][c])), miss = [0, 1, 2, 3, 4].filter(v => !have.has(v));
-      if (emp.length === 1) take({ p: emp[0][0] === tr && emp[0][1] === tc ? 0 : 1, type: 'last', k, i, miss, set: [[...emp[0], miss[0]]], deps: filled });
-      else for (const v of miss) {
-        const poss = [], bl = [];
-        for (const [r, c] of emp) { const [ck, ci] = lqCross(k, r, c), b = find(ck, ci, v); if (b) bl.push(b); else poss.push([r, c]); }
-        if (poss.length === 1) take({ p: (poss[0][0] === tr && poss[0][1] === tc ? 0.2 : 0) + (emp.length === 2 ? 2 : 3), type: emp.length === 2 ? 'pair' : 'hidden', k, i, v, miss, set: [[...poss[0], v]], deps: [...filled, ...bl], blk: bl });
-      }
-    }
-    for (let r = 0; r < 5; r++) for (let c = 0; c < 5; c++) if (g[r][c] < 0) {
-      const seen = new Map();
-      for (let j = 0; j < 5; j++) { if (g[r][j] >= 0 && !seen.has(g[r][j])) seen.set(g[r][j], [r, j]); if (g[j][c] >= 0 && !seen.has(g[j][c])) seen.set(g[j][c], [j, c]); }
-      if (seen.size === 4) take({ p: r === tr && c === tc ? 0.5 : 2.5, type: 'naked', r, c, set: [[r, c, [0, 1, 2, 3, 4].find(x => !seen.has(x))]], deps: [...seen.values()] });
-    }
-    if (!best) return null;
-    const idx = steps.length; steps.push(best); for (const [r, c, v] of best.set) { g[r][c] = v; src[r][c] = idx; }
+/* Lateinische Quadrate — step-by-step solution the way it is done in the head ("ngón tay theo vị trí").
+   Shared by the app (inlined into testas-deathmatch.template.html) and by test/lq-finger.test.js.
+
+   Method
+   1. Target line T: the row or the column through "?" with more printed letters (tie: more crossing lines
+      through T's empty cells that already hold ≥ 3 printed letters; still tied: the row). Only T is tracked.
+   2. Left hand = the 5 POSITIONS of T (row: thumb = α … little finger = ε; column: thumb = row 1 … = row 5).
+      A filled cell folds its finger; the finger of "?" always stands.
+   3. The letters of T are recited in ABC order.
+   4. A chain fills exactly one more cell of T. It may only use printed letters + the known cells of T + the
+      temporary cells it creates itself, never temporaries of an earlier chain (they are forgotten).
+   5. When T has two empty cells ("?" and P), P is the partner cell; the next chain aims at P or "?",
+      whichever is shorter.
+   6. One empty cell left in T → the answer is the missing letter.
+   Deductions: last (a line with one empty cell), pair (a line with two empty cells missing {X, Y} and a
+   crossing line through one of them holding X), naked (row + column of a cell hold four different letters). */
+const LQF = (() => {
+  const L = 'ABCDE', G = ['α', 'β', 'γ', 'δ', 'ε'], FINGER = ['cái', 'trỏ', 'giữa', 'áp út', 'út'];
+  const name = (r, c) => G[c] + (r + 1);
+  const key = (r, c) => r * 5 + c;
+  const cells = (k, i) => [0, 1, 2, 3, 4].map(j => k === 'row' ? [i, j] : [j, i]);
+  const lineName = (k, i) => k === 'row' ? 'hàng ' + (i + 1) : 'cột ' + G[i];
+  const cap = s => s[0].toUpperCase() + s.slice(1);
+  const abc = vs => [...vs].sort((a, b) => a - b).map(v => L[v]);
+
+  function parse(s) {
+    let tr = -1, tc = -1;
+    const g = s.split('/').map((row, r) => [...row].map((x, c) => { if (x === '?') { tr = r; tc = c; } return L.indexOf(x); }));
+    return { g, tr, tc };
   }
-  if (g[tr][tc] < 0) return null;
-  const need = new Set([src[tr][tc]]), stack = [src[tr][tc]];   // keep only the steps the answer depends on
-  while (stack.length) for (const [r, c] of steps[stack.pop()].deps) { const x = src[r][c]; if (x >= 0 && !need.has(x)) { need.add(x); stack.push(x); } }
-  return { chain: [...need].sort((a, b) => a - b).map(i => steps[i]), final: g };
-}
-function lqViews(P) {
-  const { g, tr, tc, chain } = P, L = v => LQ_L[v];
-  const lineHave = (k, i, grid) => lqCells(k, i).filter(([r, c]) => grid[r][c] >= 0).map(([r, c]) => grid[r][c]);
-  const cur = g.map(r => r.slice()), done = [], views = [];
-  const rowN = lineHave('row', tr, g).length, colN = lineHave('col', tc, g).length;
-  const s0 = chain[0], start = s0.type === 'naked' ? (rowN >= colN ? ['row', tr] : ['col', tc]) : [s0.k, s0.i];
-  const seen = new Set([...lineHave('row', tr, g), ...lineHave('col', tc, g)]);
-  views.push({ hl: lqCells(...start), focus: start, grid: cur.map(r => r.slice()), newc: [], blk: [], done: [],
-    text: `Ô ? là ${lqName(tr, tc)}. Hàng ${tr + 1} có sẵn ${rowN} chữ, cột ${LQ_G[tc]} có ${colN} chữ; gộp lại đã thấy ${seen.size ? [...seen].sort().map(L).join(', ') : 'chưa có chữ nào'}. ` +
-      (s0.type === 'naked' ? 'Đủ để nhìn thẳng vào giỏ của ô ?.' : `Bắt đầu từ ${lqLine(...start)}: chỗ này suy ra được ngay.`) });
-  chain.forEach(s => {
-    const [r0, c0, v0] = s.set[0], isT = r0 === tr && c0 === tc, blk = s.blk || []; let text, hl, focus;
-    if (s.type === 'naked') {
-      hl = [...lqCells('row', r0), ...lqCells('col', c0)]; focus = null;
-      const ls = s.deps.map(([a, b]) => cur[a][b]).sort().map(L).join(', ');
-      text = isT ? `Giỏ của ô ? (hàng ${r0 + 1} + cột ${LQ_G[c0]}) đã đủ 4 chữ: ${ls}. Chữ còn thiếu → ? = ${L(v0)}.` : `Ô ${lqName(r0, c0)}: hàng ${r0 + 1} và cột ${LQ_G[c0]} cộng lại đã có ${ls}. Chỉ còn ${L(v0)} → ${lqName(r0, c0)} = ${L(v0)}.`;
-    } else {
-      hl = lqCells(s.k, s.i); focus = [s.k, s.i]; const Ln = lqLine(s.k, s.i);
-      if (s.type === 'last') text = `${lqCap(Ln)} đã có 4 chữ, chỉ còn trống ${isT ? 'ô ?' : lqName(r0, c0)}. Chữ thiếu duy nhất là ${L(v0)} → ${isT ? '?' : lqName(r0, c0)} = ${L(v0)}.`;
-      else {
-        const why = blk.map(([a, b]) => `${L(v0)} ở ${lqName(a, b)} chặn ${s.k === 'row' ? 'cột ' + LQ_G[b] : 'hàng ' + (a + 1)}`).join('; ');
-        text = `${lqCap(Ln)} còn thiếu ${s.miss.map(L).join(', ')}. Chữ ${L(v0)} đặt được ở đâu? ${why} → ${L(v0)} chỉ còn chỗ ${isT ? 'ô ?' : lqName(r0, c0)}.`;
+
+  function chooseTarget(g, tr, tc) {
+    const count = (k, i) => cells(k, i).filter(([r, c]) => g[r][c] >= 0).length;
+    const cross = (k, i) => cells(k, i).filter(([r, c]) => g[r][c] < 0)
+      .filter(([r, c]) => (k === 'row' ? count('col', c) : count('row', r)) >= 3).length;
+    const row = ['row', tr], col = ['col', tc], a = count(...row), b = count(...col);
+    if (a !== b) return a > b ? row : col;
+    const x = cross(...row), y = cross(...col);
+    return y > x ? col : row;
+  }
+
+  // forward inference in waves from a base grid; every derived cell remembers the step that produced it
+  function infer(base, allowHidden) {
+    const g = base.map(r => r.slice()), steps = [], by = new Map();   // by: cell key → step index
+    for (let guard = 0; guard < 30; guard++) {
+      const wave = [], claimed = new Set();
+      const add = st => { if (st.set.some(([r, c]) => claimed.has(key(r, c)) || g[r][c] >= 0)) return; st.set.forEach(([r, c]) => claimed.add(key(r, c))); wave.push(st); };
+      for (const k of ['row', 'col']) for (let i = 0; i < 5; i++) {
+        const cs = cells(k, i), emp = cs.filter(([r, c]) => g[r][c] < 0), full = cs.filter(([r, c]) => g[r][c] >= 0);
+        const have = new Set(full.map(([r, c]) => g[r][c])), miss = [0, 1, 2, 3, 4].filter(v => !have.has(v));
+        if (emp.length === 1) add({ type: 'last', k, i, set: [[...emp[0], miss[0]]], deps: full });
+        else if (emp.length === 2) {
+          for (let e = 0; e < 2; e++) for (let m = 0; m < 2; m++) {
+            const [r, c] = emp[e], [ck, ci] = k === 'row' ? ['col', c] : ['row', r];
+            const b = cells(ck, ci).find(([x, y]) => g[x][y] === miss[m]);
+            if (b) { const o = emp[1 - e]; add({ type: 'pair', k, i, miss, emp, cross: [ck, ci], blocker: b, bl: miss[m], set: [[r, c, miss[1 - m]], [o[0], o[1], miss[m]]], deps: [...full, b] }); }
+          }
+        } else if (allowHidden && emp.length > 2) {   // fallback only: letter X fits in just one empty cell of the line
+          for (const v of miss) {
+            const poss = [], bl = [];
+            for (const [r, c] of emp) { const [ck, ci] = k === 'row' ? ['col', c] : ['row', r], b = cells(ck, ci).find(([x, y]) => g[x][y] === v); if (b) bl.push(b); else poss.push([r, c]); }
+            if (poss.length === 1) add({ type: 'hidden', k, i, v, blk: bl, set: [[...poss[0], v]], deps: bl });
+          }
+        }
       }
+      for (let r = 0; r < 5; r++) for (let c = 0; c < 5; c++) if (g[r][c] < 0) {
+        const seen = new Map();
+        for (let j = 0; j < 5; j++) { if (g[r][j] >= 0 && !seen.has(g[r][j])) seen.set(g[r][j], [r, j]); }
+        for (let j = 0; j < 5; j++) { if (g[j][c] >= 0 && !seen.has(g[j][c])) seen.set(g[j][c], [j, c]); }
+        if (seen.size === 4) add({ type: 'naked', r, c, set: [[r, c, [0, 1, 2, 3, 4].find(x => !seen.has(x))]], deps: [...seen.values()] });
+      }
+      if (!wave.length) break;
+      for (const st of wave) { const idx = steps.length; steps.push(st); for (const [r, c, v] of st.set) { g[r][c] = v; by.set(key(r, c), idx); } }
     }
-    for (const [r, c, v] of s.set) cur[r][c] = v;
-    views.push({ hl, focus, blk, grid: cur.map(r => r.slice()), newc: s.set.map(([r, c]) => [r, c]), done: done.slice(), text, final: isT });
-    s.set.forEach(([r, c]) => done.push([r, c]));
-  });
-  return views;
+    return { g, steps, by };
+  }
+
+  // minimal chain (step indices, in order) that produces cell (r, c)
+  function chainFor(inf, r, c) {
+    const need = new Set(), stack = [inf.by.get(key(r, c))];
+    while (stack.length) { const s = stack.pop(); if (s === undefined || need.has(s)) continue; need.add(s);
+      for (const [x, y] of inf.steps[s].deps) { const p = inf.by.get(key(x, y)); if (p !== undefined && !need.has(p)) stack.push(p); } }
+    return [...need].sort((a, b) => a - b);
+  }
+
+  // temporaries (cells outside T) a chain makes, and how many must be held at the same time
+  function holding(inf, chain, isTarget) {
+    const born = new Map(), lastUse = new Map();
+    chain.forEach((s, t) => {
+      for (const [x, y] of inf.steps[s].deps) { const k = key(x, y); if (born.has(k)) lastUse.set(k, t); }
+      for (const [x, y] of inf.steps[s].set) { const k = key(x, y); if (!isTarget(x, y)) { born.set(k, t); lastUse.set(k, t); } }
+    });
+    const live = chain.map((s, t) => [...born.keys()].filter(k => born.get(k) <= t && lastUse.get(k) >= t));
+    return { live, max: Math.max(0, ...live.map(x => x.length)) };
+  }
+
+  function solve(str) {
+    const { g, tr, tc } = parse(str);
+    const [k, i] = chooseTarget(g, tr, tc), T = cells(k, i), inT = (r, c) => k === 'row' ? r === i : c === i;
+    const known = new Map();   // derived cells of T: key → value
+    const rounds = [];
+    for (let guard = 0; guard < 10; guard++) {
+      const base = g.map(row => row.slice()); known.forEach((v, kk) => { base[Math.floor(kk / 5)][kk % 5] = v; });
+      if (base[tr][tc] >= 0) break;
+      const empT = T.filter(([r, c]) => base[r][c] < 0);
+      const have = T.filter(([r, c]) => base[r][c] >= 0).map(([r, c]) => base[r][c]);
+      if (empT.length === 1) { rounds.push({ type: 'final-last', have, value: [0, 1, 2, 3, 4].find(v => !have.includes(v)) }); known.set(key(tr, tc), rounds[rounds.length - 1].value); break; }
+      let inf = infer(base, false);
+      if (!empT.some(([r, c]) => inf.by.has(key(r, c)))) inf = infer(base, true);
+      let best = null;
+      for (const [r, c] of empT) {
+        if (!inf.by.has(key(r, c))) continue;
+        const ch = chainFor(inf, r, c), h = holding(inf, ch, (x, y) => x === r && y === c), isQ = r === tr && c === tc;
+        const score = [ch.length, h.max, isQ ? 1 : 0];   // tie: the partner cell first, then "?" follows from the hand
+        const less = (x, y) => { for (let j = 0; j < x.length; j++) if (x[j] !== y[j]) return x[j] < y[j]; return false; };
+        if (!best || less(score, best.score)) best = { r, c, ch, h, score };
+      }
+      if (!best) return { ok: false, tr, tc, target: [k, i], rounds };
+      const partner = empT.length === 2 ? empT.find(([r, c]) => !(r === tr && c === tc)) : null;
+      const steps = best.ch.map(s => inf.steps[s]);
+      const fills = [[best.r, best.c, inf.g[best.r][best.c]]];   // a chain adds exactly one cell to T; everything else it made is forgotten
+      const usable = new Set(); for (let r = 0; r < 5; r++) for (let c = 0; c < 5; c++) if (base[r][c] >= 0) usable.add(key(r, c));
+      rounds.push({ type: 'chain', target: [best.r, best.c], partner, emptyBefore: empT.length, missBefore: [0, 1, 2, 3, 4].filter(v => !have.includes(v)),
+        steps, live: best.h.live, maxHeld: best.h.max, fills, usable: [...usable] });
+      fills.forEach(([r, c, v]) => known.set(key(r, c), v));
+    }
+    const ans = known.get(key(tr, tc));
+    return { ok: ans !== undefined, answer: ans, letter: ans !== undefined ? L[ans] : null, g, tr, tc, target: [k, i], rounds };
+  }
+
+  // ---------- views for the step-by-step UI ----------
+  function views(sol) {
+    const { g, tr, tc } = sol, [k, i] = sol.target, T = cells(k, i), inT = (r, c) => k === 'row' ? r === i : c === i;
+    const Tn = lineName(k, i), finger = (r, c) => FINGER[k === 'row' ? c : r], pos = (r, c) => k === 'row' ? G[c] : 'hàng ' + (r + 1);
+    const known = new Map(), out = [];
+    const tLetters = () => abc([...T.filter(([r, c]) => g[r][c] >= 0).map(([r, c]) => g[r][c]), ...known.values()]);
+    const snapshot = extra => Object.assign({ known: new Map(known), temps: [], hl: T, point: null, held: [] }, extra);
+    const printedT = T.filter(([r, c]) => g[r][c] >= 0);
+    out.push(snapshot({ label: 'Bắt đầu: chọn đường đích',
+      text: `Chọn ${Tn}. ` + (printedT.length
+        ? `${cap(Tn)} có sẵn ${printedT.map(([r, c]) => `${L[g[r][c]]} ở ${name(r, c)}`).join(', ')}: gập ngón ${printedT.map(([r, c]) => finger(r, c)).join(', ')}. Nhẩm “${tLetters().join('-')}”.`
+        : `${cap(Tn)} chưa có chữ nào: cả 5 ngón dựng.`) }));
+    sol.rounds.forEach((rd, n) => {
+      if (rd.type === 'final-last') return;
+      const cur = g.map(r => r.slice()); known.forEach((v, kk) => { cur[Math.floor(kk / 5)][kk % 5] = v; });
+      if (rd.partner) {
+        const [pr, pc] = rd.partner, [X, Y] = rd.missBefore.map(v => L[v]);
+        out.push(snapshot({ label: 'Nhìn tay: ô bạn đời', point: rd.partner,
+          text: `Tay còn 2 ngón dựng: ngón ${finger(tr, tc)} (ô ?) và ngón ${finger(pr, pc)} (${name(pr, pc)}). ${name(pr, pc)} là ô bạn đời: ${Tn} còn thiếu ${X}, ${Y}, biết ${name(pr, pc)} là biết ?.` +
+            (rd.steps.length >= 5 ? ` Chuỗi tìm ra ${rd.target[0] === tr && rd.target[1] === tc ? 'ô ?' : name(pr, pc)} dài ${rd.steps.length} bước. Gấp giờ thì đoán 50/50 giữa ${X} và ${Y} rồi qua câu khác.` : '') }));
+      }
+      const temps = new Map();
+      rd.steps.forEach((st, t) => {
+        const [r0, c0, v0] = st.set[0];
+        let text, hl, label;
+        const letters = list => abc(list.map(([a, b]) => cur[a][b]));
+        if (st.type === 'last') {
+          label = 'Đường còn 1 ô trống'; hl = cells(st.k, st.i);
+          text = `${cap(lineName(st.k, st.i))} chỉ còn trống ${name(r0, c0)}, nên ${name(r0, c0)} = ${L[v0]}.`;
+        } else if (st.type === 'pair') {
+          label = 'Cặp 2 ô trống'; hl = [...cells(st.k, st.i), ...cells(...st.cross)];
+          const full = cells(st.k, st.i).filter(([a, b]) => cur[a][b] >= 0), [b1, b2] = st.blocker;
+          text = `${cap(lineName(st.k, st.i))} (có ${letters(full).join(', ')}) thiếu ${abc(st.miss).join(', ')} ở ${st.emp.map(([a, b]) => name(a, b)).join(', ')}. ${cap(lineName(...st.cross))} có ${L[st.bl]} (ở ${name(b1, b2)}), nên ${st.set.filter(([a, b]) => !(a === tr && b === tc) || (rd.target[0] === tr && rd.target[1] === tc)).map(([a, b, v]) => `${name(a, b)} = ${L[v]}`).join(', ')}.`;
+        } else if (st.type === 'hidden') {
+          label = 'Chữ chỉ còn 1 chỗ'; hl = cells(st.k, st.i);
+          text = `Trong ${lineName(st.k, st.i)}, chữ ${L[st.v]} chỉ còn đặt được ở ${name(r0, c0)}: ${st.blk.map(([a, b]) => `${L[st.v]} ở ${name(a, b)} chặn ${st.k === 'row' ? 'cột ' + G[b] : 'hàng ' + (a + 1)}`).join('; ')}. Nên ${name(r0, c0)} = ${L[st.v]}.`;
+        } else {
+          label = 'Giỏ đủ 4 chữ'; hl = [...cells('row', r0), ...cells('col', c0)];
+          const rowL = st.deps.filter(([a]) => a === r0), colL = st.deps.filter(([a, b]) => a !== r0 && b === c0);
+          text = `${name(r0, c0)}: hàng ${r0 + 1} có ${letters(rowL).join(', ') || '—'}, cột ${G[c0]} có ${letters(colL).join(', ') || '—'}, nên ${name(r0, c0)} = ${L[v0]}.`;
+        }
+        const isTgt = (a, b) => a === rd.target[0] && b === rd.target[1], isQ = (a, b) => a === tr && b === tc;
+        st.set.forEach(([a, b, v]) => { cur[a][b] = v; if (!isTgt(a, b) && !isQ(a, b)) temps.set(key(a, b), v); });
+        const intoT = st.set.filter(([a, b]) => isTgt(a, b));
+        intoT.forEach(([a, b, v]) => known.set(key(a, b), v));
+        if (intoT.length) text += ' ' + intoT.map(([a, b]) => `${name(a, b)} nằm trong ${Tn}: gập ngón ${finger(a, b)}.`).join(' ') + ` Nhẩm “${tLetters().join('-')}”.`;
+        const held = rd.live[t].map(kk => [Math.floor(kk / 5), kk % 5, temps.get(kk)]).filter(x => x[2] !== undefined);
+        out.push(snapshot({ label: `Chuỗi ${n + 1} · ${label}`, text, hl, point: [r0, c0], newc: st.set.filter(([a, b]) => !(a === tr && b === tc) || (rd.target[0] === tr && rd.target[1] === tc)), temps: [...temps.entries()].map(([kk, v]) => [Math.floor(kk / 5), kk % 5, v]), held, heavy: held.length >= 3 && held.length === rd.maxHeld, maxHeld: rd.maxHeld }));
+      });
+      if (temps.size && !known.has(key(tr, tc))) out.push(snapshot({ label: 'Hết chuỗi', text: 'Hết chuỗi: quên các ô tạm, nhấc tay phải.' }));
+    });
+    const have = tLetters().filter(x => x !== sol.letter);
+    const fin = sol.rounds[sol.rounds.length - 1];
+    known.set(key(tr, tc), sol.answer);
+    out.push(snapshot({ label: 'Kết luận', final: true, point: [tr, tc],
+      text: fin && fin.type === 'final-last' ? `${cap(Tn)} có “${abc(fin.have).join('-')}”, thiếu ${sol.letter}, vậy ? = ${sol.letter}.` : `Chuỗi vừa rồi ra thẳng ô ?: ? = ${sol.letter}. (${cap(Tn)} lúc này có “${have.join('-')}”.)` }));
+    return out;
+  }
+
+  return { parse, chooseTarget, infer, solve, views, cells, lineName, name, L, G, FINGER, key };
+})();
+
+// --- UI for LQF (lời giải từng bước): ex.grid = "_B_D_/D_?__/…" digitised from the book page
+let LQP = null;
+function lqStart(bid, id, el) {
+  const ex = KERN[bid].ex.find(e => e.id === id); if (!ex || !ex.grid) return false;
+  const sol = LQF.solve(ex.grid); if (!sol.ok) return false;
+  LQP = { id, sol, views: LQF.views(sol), step: 0, el };
+  lqShow(); return true;
 }
-function lqBoardHTML(P, v) {
-  const has = (a, r, c) => (a || []).some(([x, y]) => x === r && y === c);
-  let h = `<div class="lq-board"><div></div>${LQ_G.map(x => `<div class="lq-gl">${x}</div>`).join('')}`;
+function lqOpen(bid, id) {
+  showModal(`<div class="flex items-center justify-between gap-2"><div class="font-bold text-lg">🖐 Bài ${esc(id)} · lời giải từng bước</div></div><div id="lq-modal-body" class="mt-3"></div>`, true);
+  if (!lqStart(bid, id, 'lq-modal-body')) $('#lq-modal-body').textContent = 'Bài này chưa có dữ liệu bảng, xem lời giải chữ của sách.';
+}
+function lqBoardHTML(sol, v) {
+  const { g, tr, tc } = sol, has = (a, r, c) => (a || []).some(([x, y]) => x === r && y === c), K = LQF.key;
+  const temp = new Map((v.temps || []).map(([r, c, x]) => [K(r, c), x]));
+  let h = `<div class="lq-board"><div></div>${LQF.G.map(x => `<div class="lq-gl">${x}</div>`).join('')}`;
   for (let r = 0; r < 5; r++) {
     h += `<div class="lq-rl">${r + 1}</div>`;
     for (let c = 0; c < 5; c++) {
-      const isT = r === P.tr && c === P.tc, val = v.grid[r][c], cls = ['lq-cell'];
-      if (has(v.hl, r, c)) cls.push('hl'); if (isT) cls.push('q'); if (has(v.blk, r, c)) cls.push('blk');
-      let txt = '';
-      if (isT) { txt = v.final ? LQ_L[P.final[r][c]] : '?'; if (v.final) cls.push('ans'); }
-      else if (P.g[r][c] >= 0) txt = LQ_L[P.g[r][c]];
-      else if (val >= 0) { txt = LQ_L[val]; cls.push(has(v.newc, r, c) ? 'new' : 'ded'); }
-      h += `<div class="${cls.join(' ')}">${txt}</div>`;
+      const isQ = r === tr && c === tc, cls = ['lq-cell']; let txt = '';
+      if (has(v.hl, r, c)) cls.push('hl');
+      if (isQ) { cls.push('q'); txt = v.final ? LQF.L[sol.answer] : '?'; if (v.final) cls.push('ans'); }
+      else if (g[r][c] >= 0) txt = LQF.L[g[r][c]];
+      else if (v.known.has(K(r, c))) { txt = '•'; cls.push('kn'); }
+      else if (temp.has(K(r, c))) { txt = LQF.L[temp.get(K(r, c))]; cls.push('tmp'); }
+      const pt = v.point && v.point[0] === r && v.point[1] === c;
+      h += `<div class="${cls.join(' ')}">${txt}${pt ? '<span class="lq-pt">👉</span>' : ''}</div>`;
     }
   }
   return h + '</div>';
 }
-function lqHandHTML(P, v) {
-  const prev = P.views[Math.max(0, P.step - 1)].grid;
-  if (!v.focus) {   // naked single: the "basket" of the cell = letters of its row + column
-    const [r, c] = v.newc[0], seen = new Set();
-    for (let j = 0; j < 5; j++) { if (prev[r][j] >= 0) seen.add(prev[r][j]); if (prev[j][c] >= 0) seen.add(prev[j][c]); }
-    return `<div class="lq-hand-cap">Giỏ của ô ${r === P.tr && c === P.tc ? '?' : lqName(r, c)} = chữ trong hàng ${r + 1} + cột ${LQ_G[c]}</div>
-      <div class="lq-chips">${[0, 1, 2, 3, 4].map(x => `<span class="lq-chip ${seen.has(x) ? 'on' : 'miss'}">${LQ_L[x]}</span>`).join('')}<span class="lq-arrow">→</span><span class="lq-chip ans">${LQ_L[v.grid[r][c]]}</span></div>`;
-  }
-  const [k, i] = v.focus, cells = lqCells(k, i);
-  const fingers = cells.map(([r, c]) => {
-    const isT = r === P.tr && c === P.tc, filled = prev[r][c] >= 0, isNew = v.newc.some(([a, b]) => a === r && b === c);
-    const lab = k === 'row' ? LQ_G[c] : 'hàng ' + (r + 1);
-    const txt = filled ? LQ_L[prev[r][c]] : isNew ? LQ_L[v.grid[r][c]] : isT ? '?' : '';
-    return `<div class="lq-f"><div class="lq-finger ${filled ? 'down' : 'up'}${isT ? ' tq' : ''}${isNew ? ' nw' : ''}">${txt}</div><div class="lq-flab">${lab}</div></div>`;
+function lqHandHTML(sol, v) {
+  const { g, tr, tc } = sol, [k, i] = sol.target, T = LQF.cells(k, i), K = LQF.key;
+  const filled = (r, c) => !(r === tr && c === tc) && (g[r][c] >= 0 || v.known.has(K(r, c)));
+  const fingers = T.map(([r, c], j) => {
+    const up = !filled(r, c), q = r === tr && c === tc, pt = v.point && v.point[0] === r && v.point[1] === c;
+    return `<div class="lq-f"><div class="lq-finger ${up ? 'up' : 'down'}${q ? ' tq' : ''}${pt ? ' nw' : ''}">${q ? (v.final ? LQF.L[sol.answer] : '?') : ''}</div><div class="lq-flab">${LQF.FINGER[j]}<br><b>${k === 'row' ? LQF.G[c] : 'hàng ' + (r + 1)}</b></div></div>`;
   }).join('');
-  const have = cells.filter(([r, c]) => prev[r][c] >= 0).map(([r, c]) => prev[r][c]).sort();
-  return `<div class="lq-hand-cap">Bàn tay = 5 ô của ${lqLine(k, i)} (ngón gập = đã có chữ, ngón dựng = còn trống)</div>
+  const have = [...T.filter(([r, c]) => g[r][c] >= 0).map(([r, c]) => g[r][c]), ...[...v.known.entries()].filter(([kk]) => kk !== K(tr, tc)).map(([, x]) => x)].sort((a, b) => a - b);
+  const Tn = LQF.lineName(k, i);
+  return `<div class="lq-hand-cap">🖐 Tay trái = 5 vị trí của ${Tn} (ngón dựng = còn trống, ngón gập = đã có chữ)</div>
     <div class="lq-hand">${fingers}</div>
-    <div class="lq-chips"><span class="text-slate-400 text-sm">${lqCap(lqLine(k, i))} có:</span>${have.map(x => `<span class="lq-chip on">${LQ_L[x]}</span>`).join('') || '<span class="text-slate-500 text-sm">—</span>'}
-      <span class="text-slate-400 text-sm ml-2">thiếu: ${[0, 1, 2, 3, 4].filter(x => !have.includes(x)).map(x => LQ_L[x]).join(', ')}</span></div>`;
-}
-let LQP = null;
-function lqOpen(bid, id) {
-  const ex = KERN[bid].ex.find(e => e.id === id); if (!ex || !ex.lq) return;
-  const P = lqParse(ex.lq), res = lqSolve(P.g, P.tr, P.tc);
-  if (!res) return showModal('<div>Bài này không suy ra được bằng các bước cơ bản; xem lời giải chữ của sách.</div>');
-  Object.assign(P, res, { id, step: 0 }); P.views = lqViews(P); LQP = P;
-  showModal(`<div class="flex items-center justify-between gap-2"><div class="font-bold text-lg">🔎 Bài ${esc(id)} · từng bước</div><div class="text-xs text-slate-400">${P.chain.length} bước suy luận</div></div><div id="lq-body" class="mt-3"></div>`, true);
-  lqShow();
+    <div class="lq-chips"><span class="lq-chip on">${Tn[0].toUpperCase() + Tn.slice(1)} có: ${have.map(x => LQF.L[x]).join('-') || '—'}</span><span class="text-slate-400 text-sm">thiếu: ${[0, 1, 2, 3, 4].filter(x => !have.includes(x)).map(x => LQF.L[x]).join(', ')}</span></div>
+    ${v.held && v.held.length ? `<div class="lq-held">Đang giữ tạm: ${v.held.map(([r, c, x]) => `${LQF.name(r, c)} = ${LQF.L[x]}`).join(', ')}${v.heavy ? ' (lúc nặng nhất)' : ''}</div>` : ''}`;
 }
 function lqShow() {
-  const P = LQP, v = P.views[P.step], last = P.views.length - 1;
-  $('#lq-body').innerHTML = `${lqBoardHTML(P, v)}
-    <div class="mt-3">${lqHandHTML(P, v)}</div>
-    <div class="lq-step mt-3"><div class="text-xs text-slate-400">Bước ${P.step}/${last}${P.step === 0 ? ': chọn chỗ bắt đầu' : v.final ? ': ra đáp án' : ''}</div><div class="mt-1">${esc(v.text)}</div>
-      ${v.final ? `<div class="mt-2 font-bold text-emerald-300">Đáp án: ${lqName(P.tr, P.tc)} = ${LQ_L[P.final[P.tr][P.tc]]}</div>` : ''}</div>
-    <div class="flex gap-2 mt-3"><button class="btn btn-ghost" ${P.step ? '' : 'disabled'} onclick="LQP.step--;lqShow()">← Trước</button><button class="btn btn-neon" ${P.step < last ? '' : 'disabled'} onclick="LQP.step++;lqShow()">Tiếp →</button></div>
-    <details class="mt-3 text-xs text-slate-400"><summary class="cursor-pointer">Cách đọc hình</summary>Ô vàng = đường đang nhìn. Khung đỏ nét đứt = chữ "chặn" khiến một ô bị loại. Chữ xanh có vòng = chữ vừa suy ra ở bước này; chữ xanh nhạt = suy ra ở bước trước. Các bước không cần cho ô ? đã được bỏ bớt.</details>`;
+  const P = LQP, v = P.views[P.step], last = P.views.length - 1, el = $('#' + P.el); if (!el) return;
+  el.innerHTML = `<div class="lq-wrap"><div>${lqBoardHTML(P.sol, v)}</div><div>${lqHandHTML(P.sol, v)}</div></div>
+    <div class="lq-step mt-3"><div class="text-xs text-slate-400">Bước ${P.step}/${last}: ${esc(v.label)}</div><div class="mt-1">${esc(v.text)}</div>
+      ${v.final ? `<div class="mt-2 font-bold text-emerald-300">Đáp án: ${LQF.name(P.sol.tr, P.sol.tc)} = ${P.sol.letter}</div>` : ''}</div>
+    <div class="flex gap-2 mt-3"><button class="btn btn-ghost flex-1 py-3" ${P.step ? '' : 'disabled'} onclick="LQP.step--;lqShow()">← Trước</button><button class="btn btn-neon flex-1 py-3" ${P.step < last ? '' : 'disabled'} onclick="LQP.step++;lqShow()">Tiếp →</button></div>
+    <details class="mt-3 text-xs text-slate-400"><summary class="cursor-pointer">Cách đọc hình</summary>Chỉ theo dõi một đường (đường đích). Ô vàng = đường đang nhìn ở bước này. “•” = ô của đường đích đã biết có chữ (chỉ nhớ vị trí, chữ thì nhẩm theo ABC trong chip). Chữ đỏ = ô tạm của chuỗi đang làm; hết chuỗi thì quên hết. 👉 = ô vừa điền.</details>`;
 }
 
 /* =====================================================================
@@ -1591,7 +1708,8 @@ function submitPractice(giveUp) {
   ok ? praise(PR.t < 0 ? `Đúng, nhưng quá giờ ${-PR.t}s. Thi thật thì tiếc lắm.` : '') : roast(giveUp ? 'Đầu hàng sớm thế. Đọc lời giải rồi làm lại sau nhé.' : '');
   $('#pr-actions').innerHTML = `${debts().length ? `<button class="btn btn-red" onclick="payDebt()">💸 Trả nợ tiếp (${debtSummary()})</button>` : ''}${PR.i < b.ex.length - 1 ? `<button class="btn btn-neon" onclick="openPractice('${PR.bid}','${b.ex[PR.i + 1].id}')">Bài tiếp →</button>` : ''}
     <button class="btn btn-ghost" onclick="openPractice('${PR.bid}','${ex.id}')">Làm lại</button>`;
-  $('#pr-feedback').innerHTML = `<div class="mt-3 text-lg font-bold ${ok ? 'text-emerald-300' : 'text-red-400'}">${ok ? '✓ ĐÚNG' : '✗ SAI'} <span class="text-sm font-normal text-slate-400">· bạn chọn: ${esc(fmtAnswer(PR.bid, a))} · thời gian ${fmtMS(75 - PR.t)}</span></div>${solutionHTML(ex)}`;
+  $('#pr-feedback').innerHTML = `<div class="mt-3 text-lg font-bold ${ok ? 'text-emerald-300' : 'text-red-400'}">${ok ? '✓ ĐÚNG' : '✗ SAI'} <span class="text-sm font-normal text-slate-400">· bạn chọn: ${esc(fmtAnswer(PR.bid, a))} · thời gian ${fmtMS(75 - PR.t)}</span></div>${ex.grid ? '<section class="panel p-3 mt-3" style="border-color:rgba(0,229,255,.45)"><div class="font-bold mb-2">🖐 Lời giải từng bước (làm trong đầu, không nháp)</div><div id="lq-inline"></div></section>' : ''}${solutionHTML(ex)}`;
+  if (ex.grid) lqStart(PR.bid, ex.id, 'lq-inline');
 }
 
 // --- mock exam: one Prüfung = 20 exercises in 25 minutes
