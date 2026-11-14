@@ -132,7 +132,7 @@
 .trip-node:disabled{opacity:.4;cursor:not-allowed}.trip-node.done{border-color:rgba(0,255,163,.45);background:rgba(0,255,163,.08)}.trip-node.next{border-color:#facc15;box-shadow:0 0 0 2px rgba(250,204,21,.35)}
 .trip-num{width:1.9rem;height:1.9rem;flex:none;border-radius:99px;display:grid;place-items:center;font-weight:800;background:#1e293b;border:1px solid #475569}
 .trip-node.done .trip-num{background:#065f46;border-color:#34d399;color:#d1fae5}.trip-node.next .trip-num{background:#facc15;color:#000}
-.trip-ic{font-size:1.2rem}.trip-lab{font-size:.9rem;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.trip-ic{font-size:1.2rem}.trip-km{margin-left:auto;flex:none;font-size:.75rem;font-weight:800;color:#fb923c}.trip-node.done .trip-km{color:#34d399}.trip-node.k-fach{border-left:4px solid #f472b6}.trip-node.k-kern{border-left:4px solid #38bdf8}.trip-lab{font-size:.9rem;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .trip-goal{border:1px solid var(--line);border-radius:12px;padding:.6rem .7rem;background:rgba(255,255,255,.02)}.trip-goal.ready{border-color:#facc15}.trip-goal.got{opacity:.65}
 .trip-card-img{position:relative;height:180px;border-radius:12px;overflow:hidden;border:6px solid #fff}.trip-card-img .trip-scene-bg{position:absolute;inset:0;width:100%;height:100%}
 .trip-card-name{position:absolute;left:10px;bottom:8px;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.6)}.trip-card-stamp{position:absolute;right:10px;top:10px;border:2px solid #dc2626;color:#dc2626;background:#fff;border-radius:10px;padding:0 8px;font-weight:800;transform:rotate(8deg)}
@@ -933,7 +933,9 @@ const TRIP = () => (S.trip = S.trip || { seen: {}, claimed: {}, skin: 'ice', sti
 // missions of a plan day, Kern and Fach interleaved so the brain switches task every few minutes
 function tripMissions(n) {
   const kern = dayExercises(n).map(({ bid, ex }) => ({ kind: 'kern', icon: BOOK_ICON[bid], label: `${KERN[bid].vn} · bài ${ex.id}`, done: kernSolved(bid, ex), go: `tripGo(${n},"kern","${bid}","${ex.id}")` }));
-  const fach = fachOfDay(n).flatMap(L => lessonTexts(L).map((t, k) => ({ kind: 'fach', icon: '📖', label: t.title_de.replace(/^Text\s*\d+\s*:\s*/i, ''), done: !!(L.quizzes || {})[k], go: `tripGo(${n},"fach","${L.id}",${k})` })));
+  // today's station also carries the earliest unfinished Fach lesson: lessons arrive later than the plan day
+  const own = fachOfDay(n), fl = own.length || n !== dayNumber() ? own : S.fach.filter(l => !l.bonus && !l.cold && lessonTexts(l).some((t, k) => !(l.quizzes || {})[k])).sort((a, b) => a.day - b.day).slice(0, 1);
+  const fach = fl.flatMap(L => lessonTexts(L).map((t, k) => ({ kind: 'fach', icon: '📖', label: (+L.day !== n ? `Ngày ${L.day} · ` : '') + t.title_de.replace(/^Text\s*\d+\s*:\s*/i, ''), done: !!(L.quizzes || {})[k], go: `tripGo(${n},"fach","${L.id}",${k})` })));
   const out = [], step = fach.length ? Math.max(1, Math.round(kern.length / (fach.length + 1))) : kern.length;
   let ki = 0, fi = 0;
   while (ki < kern.length || fi < fach.length) { for (let j = 0; j < step && ki < kern.length; j++) out.push(kern[ki++]); if (fi < fach.length) out.push(fach[fi++]); }
@@ -1091,9 +1093,10 @@ function openStation(n) {
   if (currentTab !== 'trip') { currentTab = 'trip'; renderTabs(); }
   stopTimer(); RUNVIEW = null; document.body.classList.add('trip-mode'); renderTripBack();
   const c = ROUTE[n - 1], ms = tripMissions(n), next = ms.findIndex(m => !m.done), arr = tripArrived(n), pr = dayProgress(n);
+  const km1 = Math.max(1, Math.round(SEG_KM[n - 1] / Math.max(1, ms.filter(m => m.kind !== 'anki').length)));
   const locked = lockedByDebt(n) || (n > dayNumber() && !tripArrived(n - 1));
   const nodes = ms.map((m, i) => `<button class="trip-node ${m.done ? 'done' : i === next ? 'next' : ''} k-${m.kind}" ${locked ? 'disabled' : `onclick='${m.go}'`} style="--i:${i}">
-      <span class="trip-num">${m.done ? '✓' : i + 1}</span><span class="trip-ic">${m.icon}</span><span class="trip-lab">${esc(m.label)}</span></button>`).join('');
+      <span class="trip-num">${m.done ? '✓' : i + 1}</span><span class="trip-ic">${m.icon}</span><span class="trip-lab">${esc(m.label)}</span>${m.kind !== 'anki' ? `<span class="trip-km">${m.done ? '✓' : '+'}${km1} km</span>` : ''}</button>`).join('');
   $('#view').innerHTML = `
     <div class="flex items-center justify-between gap-2 mb-2"><button class="btn btn-ghost text-sm" onclick="TRIP_RET=0;go('trip')">← Bản đồ</button>
       <div class="flex gap-1">${n > 1 ? `<button class="btn btn-ghost text-xs" onclick="openStation(${n - 1})">‹ ga ${n - 1}</button>` : ''}${n < PLAN_DAYS ? `<button class="btn btn-ghost text-xs" onclick="openStation(${n + 1})">ga ${n + 1} ›</button>` : ''}</div></div>
