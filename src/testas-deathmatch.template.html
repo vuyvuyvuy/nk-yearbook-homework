@@ -110,6 +110,33 @@
 .sent.ev-cur{background:rgba(250,204,21,.38);box-shadow:inset 0 -3px 0 #facc15}
 .fq-text,#fq-list{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
 #wl-pop{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(1rem + env(safe-area-inset-bottom,0px));z-index:90;width:min(520px,calc(100vw - 1.5rem))}
+/* ---------- journey (Hành trình) ---------- */
+.trip-mode #tabs,.trip-mode #statbar,.trip-mode #tutor,.trip-mode header .glitch,.trip-mode header .text-pink-400,.trip-mode header .text-slate-400{display:none}
+.trip-mode header{padding-top:.5rem}
+#trip-back{position:fixed;left:.75rem;bottom:calc(.75rem + env(safe-area-inset-bottom,0px));z-index:72;font-size:.85rem;padding:.5rem .9rem;box-shadow:0 4px 18px rgba(0,0,0,.5)}
+@media (max-width:767px){#trip-back{bottom:calc(8.5rem + env(safe-area-inset-bottom,0px))}}
+.trip-grid{display:grid;gap:.75rem}@media (min-width:860px){.trip-grid{grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);align-items:start}}
+.trip-map-wrap{background:#bfdbfe}.trip-map{width:100%;max-height:72vh;display:block}.trip-st{cursor:pointer}.trip-st:hover circle{stroke-width:3}
+.trip-pulse{animation:tpulse 1.4s ease-in-out infinite}@keyframes tpulse{50%{r:12;opacity:.8}}
+.trip-draw{stroke-dasharray:2000;stroke-dashoffset:2000;animation:tdraw 3s ease-out forwards}@keyframes tdraw{to{stroke-dashoffset:0}}
+.trip-intro{position:relative;min-height:70vh;border-radius:16px;overflow:hidden;cursor:pointer;display:flex;align-items:center;justify-content:center;text-align:center;color:#fff}
+.trip-intro .trip-scene-bg{position:absolute;inset:0;width:100%;height:100%;filter:brightness(.7)}.trip-intro-txt{position:relative;padding:1rem}
+.trip-scene{position:relative;height:clamp(200px,38vw,330px);border-radius:16px;overflow:hidden}
+.trip-scene .trip-scene-bg{position:absolute;inset:0;width:100%;height:100%}
+.trip-scene-head{position:absolute;left:14px;top:12px;color:#0f172a;background:rgba(255,255,255,.75);padding:6px 12px;border-radius:12px;backdrop-filter:blur(3px)}
+.trip-train{position:absolute;bottom:12%;transition:left 1.2s ease-out}
+.trip-stamp{position:absolute;right:14px;top:14px;border:3px solid #dc2626;color:#dc2626;background:rgba(255,255,255,.85);font-weight:800;border-radius:12px;padding:4px 10px;transform:rotate(8deg);line-height:1.2}
+.trip-guide{display:flex;gap:.75rem;align-items:flex-start;border-color:rgba(244,114,182,.5)}
+.trip-path{display:grid;gap:.5rem}@media (min-width:640px){.trip-path{grid-template-columns:1fr 1fr}}
+.trip-node{display:flex;align-items:center;gap:.6rem;text-align:left;padding:.6rem .8rem;border-radius:14px;border:1.5px solid var(--line);background:rgba(255,255,255,.03);color:var(--text);cursor:pointer}
+.trip-node:disabled{opacity:.4;cursor:not-allowed}.trip-node.done{border-color:rgba(0,255,163,.45);background:rgba(0,255,163,.08)}.trip-node.next{border-color:#facc15;box-shadow:0 0 0 2px rgba(250,204,21,.35)}
+.trip-num{width:1.9rem;height:1.9rem;flex:none;border-radius:99px;display:grid;place-items:center;font-weight:800;background:#1e293b;border:1px solid #475569}
+.trip-node.done .trip-num{background:#065f46;border-color:#34d399;color:#d1fae5}.trip-node.next .trip-num{background:#facc15;color:#000}
+.trip-ic{font-size:1.2rem}.trip-lab{font-size:.9rem;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.trip-goal{border:1px solid var(--line);border-radius:12px;padding:.6rem .7rem;background:rgba(255,255,255,.02)}.trip-goal.ready{border-color:#facc15}.trip-goal.got{opacity:.65}
+.trip-card-img{position:relative;height:180px;border-radius:12px;overflow:hidden;border:6px solid #fff}.trip-card-img .trip-scene-bg{position:absolute;inset:0;width:100%;height:100%}
+.trip-card-name{position:absolute;left:10px;bottom:8px;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.6)}.trip-card-stamp{position:absolute;right:10px;top:10px;border:2px solid #dc2626;color:#dc2626;background:#fff;border-radius:10px;padding:0 8px;font-weight:800;transform:rotate(8deg)}
+.trip-alb{border:1px solid var(--line);border-radius:12px;padding:.5rem;text-align:center;background:rgba(255,255,255,.03);color:var(--text)}.trip-alb.off{opacity:.35}
 /* ---------- Latin-square step-by-step pictures ---------- */
 .lq-board{display:grid;grid-template-columns:22px repeat(5,var(--lc));grid-template-rows:22px repeat(5,var(--lc));--lc:min(54px,calc((100vw - 110px)/5.5));justify-content:center}
 .lq-gl{display:flex;align-items:end;justify-content:center;font-style:italic;color:#94a3b8}.lq-rl{display:flex;align-items:center;justify-content:center;color:#94a3b8;font-weight:700}
@@ -314,7 +341,7 @@ function streakFrom(checkins, frozen = S.frozen || []) {
 // or buy one for 300 XP; at most 3 in stock. Freezes are used automatically for missed days (streak kept, no
 // punishment; the work of those days stays as debt). A missed day in the past can also be repaired afterwards.
 const FREEZE_MAX = 3, FREEZE_COST = 300, AHEAD_XP = 150;
-const freezesRaw = () => 1 + (S.freezeBought || 0) + Math.floor((S.checkins || []).length / 5) + (S.aheadDone || []).length - (S.frozen || []).length;
+const freezesRaw = () => 1 + (S.freezeBought || 0) + (typeof tripFreezeGifts === 'function' ? tripFreezeGifts() : 0) + Math.floor((S.checkins || []).length / 5) + (S.aheadDone || []).length - (S.frozen || []).length;
 // a plan day before today without check-in or freeze, counted from the plan start
 const missedDays = () => Array.from({ length: Math.max(0, dayNumber() - 1) }, (_, i) => addDays(S.startDate, i)).filter(d => d < todayStr() && !S.checkins.includes(d) && !(S.frozen || []).includes(d));
 function repairDay(ds) {
@@ -373,6 +400,7 @@ function mergeState(a, r) {
   m.checkins = [...new Set([...(a.checkins || []), ...(r.checkins || [])])].sort();
   m.frozen = [...new Set([...(a.frozen || []), ...(r.frozen || [])])].sort();
   m.freezeBought = Math.max(a.freezeBought || 0, r.freezeBought || 0);
+  { const x = a.trip || {}, y = r.trip || {}; m.trip = Object.assign({}, y, x, { seen: Object.assign({}, y.seen, x.seen), claimed: Object.assign({}, y.claimed, x.claimed), started: Math.min(x.started || Infinity, y.started || Infinity) }); if (m.trip.started === Infinity) delete m.trip.started; }
   if (r.kernPlan && (!a.kernPlan || (r.kernPlanAt || 0) < (a.kernPlanAt || 0))) { m.kernPlan = r.kernPlan; m.kernPlanAt = r.kernPlanAt; }   // the first plan made wins everywhere
   m.aheadDone = [...new Set([...(a.aheadDone || []), ...(r.aheadDone || [])])].sort((x, y) => x - y);
   m.streak = streakFrom(m.checkins, m.frozen);
@@ -537,12 +565,13 @@ function toggleTutor(force) {
    4. NAV + STATS + shared timer
    ===================================================================== */
 const TABS = [
-  ['dash', '🏥 Tổng quan'], ['kern', '🧠 Kernmodul'], ['er', '🚑 ER Survival'], ['fach', '🩺 Fachmodul'], ['anki', '🃏 Anki'],
+  ['trip', '🚆 Hành trình'], ['dash', '🏥 Tổng quan'], ['kern', '🧠 Kernmodul'], ['er', '🚑 ER Survival'], ['fach', '🩺 Fachmodul'], ['anki', '🃏 Anki'],
   ['chat', '💬 Hỏi bài'], ['dating', '💘 Dating Sim'], ['hub', '📚 Study Hub'], ['settings', '⚙️ Cài đặt']
 ];
-let currentTab = 'dash', TIMER = null;
+let currentTab = 'trip', TIMER = null;
 const stopTimer = () => { if (TIMER) { clearInterval(TIMER); TIMER = null; } };
 function renderTabs() {
+  document.body.classList.toggle('trip-mode', currentTab === 'trip'); if (typeof renderTripBack === 'function') renderTripBack();
   $('#tabs').innerHTML = TABS.map(([id, label]) => `<button class="tab ${id === currentTab ? 'active' : ''}" onclick="go('${id}')">${label}</button>`).join('');
 }
 function kernDone() { return ['fig', 'math', 'latin'].reduce((n, b) => n + Object.keys(S.kern[b]).length, 0); }
@@ -557,7 +586,7 @@ function go(tab) {
   stopTimer(); RUNVIEW = null;
   currentTab = tab; renderTabs();
   const v = $('#view'); v.classList.remove('fade-in'); void v.offsetWidth; v.classList.add('fade-in');
-  ({ dash: renderDash, kern: renderKern, er: renderER, fach: renderFach, anki: renderAnki, chat: renderChat, dating: renderDating, hub: renderHub, settings: renderSettings })[tab]();
+  ({ trip: renderTrip, dash: renderDash, kern: renderKern, er: renderER, fach: renderFach, anki: renderAnki, chat: renderChat, dating: renderDating, hub: renderHub, settings: renderSettings })[tab]();
   renderResume();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -744,6 +773,238 @@ function lqShow() {
       ${v.final ? `<div class="mt-2 font-bold text-emerald-300">Đáp án: ${lqName(P.tr, P.tc)} = ${LQ_L[P.final[P.tr][P.tc]]}</div>` : ''}</div>
     <div class="flex gap-2 mt-3"><button class="btn btn-ghost" ${P.step ? '' : 'disabled'} onclick="LQP.step--;lqShow()">← Trước</button><button class="btn btn-neon" ${P.step < last ? '' : 'disabled'} onclick="LQP.step++;lqShow()">Tiếp →</button></div>
     <details class="mt-3 text-xs text-slate-400"><summary class="cursor-pointer">Cách đọc hình</summary>Ô vàng = đường đang nhìn. Khung đỏ nét đứt = chữ "chặn" khiến một ô bị loại. Chữ xanh có vòng = chữ vừa suy ra ở bước này; chữ xanh nhạt = suy ra ở bước trước. Các bước không cần cho ô ? đã được bỏ bớt.</details>`;
+}
+
+/* =====================================================================
+   5c. HÀNH TRÌNH (journey) — the home screen. A train runs through 23 German university cities, one per plan
+   day. Every solved Kern exercise and every finished Fach text moves the train along that day's segment (km);
+   reaching ≥ 80 % of a day (= the check-in rule) means arriving: the city's postcard (easy German) is unlocked.
+   Each station is a scene with numbered missions in an ADHD-friendly order (Kern and Fach alternate, one
+   clear "next" button, a guide who talks). Goals give in-app rewards: train colours, stickers, streak freezes.
+   ===================================================================== */
+const TRIP_START = { name: 'Flughafen Frankfurt', lat: 50.04, lon: 8.56 };
+const ROUTE = [
+  ['Frankfurt am Main', 50.11, 8.68, '🏙️', 'Goethe-Universität', 'Frankfurt ist eine große Stadt mit vielen Hochhäusern. Hier gibt es den größten Flughafen Deutschlands und die Goethe-Universität. Viele internationale Studierende beginnen hier ihr Leben in Deutschland.', 'Frankfurt là thành phố lớn nhiều nhà cao tầng, có sân bay lớn nhất nước Đức và Đại học Goethe. Nhiều du học sinh bắt đầu cuộc sống ở Đức từ đây.'],
+  ['Mainz', 50.00, 8.27, '⛪', 'Johannes Gutenberg-Universität', 'Mainz liegt am Rhein. Johannes Gutenberg hat hier den Buchdruck erfunden. Die Universitätsmedizin Mainz ist eine der größten Kliniken in Rheinland-Pfalz.', 'Mainz nằm bên sông Rhein. Gutenberg phát minh ra máy in ở đây. Bệnh viện đại học Mainz là một trong những bệnh viện lớn nhất bang.'],
+  ['Heidelberg', 49.40, 8.69, '🏰', 'Universität Heidelberg', 'Heidelberg hat die älteste Universität Deutschlands (1386). Über der Altstadt steht ein berühmtes Schloss. Die Medizinische Fakultät ist sehr bekannt.', 'Heidelberg có đại học lâu đời nhất nước Đức (1386). Trên phố cổ có một lâu đài nổi tiếng. Khoa Y ở đây rất có tiếng.'],
+  ['Tübingen', 48.52, 9.06, '🛶', 'Eberhard Karls Universität', 'Tübingen ist eine kleine Studentenstadt am Neckar. Fast jeder dritte Mensch hier studiert. Im Sommer fahren die Studierenden mit Holzbooten auf dem Fluss.', 'Tübingen là thành phố sinh viên nhỏ bên sông Neckar. Gần một phần ba dân số là sinh viên. Mùa hè sinh viên chèo thuyền gỗ trên sông.'],
+  ['Freiburg', 47.99, 7.85, '☀️', 'Albert-Ludwigs-Universität', 'Freiburg ist die sonnigste Stadt Deutschlands und liegt am Schwarzwald. In der Altstadt fließt Wasser in kleinen Kanälen, den „Bächle“. Viele Menschen fahren hier Fahrrad.', 'Freiburg là thành phố nhiều nắng nhất nước Đức, cạnh Rừng Đen. Trong phố cổ có những rãnh nước nhỏ gọi là "Bächle". Rất nhiều người đi xe đạp.'],
+  ['Ulm', 48.40, 9.99, '⛪', 'Universität Ulm', 'Ulm hat den höchsten Kirchturm der Welt (161 Meter). Albert Einstein wurde hier geboren. Die Universität Ulm ist jung und stark in Medizin und Naturwissenschaften.', 'Ulm có tháp nhà thờ cao nhất thế giới (161 m). Einstein sinh ra ở đây. Đại học Ulm còn trẻ nhưng mạnh về Y và khoa học tự nhiên.'],
+  ['München', 48.14, 11.58, '🥨', 'LMU und TU München', 'München ist die Hauptstadt Bayerns. Hier gibt es zwei große Universitäten, die LMU und die TU. Im Englischen Garten kann man sogar im Fluss surfen.', 'München là thủ phủ bang Bayern, có hai đại học lớn LMU và TU. Ở công viên Englischer Garten người ta còn lướt sóng trên sông.'],
+  ['Regensburg', 49.01, 12.10, '🌉', 'Universität Regensburg', 'Regensburg hat eine fast 900 Jahre alte Steinbrücke über die Donau. Die Altstadt gehört zum UNESCO-Welterbe. Die Stadt ist ruhig und günstig für Studierende.', 'Regensburg có cây cầu đá gần 900 tuổi bắc qua sông Donau. Phố cổ là di sản UNESCO. Thành phố yên tĩnh và rẻ cho sinh viên.'],
+  ['Erlangen', 49.60, 11.00, '🔬', 'Friedrich-Alexander-Universität', 'Erlangen ist klein, aber hier arbeiten viele Menschen in der Medizintechnik. Die Universitätsklinik ist sehr groß. Fast alle fahren mit dem Fahrrad zur Uni.', 'Erlangen nhỏ nhưng có rất nhiều người làm trong ngành thiết bị y tế. Bệnh viện đại học rất lớn. Gần như ai cũng đạp xe đến trường.'],
+  ['Würzburg', 49.79, 9.95, '🏛️', 'Julius-Maximilians-Universität', 'In Würzburg hat Wilhelm Conrad Röntgen 1895 die Röntgenstrahlen entdeckt. Die Residenz ist ein prächtiges Schloss. Rund um die Stadt wächst Wein.', 'Ở Würzburg, Röntgen phát hiện ra tia X năm 1895. Cung điện Residenz rất lộng lẫy. Quanh thành phố là đồi nho.'],
+  ['Jena', 50.93, 11.59, '🔭', 'Friedrich-Schiller-Universität', 'Jena ist die Stadt der Optik: Hier wurden Mikroskope und Linsen von Zeiss gebaut. Die Universität ist über 450 Jahre alt. Ein Drittel der Einwohner sind Studierende.', 'Jena là thành phố của quang học: kính hiển vi và thấu kính Zeiss được làm ở đây. Đại học hơn 450 tuổi. Một phần ba dân số là sinh viên.'],
+  ['Leipzig', 51.34, 12.37, '🎼', 'Universität Leipzig', 'Leipzig ist eine junge, bunte Stadt. Johann Sebastian Bach hat hier gearbeitet. Die Universität Leipzig ist eine der ältesten Deutschlands.', 'Leipzig là thành phố trẻ và sôi động. Bach từng làm việc ở đây. Đại học Leipzig là một trong những đại học lâu đời nhất nước Đức.'],
+  ['Dresden', 51.05, 13.74, '⛪', 'TU Dresden', 'Dresden liegt an der Elbe und hat eine schöne Altstadt mit der Frauenkirche. Die Kirche wurde im Krieg zerstört und später wieder aufgebaut. Die TU Dresden ist eine Exzellenzuniversität.', 'Dresden nằm bên sông Elbe, có phố cổ đẹp với nhà thờ Frauenkirche, bị phá trong chiến tranh và xây lại sau này. TU Dresden là đại học xuất sắc.'],
+  ['Berlin', 52.52, 13.40, '🐻', 'Charité', 'Berlin ist die Hauptstadt Deutschlands. Die Charité ist eines der größten Universitätskrankenhäuser Europas. In Berlin leben Menschen aus fast allen Ländern der Welt.', 'Berlin là thủ đô nước Đức. Charité là một trong những bệnh viện đại học lớn nhất châu Âu. Người từ gần như mọi nước trên thế giới sống ở Berlin.'],
+  ['Greifswald', 54.09, 13.38, '⛵', 'Universität Greifswald', 'Greifswald liegt nah an der Ostsee. Die Stadt ist klein und ruhig, und die Universität ist über 550 Jahre alt. Im Sommer segeln viele Studierende.', 'Greifswald gần biển Baltic, nhỏ và yên tĩnh. Đại học hơn 550 tuổi. Mùa hè nhiều sinh viên chơi thuyền buồm.'],
+  ['Rostock', 54.09, 12.10, '🌊', 'Universität Rostock', 'Rostock ist eine Hafenstadt an der Ostsee. Mit der S-Bahn fährt man in zwanzig Minuten an den Strand. Die Universität gibt es seit 1419.', 'Rostock là thành phố cảng bên biển Baltic. Đi tàu S-Bahn 20 phút là ra biển. Đại học có từ năm 1419.'],
+  ['Lübeck', 53.87, 10.69, '🏯', 'Universität zu Lübeck', 'Lübeck ist bekannt für das Holstentor und für Marzipan. Die Altstadt liegt auf einer Insel. Die Universität zu Lübeck ist spezialisiert auf Medizin und Lebenswissenschaften.', 'Lübeck nổi tiếng với cổng Holstentor và bánh hạnh nhân Marzipan. Phố cổ nằm trên một hòn đảo. Đại học Lübeck chuyên về Y và khoa học sự sống.'],
+  ['Kiel', 54.32, 10.14, '⚓', 'Christian-Albrechts-Universität', 'Kiel liegt direkt am Meer. Jeden Sommer gibt es die Kieler Woche, ein großes Segelfest. Die Universität hat eine große Medizinische Fakultät.', 'Kiel nằm sát biển. Mùa hè nào cũng có Kieler Woche, lễ hội thuyền buồm lớn. Đại học có khoa Y lớn.'],
+  ['Hamburg', 53.55, 9.99, '🚢', 'Universität Hamburg / UKE', 'Hamburg ist die zweitgrößte Stadt Deutschlands und hat einen riesigen Hafen. Es gibt mehr Brücken als in Venedig. Das Uniklinikum heißt UKE.', 'Hamburg là thành phố lớn thứ hai nước Đức, có cảng khổng lồ và nhiều cầu hơn cả Venice. Bệnh viện đại học tên là UKE.'],
+  ['Hannover', 52.37, 9.73, '🌳', 'Medizinische Hochschule Hannover', 'In Hannover gibt es eine eigene Hochschule nur für Medizin, die MHH. Die Stadt hat viele Parks und große Gärten. Hier finden große Messen statt.', 'Hannover có hẳn một trường chỉ dạy Y là MHH. Thành phố nhiều công viên và vườn lớn, nơi tổ chức các hội chợ lớn.'],
+  ['Göttingen', 51.54, 9.93, '🎓', 'Georg-August-Universität', 'Göttingen ist eine typische Universitätsstadt: Über 40 Nobelpreisträger haben hier gelebt oder gearbeitet. Wer seinen Doktor macht, küsst traditionell das Gänseliesel am Brunnen.', 'Göttingen là thành phố đại học điển hình: hơn 40 người đoạt giải Nobel từng sống hoặc làm việc ở đây. Ai bảo vệ tiến sĩ thì theo truyền thống hôn tượng cô bé chăn ngỗng ở đài phun nước.'],
+  ['Marburg', 50.81, 8.77, '🏰', 'Philipps-Universität', 'Marburg ist eine steile Stadt mit einem Schloss auf dem Berg. Die Universität ist die älteste protestantische Universität der Welt. Die Altstadt hat viele Treppen.', 'Marburg là thành phố dốc, có lâu đài trên đồi. Đây là đại học Tin Lành lâu đời nhất thế giới. Phố cổ có rất nhiều bậc thang.'],
+  ['Köln', 50.94, 6.96, '⛪', 'Universität zu Köln', 'Köln hat den berühmten Dom, den man vom Bahnhof aus sofort sieht. Die Universität zu Köln ist eine der größten Deutschlands. Du bist am Ziel – morgen ist Prüfung. Viel Erfolg!', 'Köln có nhà thờ lớn nổi tiếng, bước ra khỏi ga là thấy ngay. Đại học Köln là một trong những đại học lớn nhất nước Đức. Bạn đã tới đích, mai thi rồi. Chúc may mắn!']
+].map(([name, lat, lon, icon, uni, de, vi]) => ({ name, lat, lon, icon, uni, de, vi }));
+const tripKm = (a, b) => { const R = 6371, t = x => x * Math.PI / 180, dLa = t(b.lat - a.lat), dLo = t(b.lon - a.lon);
+  return Math.round(1.25 * 2 * R * Math.asin(Math.sqrt(Math.sin(dLa / 2) ** 2 + Math.cos(t(a.lat)) * Math.cos(t(b.lat)) * Math.sin(dLo / 2) ** 2))); };
+const SEG_KM = ROUTE.map((c, i) => Math.max(20, tripKm(i ? ROUTE[i - 1] : TRIP_START, c)));
+const ROUTE_KM = SEG_KM.reduce((a, b) => a + b, 0);
+const TRIP = () => (S.trip = S.trip || { seen: {}, claimed: {}, skin: 'ice', sticker: '' });
+// missions of a plan day, Kern and Fach interleaved so the brain switches task every few minutes
+function tripMissions(n) {
+  const kern = dayExercises(n).map(({ bid, ex }) => ({ kind: 'kern', icon: BOOK_ICON[bid], label: `${KERN[bid].vn} · bài ${ex.id}`, done: kernSolved(bid, ex), go: `tripGo(${n},"kern","${bid}","${ex.id}")` }));
+  const fach = fachOfDay(n).flatMap(L => lessonTexts(L).map((t, k) => ({ kind: 'fach', icon: '📖', label: t.title_de.replace(/^Text\s*\d+\s*:\s*/i, ''), done: !!(L.quizzes || {})[k], go: `tripGo(${n},"fach","${L.id}",${k})` })));
+  const out = [], step = fach.length ? Math.max(1, Math.round(kern.length / (fach.length + 1))) : kern.length;
+  let ki = 0, fi = 0;
+  while (ki < kern.length || fi < fach.length) { for (let j = 0; j < step && ki < kern.length; j++) out.push(kern[ki++]); if (fi < fach.length) out.push(fach[fi++]); }
+  if (n === dayNumber()) { const ap = ankiPlan(); if (ap.due || ap.learnedToday < ap.quota) out.push({ kind: 'anki', icon: '🃏', label: ap.due ? `Ôn ${ap.due} thẻ đến hạn` : `Học thẻ mới (${ap.quota - ap.learnedToday})`, done: false, go: `tripGo(${n},"anki")` }); }
+  return out;
+}
+const tripFrac = n => { const m = tripMissions(n).filter(x => x.kind !== 'anki'); return m.length ? m.filter(x => x.done).length / m.length : 0; };
+const tripArrived = n => dayProgress(n).pass && tripMissions(n).some(x => x.kind !== 'anki');
+function tripKmDone() { let km = 0; for (let n = 1; n <= PLAN_DAYS; n++) km += Math.round(SEG_KM[n - 1] * (tripArrived(n) ? 1 : tripFrac(n))); return km; }
+// where the train is: first station not yet reached, part-way along its segment
+function tripPos() { for (let n = 1; n <= PLAN_DAYS; n++) if (!tripArrived(n)) return { n, f: tripFrac(n) }; return { n: PLAN_DAYS, f: 1 }; }
+
+// --- in-app goals and rewards
+const SKINS = { ice: ['Trắng – đỏ', '#f8fafc', '#e11d48'], night: ['Xanh đêm', '#1e3a8a', '#facc15'], post: ['Vàng bưu điện', '#facc15', '#1f2937'], sakura: ['Hồng sakura', '#fbcfe8', '#be185d'], forest: ['Xanh rừng', '#14532d', '#fef3c7'], gold: ['Vàng kim (về đích)', '#fde68a', '#92400e'] };
+const TRIP_GOALS = [
+  { id: 'km100', t: 'Chạy 100 km', v: () => tripKmDone(), max: 100, gift: { skin: 'night' } },
+  { id: 'km400', t: 'Chạy 400 km', v: () => tripKmDone(), max: 400, gift: { sticker: '🧸' } },
+  { id: 'km800', t: 'Chạy 800 km', v: () => tripKmDone(), max: 800, gift: { skin: 'post' } },
+  { id: 'km1500', t: 'Chạy 1 500 km', v: () => tripKmDone(), max: 1500, gift: { sticker: '🦉' } },
+  { id: 'kmall', t: 'Về đích Köln', v: () => tripKmDone(), max: ROUTE_KM, gift: { skin: 'gold' } },
+  { id: 'st3', t: 'Học liền 3 ngày', v: () => S.bestStreak || 0, max: 3, gift: { freeze: 1 } },
+  { id: 'st7', t: 'Học liền 7 ngày', v: () => S.bestStreak || 0, max: 7, gift: { freeze: 1 } },
+  { id: 'st14', t: 'Học liền 14 ngày', v: () => S.bestStreak || 0, max: 14, gift: { freeze: 1 } },
+  { id: 'pc5', t: 'Sưu tầm 5 bưu thiếp', v: () => ROUTE.filter((c, i) => tripArrived(i + 1)).length, max: 5, gift: { skin: 'sakura' } },
+  { id: 'pc12', t: 'Sưu tầm 12 bưu thiếp', v: () => ROUTE.filter((c, i) => tripArrived(i + 1)).length, max: 12, gift: { skin: 'forest' } },
+  { id: 'fx20', t: 'Làm xong 20 text Fach', v: () => S.fach.filter(l => !l.bonus && !l.cold).reduce((a, L) => a + Object.keys(L.quizzes || {}).length, 0), max: 20, gift: { sticker: '🩺' } },
+  { id: 'kx50', t: 'Giải đúng 50 bài Kern', v: () => BOOK_IDS.reduce((a, b) => a + Object.values(S.kern[b]).filter(r => r.ok || r.solved).length, 0), max: 50, gift: { sticker: '🧠' } },
+];
+const giftText = g => g.skin ? `🚆 Màu tàu "${SKINS[g.skin][0]}"` : g.sticker ? `Sticker ${g.sticker} trên tàu` : `❄️ +${g.freeze} đóng băng streak`;
+const tripFreezeGifts = () => TRIP_GOALS.filter(g => g.gift.freeze && (S.trip || {}).claimed?.[g.id]).length;
+function tripClaim(id) {
+  const g = TRIP_GOALS.find(x => x.id === id), T = TRIP(); if (!g || T.claimed[id] || g.v() < g.max) return;
+  T.claimed[id] = Date.now(); if (g.gift.skin) T.skin = g.gift.skin; if (g.gift.sticker) T.sticker = g.gift.sticker;
+  save(); renderStats(); tripGoals();
+  showModal(`<div class="text-center"><div class="text-5xl">🎁</div><div class="text-xl font-bold mt-2">Nhận quà: ${esc(g.t)}</div><div class="mt-2 text-emerald-300">${giftText(g.gift)}</div></div>`);
+}
+function tripGoals(tabMine) {
+  const T = TRIP(), ready = TRIP_GOALS.filter(g => !T.claimed[g.id] && g.v() >= g.max).length;
+  const goals = TRIP_GOALS.map(g => { const v = Math.min(g.v(), g.max), got = T.claimed[g.id], ok = v >= g.max;
+    return `<div class="trip-goal ${got ? 'got' : ok ? 'ready' : ''}"><div class="flex justify-between gap-2"><b>${esc(g.t)}</b><span class="text-xs text-slate-400">${Math.round(v)}/${g.max}</span></div>
+      <div class="text-xs text-slate-300 mt-0.5">${giftText(g.gift)}</div><div class="bar mt-1"><div style="width:${v / g.max * 100}%;background:var(--neon)"></div></div>
+      ${got ? '<div class="text-xs text-emerald-300 mt-1">✓ Đã nhận</div>' : ok ? `<button class="btn btn-neon text-xs mt-2" onclick="tripClaim('${g.id}')">🎁 Nhận quà</button>` : ''}</div>`; }).join('');
+  const skins = Object.entries(SKINS).filter(([k]) => k === 'ice' || TRIP_GOALS.some(g => g.gift.skin === k && T.claimed[g.id]));
+  const stickers = TRIP_GOALS.filter(g => g.gift.sticker && T.claimed[g.id]).map(g => g.gift.sticker);
+  const mine = `<div class="font-semibold mb-2">Màu tàu</div><div class="flex flex-wrap gap-2">${skins.map(([k, [n, a, b]]) => `<button class="optbtn ${T.skin === k ? 'on' : ''}" onclick="TRIP().skin='${k}';save();tripGoals(true)"><span style="display:inline-block;width:14px;height:14px;border-radius:4px;background:${a};border:3px solid ${b};vertical-align:-2px"></span> ${n}</button>`).join('')}</div>
+    <div class="font-semibold mt-4 mb-2">Sticker</div><div class="flex flex-wrap gap-2">${stickers.length ? ['', ...stickers].map(s => `<button class="optbtn ${T.sticker === s ? 'on' : ''}" onclick="TRIP().sticker='${s}';save();tripGoals(true)">${s || 'Không'}</button>`).join('') : '<span class="text-sm text-slate-400">Chưa có. Đạt mục tiêu để nhận.</span>'}</div>
+    <div class="text-sm text-slate-300 mt-4">❄️ Đóng băng streak nhận từ quà: ${tripFreezeGifts()} (đang có ${freezesLeft()}/${FREEZE_MAX})</div>`;
+  showModal(`<div class="flex items-center gap-2"><div class="text-xl font-bold">🎁 Mục tiêu & quà</div>${ready ? `<span class="tag" style="position:static;transform:none">${ready} quà chờ nhận</span>` : ''}</div>
+    <div class="flex gap-1 mt-3"><button class="tab ${tabMine ? '' : 'active'}" onclick="tripGoals()">Mục tiêu</button><button class="tab ${tabMine ? 'active' : ''}" onclick="tripGoals(true)">Quà của tôi</button></div>
+    <div class="mt-3">${tabMine ? mine : `<div class="grid sm:grid-cols-2 gap-2">${goals}</div>`}</div>`, true);
+}
+
+// --- drawing helpers
+const TRIP_DE = [[55.06,8.4],[54.9,9.4],[54.8,9.9],[54.45,10.2],[54.4,11.0],[54.15,10.85],[54.0,11.0],[54.2,12.0],[54.45,12.6],[54.7,13.4],[54.3,13.8],[53.95,14.2],[53.4,14.4],[52.6,14.6],[52.1,14.7],[51.6,14.75],[51.05,14.95],[50.85,14.6],[50.9,14.3],[50.75,13.6],[50.4,12.9],[50.2,12.2],[49.5,12.6],[48.95,13.6],[48.6,13.8],[48.25,13.0],[47.7,13.0],[47.5,12.4],[47.6,11.0],[47.4,10.2],[47.55,9.6],[47.65,8.6],[47.6,7.6],[48.1,7.6],[48.95,8.2],[49.15,6.9],[49.45,6.35],[50.1,6.1],[50.75,6.0],[51.2,6.1],[51.85,6.0],[52.1,6.95],[52.6,7.05],[53.3,7.2],[53.6,7.0],[53.7,8.0],[53.9,8.7],[54.3,8.6],[54.9,8.6]];
+const tripXY = (lat, lon) => [Math.round((lon - 5.5) * 38 * 0.63 * 10) / 10 + 10, Math.round((55.4 - lat) * 38 * 10) / 10 + 10];
+function trainSVG(w = 120) {
+  const [, a, b] = SKINS[TRIP().skin] || SKINS.ice;
+  return `<svg viewBox="0 0 120 34" width="${w}" aria-hidden="true"><path d="M4 26 L4 12 Q4 6 12 6 L96 6 Q112 6 116 20 L116 26 Z" fill="${a}" stroke="#0f172a" stroke-width="1.5"/>
+    <rect x="4" y="18" width="112" height="3" fill="${b}"/>${[14, 32, 50, 68].map(x => `<rect x="${x}" y="9" width="13" height="7" rx="1.5" fill="#0f172a" opacity=".8"/>`).join('')}<path d="M88 9 L100 9 Q108 10 111 16 L88 16 Z" fill="#0f172a" opacity=".8"/>
+    ${[18, 38, 78, 98].map(x => `<circle cx="${x}" cy="28" r="4" fill="#334155" stroke="#0f172a"/>`).join('')}</svg>`;
+}
+function tripMapSVG(animate) {
+  const pts = [TRIP_START, ...ROUTE].map(c => tripXY(c.lat, c.lon)), outline = TRIP_DE.map(([la, lo]) => tripXY(la, lo).join(',')).join(' ');
+  const pos = tripPos(), cur = pos.n;   // stations 1..23 = pts[1..23]
+  const done = pts.slice(0, cur).map(p => p.join(',')).join(' ');
+  const a = pts[cur - 1], b = pts[cur], tx = a[0] + (b[0] - a[0]) * pos.f, ty = a[1] + (b[1] - a[1]) * pos.f;
+  const dots = ROUTE.map((c, i) => { const [x, y] = pts[i + 1], n = i + 1, arr = tripArrived(n), today = n === dayNumber();
+    const showName = today || n === pos.n || n === 1 || n === PLAN_DAYS;
+    return `<g class="trip-st" onclick="openStation(${n})"><title>${n}. ${esc(c.name)}</title><circle cx="${x}" cy="${y}" r="${today ? 9 : 7}" fill="${arr ? '#34d399' : today ? '#facc15' : '#f8fafc'}" stroke="#0f172a" stroke-width="1.5"${today ? ' class="trip-pulse"' : ''}/>
+      <text x="${x}" y="${y + 3}" font-size="${today ? 9 : 7.5}" font-weight="800" text-anchor="middle" fill="#0f172a">${n}</text>
+      ${showName ? `<text x="${x + 11}" y="${y + 4}" font-size="11" font-weight="800" fill="#0f172a" stroke="#fff" stroke-width="3" paint-order="stroke">${esc(c.name.replace(' am Main', ''))}</text>` : ''}</g>`; }).join('');
+  return `<svg viewBox="0 0 300 380" class="trip-map" role="img" aria-label="Bản đồ hành trình qua nước Đức">
+    <polygon points="${outline}" fill="#f1f5e9" stroke="#94a3b8" stroke-width="1.5"/>
+    <polyline points="${pts.map(p => p.join(',')).join(' ')}" fill="none" stroke="#cbd5e1" stroke-width="3" stroke-dasharray="4 4"/>
+    <polyline points="${done}${cur > 1 || pos.f ? ' ' + tx + ',' + ty : ''}" fill="none" stroke="#f97316" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" class="${animate ? 'trip-draw' : ''}"/>
+    <circle cx="${pts[0][0]}" cy="${pts[0][1]}" r="4" fill="#64748b"/><text x="${pts[0][0] - 4}" y="${pts[0][1] + 14}" font-size="8" fill="#475569" text-anchor="end">✈ ${TRIP_START.name}</text>
+    ${dots}
+    <g transform="translate(${tx - 12},${ty - 12})"><text font-size="20">🚆</text>${TRIP().sticker ? `<text x="20" y="-2" font-size="12">${TRIP().sticker}</text>` : ''}</g></svg>`;
+}
+function sceneSVG(n) {   // simple illustrated backdrop: sky, hills, a generic skyline that differs per city, rails
+  let s = n * 9301 + 49297; const rnd = () => (s = (s * 9301 + 49297) % 233280) / 233280;
+  const hues = [['#fde2c4', '#bfe3f2'], ['#e0f2fe', '#c7d2fe'], ['#fef3c7', '#a7f3d0'], ['#fce7f3', '#bae6fd']][n % 4];
+  let blds = ''; for (let x = 10; x < 390; x += 18 + rnd() * 14) { const h = 30 + rnd() * 60, w = 14 + rnd() * 14; blds += `<rect x="${x}" y="${170 - h}" width="${w}" height="${h}" fill="#94a3b8" opacity="${.35 + rnd() * .3}"/>${rnd() > .7 ? `<path d="M${x} ${170 - h} L${x + w / 2} ${150 - h} L${x + w} ${170 - h}Z" fill="#94a3b8" opacity=".5"/>` : ''}`; }
+  return `<svg viewBox="0 0 400 220" preserveAspectRatio="xMidYMid slice" class="trip-scene-bg" aria-hidden="true"><defs><linearGradient id="sky${n}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${hues[1]}"/><stop offset="1" stop-color="${hues[0]}"/></linearGradient></defs>
+    <rect width="400" height="220" fill="url(#sky${n})"/><circle cx="${300 + rnd() * 60}" cy="50" r="22" fill="#fff7ed" opacity=".9"/>
+    <path d="M0 150 Q80 110 160 140 T320 130 T400 140 V220 H0Z" fill="#a7c4a0" opacity=".6"/>${blds}
+    <path d="M0 175 Q100 160 200 172 T400 168 V220 H0Z" fill="#86a77f"/><rect y="186" width="400" height="6" fill="#57534e"/>${Array.from({ length: 27 }, (_, i) => `<rect x="${i * 15}" y="192" width="8" height="3" fill="#78716c"/>`).join('')}</svg>`;
+}
+
+// --- guide
+const GUIDE = { name: 'Lena', face: '👩🏻‍⚕️' };
+function guideLine(n, ms) {
+  const c = ROUTE[n - 1], left = ms.filter(m => !m.done && m.kind !== 'anki').length, done = ms.filter(m => m.done).length;
+  if (tripArrived(n)) return `Wir sind in ${c.name}! (Tới ${c.name} rồi!) Bưu thiếp đã mở. ${left ? `Còn ${left} trạm nữa, làm thêm thì điểm danh càng chắc.` : 'Ga này xong 100 %. Nghỉ chút đi.'}`;
+  if (!done) return `Hallo! Hôm nay mình đi ${SEG_KM[n - 1]} km tới ${c.name}. Đừng nghĩ cả ngày, chỉ làm trạm 1 thôi.`;
+  const need = dayProgress(n);
+  return [`Gut gemacht! (Làm tốt lắm!) Còn ${left} trạm. Mỗi trạm chỉ vài phút.`, `Tàu đã chạy ${Math.round(tripFrac(n) * 100)} % đoạn này. Làm tiếp trạm kế là đủ.`, `Weiter so! (Cứ thế!) ${need.kernOk}/${need.kernTotal} bài Kern xong rồi.`][done % 3];
+}
+
+// --- screens
+let TRIP_RET = 0;   // station to come back to after a mission
+function tripGo(n, kind, a, b) {
+  TRIP_RET = n;
+  if (kind === 'kern') openPractice(a, b);
+  else if (kind === 'fach') { const L = S.fach.find(l => l.id === a), vocab = lessonCards(L).filter(c => c.chunk === b && c.type === 'vocab' && (!cardState(c) || cardState(c).state === 'new' || isDueCard(cardState(c)))).length;
+    if (vocab && !(L.quizzes || {})[b]) { showModal(`<div class="font-bold">Trạm này có ${vocab} từ mới</div><p class="text-sm text-slate-300 mt-1">Học từ trước 2–3 phút thì đọc text dễ hơn nhiều.</p>
+      <div class="flex flex-wrap gap-2 mt-3"><button class="btn btn-neon" onclick="closeModal();startDeck('${a}',${b},'vocab')">① Học từ trước</button><button class="btn btn-ghost" onclick="closeModal();openFachText('${a}',${b})">Vào text luôn</button></div>`); }
+    else openFachText(a, b); }
+  else go('anki');
+  renderTripBack();
+}
+function renderTripBack() {
+  let el = $('#trip-back'); if (!el) { el = document.createElement('button'); el.id = 'trip-back'; el.className = 'btn btn-neon'; document.body.appendChild(el); }
+  const show = currentTab !== 'trip'; el.style.display = show ? '' : 'none';
+  el.innerHTML = TRIP_RET ? `🚉 Về ga ${esc(ROUTE[TRIP_RET - 1].name.replace(' am Main', ''))}` : '🗺 Bản đồ';
+  el.onclick = () => TRIP_RET ? openStation(TRIP_RET) : go('trip');
+}
+function renderTrip() {
+  const T = TRIP();
+  if (!T.started) return tripIntro();
+  document.body.classList.add('trip-mode');
+  const d = dayNumber(), pos = tripPos(), km = tripKmDone(), segDone = Math.round(SEG_KM[pos.n - 1] * pos.f);
+  const from = pos.n > 1 ? ROUTE[pos.n - 2].name : TRIP_START.name, to = ROUTE[pos.n - 1].name;
+  const ready = TRIP_GOALS.filter(g => !T.claimed[g.id] && g.v() >= g.max).length;
+  const newCard = ROUTE.findIndex((c, i) => tripArrived(i + 1) && !T.seen[i + 1]);
+  $('#view').innerHTML = `
+    <section class="trip-top panel p-3 mb-3">
+      <div class="flex items-center justify-between text-xs mono text-slate-400"><span>${esc(from)}</span><b class="text-orange-300 text-base">${segDone} / ${SEG_KM[pos.n - 1]} km</b><span>${esc(to)}</span></div>
+      <div class="bar mt-1"><div style="width:${pos.f * 100}%;background:linear-gradient(90deg,#f97316,#facc15)"></div></div>
+      <div class="flex flex-wrap justify-between gap-2 mt-2 text-xs text-slate-400"><span>Đã đi ${km} / ${ROUTE_KM} km · ga ${ROUTE.filter((c, i) => tripArrived(i + 1)).length}/${PLAN_DAYS}</span><span>🔥 ${S.streak} · ❄️ ${freezesLeft()} · thi sau ${examDaysLeft()} ngày</span></div>
+    </section>
+    <div class="trip-grid">
+      <div class="panel p-2 trip-map-wrap">${tripMapSVG(T.justStarted)}</div>
+      <div class="space-y-3">
+        <div class="panel p-4" style="border-color:rgba(250,204,21,.5)"><div class="text-xs mono text-yellow-300">HÔM NAY · NGÀY ${d}</div>
+          <div class="text-xl font-bold mt-1">${ROUTE[d - 1].icon} Đi tới ${esc(ROUTE[d - 1].name)}</div><div class="text-sm text-slate-400">${SEG_KM[d - 1]} km · ${esc(ROUTE[d - 1].uni)}</div>
+          <button class="btn btn-neon w-full mt-3 text-lg" onclick="openStation(${d})">🚉 Vào ga hôm nay</button>
+          ${debts().length ? `<button class="btn btn-red w-full mt-2 text-sm" onclick="openStation(${debts()[0].n})">Còn ga ${debts()[0].n} chưa tới — đi nốt trước</button>` : ''}</div>
+        ${newCard >= 0 ? `<button class="btn btn-pink w-full" onclick="tripPostcard(${newCard + 1})">📮 Có bưu thiếp mới từ ${esc(ROUTE[newCard].name)}!</button>` : ''}
+        <div class="grid grid-cols-2 gap-2"><button class="btn btn-ghost" onclick="tripGoals()">🎁 Mục tiêu${ready ? ` <span class="text-yellow-300">(${ready})</span>` : ''}</button><button class="btn btn-ghost" onclick="tripAlbum()">📮 Bưu thiếp</button></div>
+        <button class="btn btn-ghost w-full text-xs" onclick="document.body.classList.remove('trip-mode');go('dash')">☰ Bảng điều khiển đầy đủ (Kern, Fach, Anki, nợ, cài đặt…)</button>
+      </div></div>`;
+  if (T.justStarted) { delete T.justStarted; save(); }
+}
+function tripIntro() {
+  document.body.classList.add('trip-mode');
+  $('#view').innerHTML = `<section class="trip-intro" onclick="tripBegin()">
+    ${sceneSVG(0)}<div class="trip-intro-txt"><div class="text-4xl md:text-6xl font-bold" style="color:#facc15;text-shadow:0 2px 12px rgba(0,0,0,.5)">Die Reise beginnt</div>
+    <div class="tracking-[.3em] mt-2 font-bold">HÀNH TRÌNH BẮT ĐẦU</div><div class="text-sm opacity-80 mt-1">${new Date().toLocaleDateString('vi-VN')} · ✈ ${TRIP_START.name} → Köln · ${ROUTE_KM} km · ${PLAN_DAYS} ga</div>
+    <div class="mt-6 inline-block px-4 py-2 rounded-full bg-white/90 text-slate-900 font-semibold">Chạm để bắt đầu</div></div></section>`;
+}
+function tripBegin() { const T = TRIP(); T.started = Date.now(); T.justStarted = true; save(); renderTrip(); }
+function openStation(n) {
+  n = Math.max(1, Math.min(PLAN_DAYS, n)); TRIP_RET = n;
+  if (currentTab !== 'trip') { currentTab = 'trip'; renderTabs(); }
+  stopTimer(); RUNVIEW = null; document.body.classList.add('trip-mode'); renderTripBack();
+  const c = ROUTE[n - 1], ms = tripMissions(n), next = ms.findIndex(m => !m.done), arr = tripArrived(n), pr = dayProgress(n);
+  const locked = lockedByDebt(n) || (n > dayNumber() && !tripArrived(n - 1));
+  const nodes = ms.map((m, i) => `<button class="trip-node ${m.done ? 'done' : i === next ? 'next' : ''} k-${m.kind}" ${locked ? 'disabled' : `onclick='${m.go}'`} style="--i:${i}">
+      <span class="trip-num">${m.done ? '✓' : i + 1}</span><span class="trip-ic">${m.icon}</span><span class="trip-lab">${esc(m.label)}</span></button>`).join('');
+  $('#view').innerHTML = `
+    <div class="flex items-center justify-between gap-2 mb-2"><button class="btn btn-ghost text-sm" onclick="TRIP_RET=0;go('trip')">← Bản đồ</button>
+      <div class="flex gap-1">${n > 1 ? `<button class="btn btn-ghost text-xs" onclick="openStation(${n - 1})">‹ ga ${n - 1}</button>` : ''}${n < PLAN_DAYS ? `<button class="btn btn-ghost text-xs" onclick="openStation(${n + 1})">ga ${n + 1} ›</button>` : ''}</div></div>
+    <section class="trip-scene">${sceneSVG(n)}
+      <div class="trip-scene-head"><div class="text-xs font-bold opacity-80">GA ${n} · ${SEG_KM[n - 1]} km</div><div class="text-2xl md:text-3xl font-bold">${c.icon} ${esc(c.name)}</div><div class="text-xs opacity-80">${esc(c.uni)}</div></div>
+      <div class="trip-train" style="left:calc(${(arr ? 1 : tripFrac(n)) * 70 + 5}% - 60px)">${trainSVG(120)}</div>
+      ${arr ? `<button class="trip-stamp" onclick="tripPostcard(${n})">Đã đến!<br>📮</button>` : ''}
+    </section>
+    <div class="trip-guide panel p-3 mt-3"><div class="text-3xl">${GUIDE.face}</div><div><div class="text-xs font-bold text-pink-300">${GUIDE.name} · sinh viên Y năm 3, dẫn đường</div><div class="mt-0.5">${esc(locked ? lockedByDebt(n) ? `Ga ${firstDebtDay()} chưa tới nơi. Mình đi nốt ga đó trước rồi mới chạy tiếp nhé.` : 'Ga này chưa mở. Tới ga trước rồi mới học trước được.' : guideLine(n, ms))}</div></div></div>
+    ${!locked && next >= 0 ? `<button class="btn btn-neon w-full mt-3 text-lg" onclick='${ms[next].go}'>▶ Trạm ${next + 1}: ${esc(ms[next].label)}</button>` : ''}
+    ${!ms.length ? `<div class="panel p-4 mt-3 text-sm text-slate-300">Ga này chưa có nhiệm vụ: ${n <= FACH_DAYS && !FACH_PLAN[n - 1].exam ? 'bài Fach của ngày này chưa được soạn — gửi PDF AMBOSS cho Claude.' : 'ngày thi thử/ôn tập, làm theo hướng dẫn trong bảng điều khiển.'}</div>` : ''}
+    <div class="text-sm text-slate-400 mt-4 mb-1">Các trạm (Kern ${pr.kernOk}/${pr.kernTotal}${pr.fachTotal ? ` · Fach ${pr.fachScore}/${pr.fachTotal} câu` : ''} · tới ga khi đạt 80 %)</div>
+    <div class="trip-path">${nodes}</div>`;
+  window.scrollTo({ top: 0 });
+  if (arr && !TRIP().seen[n]) setTimeout(() => tripPostcard(n), 400);
+}
+function tripPostcard(n) {
+  const c = ROUTE[n - 1], T = TRIP(); T.seen[n] = T.seen[n] || Date.now(); save();
+  showModal(`<div class="trip-card"><div class="trip-card-img">${sceneSVG(n)}<div class="trip-card-name"><div class="text-[10px] tracking-widest">CHÀO MỪNG ĐẾN</div><div class="text-2xl font-bold">${c.icon} ${esc(c.name)}</div></div><div class="trip-card-stamp">Đã đến!</div></div>
+    <div class="mt-3 detext">${esc(c.de)}</div>
+    <details class="mt-2 text-sm"><summary class="cursor-pointer text-slate-400">Dịch tiếng Việt</summary><div class="text-slate-300 mt-1">${esc(c.vi)}</div></details>
+    <div class="text-xs text-slate-500 mt-2">🎓 ${esc(c.uni)} · ga ${n}/${PLAN_DAYS}</div></div>`, true);
+}
+function tripAlbum() {
+  showModal(`<div class="text-xl font-bold">📮 Bưu thiếp (${ROUTE.filter((c, i) => tripArrived(i + 1)).length}/${PLAN_DAYS})</div>
+    <div class="grid grid-cols-3 sm:grid-cols-4 gap-2 mt-3">${ROUTE.map((c, i) => tripArrived(i + 1)
+      ? `<button class="trip-alb" onclick="tripPostcard(${i + 1})"><div class="text-2xl">${c.icon}</div><div class="text-xs font-semibold">${esc(c.name.replace(' am Main', ''))}</div></button>`
+      : `<div class="trip-alb off"><div class="text-2xl">❔</div><div class="text-xs">ga ${i + 1}</div></div>`).join('')}</div>`, true);
 }
 
 /* =====================================================================
@@ -2775,7 +3036,7 @@ const closeModal = () => { $('#modal-root').innerHTML = ''; };
 const showOverlay = html => { $('#overlay-root').innerHTML = `<div class="overlay" style="background:rgba(10,0,2,.94);align-items:flex-start">${html}</div>`; };
 const closeOverlay = () => { $('#overlay-root').innerHTML = ''; };
 
-loadRun(); renderTabs(); renderStats(); go('dash');
+loadRun(); renderTabs(); renderStats(); go('trip');
 capReady.then(() => { if (!CAP.db || !CAP.user) { ensureKernPlan(); renderStats(); if (currentTab === 'dash') renderDash(); } });
 if (S.tutorMin) toggleTutor(true);
 tutorSay(examRoast() + ' ' + (checkedToday() ? 'Lại là bạn à. Hôm nay điểm danh rồi, giờ đi làm ' + PER_DAY + ' bài Kern của ngày hôm nay đi.'
