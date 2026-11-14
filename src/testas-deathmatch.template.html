@@ -219,9 +219,14 @@ const FACH_BUILTIN = /*__FACH__*/[];
 const $ = (s, r = document) => r.querySelector(s);
 const pick = a => a[Math.floor(Math.random() * a.length)];
 const shuffle = a => { const b = a.slice(); for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; } return b; };
-// German pronunciation through the browser's own voice (Web Speech API); silently skipped where unavailable
+// German pronunciation: a Claude voice where the viewer offers one (desktop app), else the device's German voice
 function speakDe(text) {
-  try { const u = new SpeechSynthesisUtterance(String(text).replace(/\(.*?\)/g, '').replace(/\//g, ', ')); u.lang = 'de-DE'; u.rate = .9;
+  const say = String(text).replace(/\(.*?\)/g, '').replace(/\//g, ', ').trim();
+  if (CAP.tts) return CAP.tts.speak(say).catch(e => { if (e && e.code === 'not_granted') CAP.tts = null; deviceSpeak(say); });
+  deviceSpeak(say);
+}
+function deviceSpeak(say) {
+  try { const u = new SpeechSynthesisUtterance(say); u.lang = 'de-DE'; u.rate = .9;
     const v = speechSynthesis.getVoices().find(x => x.lang && x.lang.startsWith('de')); if (v) u.voice = v; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch (e) { }
 }
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -244,11 +249,11 @@ const fmtMS = s => `${s < 0 ? '+' : ''}${pad(Math.floor(Math.abs(s) / 60))}:${pa
    kept server-side). Opened as a plain local file, all stay null and the
    app falls back to <a download>, API keys and localStorage.
    ===================================================================== */
-const CAP = { downloads: null, sample: null, db: null, user: null };
+const CAP = { downloads: null, sample: null, db: null, user: null, tts: null };
 const capReady = (async () => {
   if (!window.claude?.use) return;
-  const [downloads, sample, db, user] = await Promise.all(['downloads', 'sample', 'db', 'user'].map(n => window.claude.use(n).catch(() => null)));
-  Object.assign(CAP, { downloads, sample, db, user });
+  const [downloads, sample, db, user, tts] = await Promise.all(['downloads', 'sample', 'db', 'user', 'tts'].map(n => window.claude.use(n).catch(() => null)));
+  Object.assign(CAP, { downloads, sample, db, user, tts });
 })();
 
 // confirm() is blocked inside the artifact viewer, so confirmations use our own modal
