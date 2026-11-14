@@ -124,7 +124,12 @@
 .trip-scene{position:relative;height:clamp(200px,38vw,330px);border-radius:16px;overflow:hidden}
 .trip-scene .trip-scene-bg{position:absolute;inset:0;width:100%;height:100%}
 .trip-scene-head{position:absolute;left:14px;top:12px;color:#0f172a;background:rgba(255,255,255,.75);padding:6px 12px;border-radius:12px;backdrop-filter:blur(3px)}
-.trip-train{position:absolute;bottom:12%;transition:left 1.2s ease-out}
+.trip-train{position:absolute;bottom:12%;transition:left 1.2s ease-out}.trip-train.moving{animation:tbob .3s ease-in-out infinite}.trip-train.moving .whl{animation:tspin .4s linear infinite}
+@keyframes tbob{50%{transform:translateY(-2px)}}@keyframes tspin{to{transform:rotate(360deg)}}
+.trip-toast{position:absolute;left:50%;top:40%;transform:translateX(-50%);font-size:1.6rem;font-weight:800;color:#f97316;text-shadow:0 2px 0 #fff;animation:ttoast 1.8s ease-out forwards;pointer-events:none}
+@keyframes ttoast{0%{opacity:0;transform:translate(-50%,10px) scale(.8)}20%{opacity:1;transform:translate(-50%,0) scale(1.1)}100%{opacity:0;transform:translate(-50%,-40px)}}
+.trip-stamp{animation:tstamp .5s cubic-bezier(.2,1.6,.4,1) both}@keyframes tstamp{from{transform:rotate(8deg) scale(2.2);opacity:0}}
+@media (prefers-reduced-motion:reduce){.trip-train,.trip-train.moving,.trip-train.moving .whl,.trip-toast,.trip-stamp{animation:none;transition:none}}
 .trip-stamp{position:absolute;right:14px;top:14px;border:3px solid #dc2626;color:#dc2626;background:rgba(255,255,255,.85);font-weight:800;border-radius:12px;padding:4px 10px;transform:rotate(8deg);line-height:1.2}
 .trip-guide{display:flex;gap:.75rem;align-items:flex-start;border-color:rgba(244,114,182,.5)}
 .trip-path{display:grid;gap:.5rem}@media (min-width:640px){.trip-path{grid-template-columns:1fr 1fr}}
@@ -214,6 +219,11 @@ const FACH_BUILTIN = /*__FACH__*/[];
 const $ = (s, r = document) => r.querySelector(s);
 const pick = a => a[Math.floor(Math.random() * a.length)];
 const shuffle = a => { const b = a.slice(); for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; } return b; };
+// German pronunciation through the browser's own voice (Web Speech API); silently skipped where unavailable
+function speakDe(text) {
+  try { const u = new SpeechSynthesisUtterance(String(text).replace(/\(.*?\)/g, '').replace(/\//g, ', ')); u.lang = 'de-DE'; u.rate = .9;
+    const v = speechSynthesis.getVoices().find(x => x.lang && x.lang.startsWith('de')); if (v) u.voice = v; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch (e) { }
+}
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const md = s => esc(s).replace(/\*\*(.+?)\*\*/g, '<b class="text-white">$1</b>').replace(/\n/g, '<br>');
 const pad = n => String(n).padStart(2, '0');
@@ -995,7 +1005,7 @@ function trainSVG(w = 120) {
   const [, a, b] = SKINS[TRIP().skin] || SKINS.ice;
   return `<svg viewBox="0 0 120 34" width="${w}" aria-hidden="true"><path d="M4 26 L4 12 Q4 6 12 6 L96 6 Q112 6 116 20 L116 26 Z" fill="${a}" stroke="#0f172a" stroke-width="1.5"/>
     <rect x="4" y="18" width="112" height="3" fill="${b}"/>${[14, 32, 50, 68].map(x => `<rect x="${x}" y="9" width="13" height="7" rx="1.5" fill="#0f172a" opacity=".8"/>`).join('')}<path d="M88 9 L100 9 Q108 10 111 16 L88 16 Z" fill="#0f172a" opacity=".8"/>
-    ${[18, 38, 78, 98].map(x => `<circle cx="${x}" cy="28" r="4" fill="#334155" stroke="#0f172a"/>`).join('')}</svg>`;
+    ${[18, 38, 78, 98].map(x => `<g class="whl" style="transform-origin:${x}px 28px"><circle cx="${x}" cy="28" r="4" fill="#334155" stroke="#0f172a"/><line x1="${x - 4}" y1="28" x2="${x + 4}" y2="28" stroke="#94a3b8"/></g>`).join('')}</svg>`;
 }
 function tripMapSVG(animate) {
   const pts = [TRIP_START, ...ROUTE].map(c => tripXY(c.lat, c.lon)), outline = TRIP_DE.map(([la, lo]) => tripXY(la, lo).join(',')).join(' ');
@@ -1036,7 +1046,7 @@ function guideLine(n, ms) {
 }
 
 // --- screens
-let TRIP_RET = 0;   // station to come back to after a mission
+let TRIP_RET = 0, TRIP_SEEN = {};   // station to come back to after a mission; train position last shown per station
 function tripGo(n, kind, a, b) {
   TRIP_RET = n;
   if (kind === 'kern') openPractice(a, b);
@@ -1102,7 +1112,7 @@ function openStation(n) {
       <div class="flex gap-1">${n > 1 ? `<button class="btn btn-ghost text-xs" onclick="openStation(${n - 1})">‹ ga ${n - 1}</button>` : ''}${n < PLAN_DAYS ? `<button class="btn btn-ghost text-xs" onclick="openStation(${n + 1})">ga ${n + 1} ›</button>` : ''}</div></div>
     <section class="trip-scene">${sceneSVG(n)}
       <div class="trip-scene-head"><div class="text-xs font-bold opacity-80">GA ${n} · ${SEG_KM[n - 1]} km</div><div class="text-2xl md:text-3xl font-bold">${c.icon} ${esc(c.name)}</div><div class="text-xs opacity-80">${esc(c.uni)}</div></div>
-      <div class="trip-train" style="left:calc(${(arr ? 1 : tripFrac(n)) * 70 + 5}% - 60px)">${trainSVG(120)}</div>
+      <div class="trip-train" style="left:calc(${(TRIP_SEEN[n] ?? (arr ? 1 : tripFrac(n))) * 70 + 5}% - 60px)">${trainSVG(120)}</div>
       ${arr ? `<button class="trip-stamp" onclick="tripPostcard(${n})">Đã đến!<br>📮</button>` : ''}
     </section>
     <div class="trip-guide panel p-3 mt-3"><div class="text-3xl">${GUIDE.face}</div><div><div class="text-xs font-bold text-pink-300">${GUIDE.name} · sinh viên Y năm 3, dẫn đường</div><div class="mt-0.5">${esc(locked ? lockedByDebt(n) ? `Ga ${firstDebtDay()} chưa tới nơi. Mình đi nốt ga đó trước rồi mới chạy tiếp nhé.` : 'Ga này chưa mở. Tới ga trước rồi mới học trước được.' : guideLine(n, ms))}</div></div></div>
@@ -1111,7 +1121,15 @@ function openStation(n) {
     <div class="text-sm text-slate-400 mt-4 mb-1">Các trạm (Kern ${pr.kernOk}/${pr.kernTotal}${pr.fachTotal ? ` · Fach ${pr.fachScore}/${pr.fachTotal} câu` : ''} · tới ga khi đạt 80 %)</div>
     <div class="trip-path">${nodes}</div>`;
   window.scrollTo({ top: 0 });
-  if (arr && !TRIP().seen[n]) setTimeout(() => tripPostcard(n), 400);
+  const f = arr ? 1 : tripFrac(n), was = TRIP_SEEN[n]; TRIP_SEEN[n] = f;
+  if (was !== undefined && f > was) {   // a mission was just finished: roll the train forward and show the km gained
+    const tr = document.querySelector('.trip-train'); tr.classList.add('moving');
+    requestAnimationFrame(() => requestAnimationFrame(() => { tr.style.left = `calc(${f * 70 + 5}% - 60px)`; }));
+    setTimeout(() => tr.classList.remove('moving'), 1300);
+    const t = document.createElement('div'); t.className = 'trip-toast'; t.textContent = `+${Math.round((f - was) * SEG_KM[n - 1])} km 🚆`;
+    document.querySelector('.trip-scene').appendChild(t);
+  }
+  if (arr && !TRIP().seen[n]) setTimeout(() => tripPostcard(n), 1400);
 }
 function tripPostcard(n) {
   const c = ROUTE[n - 1], T = TRIP(); T.seen[n] = T.seen[n] || Date.now(); save();
@@ -2584,6 +2602,7 @@ function renderAnkiCard() {
   }
   const c = ANKI.items[ANKI.i], st = cardState(c), now = Date.now();
   const L = S.fach.find(l => l.id === c.lid);
+  if (c.type === 'vocab' && !ANKI.revealed) speakDe(c.front);   // pronounce each new vocab card once
   const kind = { card: 'Flashcard', sec: 'Mục giảng', cloze: 'Kernsatz đục lỗ', ks: 'Kernsatz', vocab: 'Từ vựng' }[c.type];
   $('#view').innerHTML = `
     <div class="flex items-center justify-between gap-2 mb-3"><div><div class="text-xs mono text-slate-400">${esc(ANKI.title)} · ${ANKI.nDue} ôn + ${ANKI.nNew} mới</div>
@@ -2591,7 +2610,7 @@ function renderAnkiCard() {
       <button class="btn btn-ghost text-sm" onclick="ANKI.done=true;renderAnkiCard()">Kết thúc phiên</button></div>
     <section class="panel p-5">
       <div class="text-xs mono text-slate-400">${kind} · ${dayLabel(L)} · ${!st || st.state === 'new' ? '<span class="text-cyan-300">MỚI</span>' : st.state === 'review' ? '<span class="text-emerald-300">ÔN</span>' : '<span class="text-yellow-300">ĐANG HỌC</span>'}</div>
-      <div class="${c.type === 'vocab' ? 'text-2xl' : 'text-lg'} font-semibold mt-3">${md(c.front)}</div>
+      <div class="${c.type === 'vocab' ? 'text-2xl' : 'text-lg'} font-semibold mt-3">${md(c.front)}${c.type === 'vocab' ? ` <button class="btn btn-ghost text-base px-2 py-1 align-middle" title="Nghe phát âm" onclick="speakDe(ANKI.items[ANKI.i].front)">🔊</button>` : ''}</div>
       ${ANKI.revealed ? `<div class="border-t border-dashed border-slate-700 mt-4 pt-4 text-base">${md(c.back)}</div>
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-5">${[['again', 'Quên', 'btn-red', 1], ['hard', 'Khó', 'btn-ghost', 2], ['good', 'Tốt', 'btn-neon', 3], ['easy', 'Dễ', 'btn-ghost', 4]].map(([r, l, cls, k]) =>
           `<button class="btn ${cls} flex-col" onclick="gradeAnki('${r}')">${l} <small class="mono opacity-80">${ankiLabel(ankiNext(st && st.state !== 'new' ? st : null, r, now), now)}</small><span class="text-[10px] opacity-60">phím ${k}</span></button>`).join('')}</div>`
