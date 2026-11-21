@@ -2135,7 +2135,7 @@ async function callAI(text, files, level, day) {
 // --- German ratio across the 24 days: 1–8 Vietnamese + Kernsätze with all hints,
 //     9–16 shorter Vietnamese + more Kernsätze, hints for hard words only,
 //     17–24 simple German explanations, exam mode (no hints) by default
-const germanStage = day => day <= 8 ? 1 : day <= 16 ? 2 : 3;
+const germanStage = day => day <= 8 ? 1 : 2;   // rescue mode: summaries stay in Vietnamese
 const HINT_LABEL = { all: 'Gợi ý: mọi từ', hard: 'Gợi ý: từ khó', off: 'Chế độ thi (tắt gợi ý)' };
 const defaultHint = day => ({ 1: 'all', 2: 'hard', 3: 'off' })[germanStage(day)];
 const hintMode = L => (S.hintMode || {})[L.id] || defaultHint(L.day);
