@@ -1785,7 +1785,28 @@ const FIG_TAGS = ['XOAY', 'SỐ LƯỢNG', 'DỊCH CHUYỂN', 'MÀU', 'LUÂN PHI
 const FIG_ORDER = [['XOAY', 'Xoay'], ['SỐ LƯỢNG', 'Số lượng'], ['DỊCH CHUYỂN', 'Vị trí'], ['MÀU', 'Màu'], ['LUÂN PHIÊN', 'Luân phiên']];
 let FIGQ = null;   // { tag, list, i } while drilling by rule type
 const figPool = tag => KERN.fig.ex.filter(e => e.tags && (tag === 'TRỘN' || e.tags.includes(tag)));
-function figDrill(tag) {
+// tip excerpts of Quyển 1 per rule type: [page, y from, y to] on the 636×900 tip pages
+const FIG_TIP = {
+  'XOAY': [[1, 50, 215], [5, 140, 300], [5, 445, 580]],
+  'SỐ LƯỢNG': [],
+  'DỊCH CHUYỂN': [[1, 230, 705], [6, 45, 215]],
+  'MÀU': [[0, 530, 690], [5, 305, 425], [5, 590, 720]],
+  'LUÂN PHIÊN': [[2, 50, 365], [5, 445, 580], [5, 590, 720], [6, 45, 215]],
+  'KẾT HỢP': [[2, 370, 525], [3, 45, 460], [4, 40, 640]],
+  'TRỘN': [[3, 45, 460], [4, 40, 640], [6, 225, 470]],
+};
+const tipCrop = ([pg, a, b]) => (b += 12,  `<div class="sheet mt-3" style="padding:0;overflow:hidden;aspect-ratio:636/${b - a}"><img src="${KERN.fig.tips[pg]}" style="width:100%;margin-top:-${a / 636 * 100}%" alt="Mẹo trang ${pg + 1}"></div>`);
+function figTips(tag) {
+  stopTimer();
+  const parts = FIG_TIP[tag] || [];
+  $('#view').innerHTML = `<div class="flex items-center justify-between gap-2 mb-3"><button class="btn btn-ghost text-sm" onclick="figPanel()">← Các dạng</button><div class="font-bold">📖 Mẹo trước khi làm: ${esc(tag === 'TRỘN' ? 'Trộn mọi dạng' : tag)}</div></div>
+    <section class="panel p-4" style="max-width:760px;margin:auto">${parts.length ? '<p class="text-sm text-slate-400">Đọc phần mẹo của dạng này (trích từ trang Mẹo Quyển 1), rồi bấm bắt đầu.</p>' + parts.map(tipCrop).join('')
+      : '<p class="text-sm">Sách không có trang mẹo riêng cho dạng này.</p>'}
+      <div class="flex flex-wrap gap-2 mt-4"><button class="btn btn-neon text-lg" onclick="figDrill('${tag}', true)">▶ Đã đọc, bắt đầu làm</button><button class="btn btn-ghost" onclick="openTips('fig')">Xem cả 7 trang mẹo</button></div></section>`;
+  window.scrollTo({ top: 0 });
+}
+function figDrill(tag, read) {
+  if (!read) return figTips(tag);
   const list = figPool(tag).slice();
   for (let k = list.length - 1; k > 0; k--) { const j = Math.floor(Math.random() * (k + 1)); [list[k], list[j]] = [list[j], list[k]]; }
   FIGQ = { tag, list, i: 0 }; openPractice('fig', list[0].id);
