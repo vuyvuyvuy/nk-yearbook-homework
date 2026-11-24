@@ -1827,8 +1827,26 @@ function figTips(bid, tag) {
     <section class="panel p-4" style="max-width:760px;margin:auto">${bid === 'math' && (MATH_TYP[tag] || MATH_TIPS[tag]) ? `<div class="text-cyan-300 font-semibold">${esc(MATH_TYP[tag] ? 'Cách bắt đầu: ' + MATH_TYP[tag][1] : MATH_TIPS[tag])}</div>` : ''}
       ${parts.length ? `<p class="text-sm text-slate-400">Đọc phần mẹo của dạng này (trích từ trang Mẹo ${book}), rồi bấm bắt đầu.</p>` + parts.map(p => tipCrop(bid, p)).join('')
       : '<p class="text-sm">Sách không có trang mẹo riêng cho dạng này.</p>'}
-      <div class="flex flex-wrap gap-2 mt-4"><button class="btn btn-neon text-lg" onclick="figDrill('${bid}', '${tag}', true)">▶ Đã đọc, bắt đầu làm</button><button class="btn btn-ghost" onclick="openTips('${bid}')">Xem cả ${DRILL[bid].pages} trang mẹo</button></div></section>`;
+      <div class="flex flex-wrap gap-2 mt-4"><button class="btn btn-neon text-lg" onclick="figDrill('${bid}', '${tag}', true)">▶ Đã đọc, bắt đầu làm</button><button class="btn btn-ghost" onclick="openTips('${bid}')">Xem cả ${DRILL[bid].pages} trang mẹo</button></div>
+      ${figPickHTML(bid, tag)}</section>`;
   window.scrollTo({ top: 0 });
+}
+// pick one exercise of the type: list sorted easy → hard; the drill then continues from it in that order
+const DIFF_RANK = { 'Dễ': 0, 'Vừa': 1, 'Trung bình': 1, 'Khó': 2 };
+const figOrdered = (bid, tag) => figPool(bid, tag).slice().sort((x, y) => (DIFF_RANK[x.diff] ?? 1) - (DIFF_RANK[y.diff] ?? 1));
+function figPickHTML(bid, tag) {
+  const list = figOrdered(bid, tag);
+  const chip = e => { const r = S.kern[bid][e.id];
+    const st = !r ? '' : r.ok || r.solved ? 'background:rgba(0,255,163,.18);border-color:rgba(0,255,163,.5);color:#6ee7b7' : 'background:rgba(255,31,61,.15);border-color:rgba(255,31,61,.5);color:#fca5a5';
+    return `<div class="exnum" style="${st}" onclick="figStartAt('${bid}','${tag}','${e.id}')" title="${esc(e.diff || '')}">${e.id}</div>`; };
+  const groups = ['Dễ', bid === 'math' ? 'Vừa' : 'Trung bình', 'Khó'].map(d => [d, list.filter(e => e.diff === d)]).filter(([, l]) => l.length);
+  return `<div class="mt-5 border-t border-slate-700 pt-3"><div class="font-semibold">📋 Hoặc chọn bài (${list.length} câu, dễ → khó)</div>
+    <div class="text-xs text-slate-400">Bấm một bài để làm; xong bấm "Câu tiếp" là sang bài kế trong danh sách. Xanh = lần gần nhất đúng · Đỏ = sai.</div>
+    ${groups.map(([d, l]) => `<div class="text-xs text-slate-300 mt-3">${d} · ${l.length}</div><div class="grid grid-cols-5 sm:grid-cols-10 gap-1.5 mt-1">${l.map(chip).join('')}</div>`).join('')}</div>`;
+}
+function figStartAt(bid, tag, id) {
+  const list = figOrdered(bid, tag);
+  FIGQ = { bid, tag, list, i: Math.max(0, list.findIndex(e => e.id === id)) }; openPractice(bid, id);
 }
 function figDrill(bid, tag, read) {
   if (!read) return figTips(bid, tag);
