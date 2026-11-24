@@ -1814,17 +1814,26 @@ const MATH_TIP = {
   'LŨY THỪA': [[1, 60, 410], [4, 140, 505]], 'CHO BẰNG NHAU': [[4, 515, 660]], 'KHOANH VÙNG': [[4, 670, 935]],
   'BỎ PHÂN SỐ': [[4, 945, 1085]], 'DẤU TRỪ': [[0, 750, 1005]], 'GẠCH CỤM': [[5, 60, 250]], 'ĐỀ LỖI': [[5, 260, 405]],
   'TRỘN': [[5, 425, 640], [0, 130, 495]] };
+const LATIN_TAGS = { 'ĐẾM QUANH Ô': '③ Hàng + cột của ? đã có 4 chữ khác nhau → chữ còn lại là đáp án.',
+  'QUÉT 1 CHỮ': '① Một chữ đã có ở mọi hàng/cột khác → chỉ còn ô ? cho nó.',
+  'CÒN 2 Ô': '② Hàng/cột của ? chỉ còn 2 ô trống → loại 1 chữ là xong.',
+  'Ô PHỤ NGẮN': '④ Điền trước 1–3 ô phụ cùng hàng/cột với ?, rồi quay lại ①②③.',
+  'Ô PHỤ DÀI': '④ Chuỗi ô phụ dài (5+ bước); quá ~90 giây thì ⑤ đoán trong số chữ còn lại.' };
+const LATIN_TIP = { 'ĐẾM QUANH Ô': [[1, 360, 650]], 'QUÉT 1 CHỮ': [[0, 525, 835]], 'CÒN 2 Ô': [[1, 60, 350]],
+  'Ô PHỤ NGẮN': [[2, 60, 510]], 'Ô PHỤ DÀI': [[2, 60, 510], [2, 518, 805]], 'TRỘN': [[2, 830, 1110]] };
+const tagDesc = (bid, t) => bid === 'math' ? (MATH_TYP[t] ? MATH_TYP[t][0] : MATH_TIPS[t] || '') : bid === 'latin' ? LATIN_TAGS[t] || '' : '';
 const DRILL = {
   fig: { tags: FIG_TAGS, tip: FIG_TIP, sec: 60, w: 636, title: '🔷 Luyện Quyển 1 theo dạng quy luật', pages: 7 },
-  math: { tags: Object.keys(MATH_TYP).concat(Object.keys(MATH_TIPS)), tip: MATH_TIP, sec: 75, w: 827, title: '🔢 Luyện Quyển 2 theo dạng', pages: 6 } };
+  math: { tags: Object.keys(MATH_TYP).concat(Object.keys(MATH_TIPS)), tip: MATH_TIP, sec: 75, w: 827, title: '🔢 Luyện Quyển 2 theo dạng', pages: 6 },
+  latin: { tags: Object.keys(LATIN_TAGS), tip: LATIN_TIP, sec: 75, w: 827, title: '🔠 Luyện Quyển 3 theo kỹ thuật', pages: 4 } };
 const figPool = (bid, tag) => KERN[bid].ex.filter(e => e.tags && (tag === 'TRỘN' || e.tags.includes(tag)));
 const tipCrop = (bid, [pg, a, b]) => { const w = DRILL[bid].w; b += 12; return `<div class="sheet mt-3" style="padding:0;overflow:hidden;aspect-ratio:${w}/${b - a}"><img src="${KERN[bid].tips[pg]}" style="width:100%;margin-top:-${a / w * 100}%" alt="Mẹo trang ${pg + 1}"></div>`; };
 const tagLabel = (bid, t) => t === 'TRỘN' ? 'Trộn mọi dạng' : bid === 'math' && MATH_TYP[t] ? `${t.replace('TYP', 'Typ').replace(/([0-9])([A-C])$/, (m, d, l) => d + l.toLowerCase())} · ${MATH_TYP[t][0]}` : t;
 function figTips(bid, tag) {
   stopTimer();
-  const parts = DRILL[bid].tip[tag] || [], book = bid === 'math' ? 'Quyển 2' : 'Quyển 1';
+  const parts = DRILL[bid].tip[tag] || [], book = { fig: 'Quyển 1', math: 'Quyển 2', latin: 'Quyển 3' }[bid];
   $('#view').innerHTML = `<div class="flex items-center justify-between gap-2 mb-3"><button class="btn btn-ghost text-sm" onclick="figPanel('${bid}')">← Các dạng</button><div class="font-bold">📖 Mẹo trước khi làm: ${esc(tagLabel(bid, tag))}</div></div>
-    <section class="panel p-4" style="max-width:760px;margin:auto">${bid === 'math' && (MATH_TYP[tag] || MATH_TIPS[tag]) ? `<div class="text-cyan-300 font-semibold">${esc(MATH_TYP[tag] ? 'Cách bắt đầu: ' + MATH_TYP[tag][1] : MATH_TIPS[tag])}</div>` : ''}
+    <section class="panel p-4" style="max-width:760px;margin:auto">${bid === 'latin' && LATIN_TAGS[tag] ? `<div class="text-cyan-300 font-semibold">${esc(LATIN_TAGS[tag])}</div>` : ''}${bid === 'math' && (MATH_TYP[tag] || MATH_TIPS[tag]) ? `<div class="text-cyan-300 font-semibold">${esc(MATH_TYP[tag] ? 'Cách bắt đầu: ' + MATH_TYP[tag][1] : MATH_TIPS[tag])}</div>` : ''}
       ${parts.length ? `<p class="text-sm text-slate-400">Đọc phần mẹo của dạng này (trích từ trang Mẹo ${book}), rồi bấm bắt đầu.</p>` + parts.map(p => tipCrop(bid, p)).join('')
       : '<p class="text-sm">Sách không có trang mẹo riêng cho dạng này.</p>'}
       <div class="flex flex-wrap gap-2 mt-4"><button class="btn btn-neon text-lg" onclick="figDrill('${bid}', '${tag}', true)">▶ Đã đọc, bắt đầu làm</button><button class="btn btn-ghost" onclick="openTips('${bid}')">Xem cả ${DRILL[bid].pages} trang mẹo</button></div>
@@ -1839,7 +1848,7 @@ function figPickHTML(bid, tag) {
   const chip = e => { const r = S.kern[bid][e.id];
     const st = !r ? '' : r.ok || r.solved ? 'background:rgba(0,255,163,.18);border-color:rgba(0,255,163,.5);color:#6ee7b7' : 'background:rgba(255,31,61,.15);border-color:rgba(255,31,61,.5);color:#fca5a5';
     return `<div class="exnum" style="${st}" onclick="figStartAt('${bid}','${tag}','${e.id}')" title="${esc(e.diff || '')}">${e.id}</div>`; };
-  const groups = ['Dễ', bid === 'math' ? 'Vừa' : 'Trung bình', 'Khó'].map(d => [d, list.filter(e => e.diff === d)]).filter(([, l]) => l.length);
+  const groups = ['Dễ', bid === 'fig' ? 'Trung bình' : 'Vừa', 'Khó'].map(d => [d, list.filter(e => e.diff === d)]).filter(([, l]) => l.length);
   return `<div class="mt-5 border-t border-slate-700 pt-3"><div class="font-semibold">📋 Hoặc chọn bài (${list.length} câu, dễ → khó)</div>
     <div class="text-xs text-slate-400">Bấm một bài để làm; xong bấm "Câu tiếp" là sang bài kế trong danh sách. Xanh = lần gần nhất đúng · Đỏ = sai.</div>
     ${groups.map(([d, l]) => `<div class="text-xs text-slate-300 mt-3">${d} · ${l.length}</div><div class="grid grid-cols-5 sm:grid-cols-10 gap-1.5 mt-1">${l.map(chip).join('')}</div>`).join('')}</div>`;
@@ -1864,8 +1873,8 @@ function figStats(bid) {
 }
 function figPanel(bid = 'fig') {
   stopTimer(); FIGQ = null; if (currentTab !== 'kern') { currentTab = 'kern'; renderTabs(); }
-  const D = DRILL[bid], st = figStats(bid), diffs = bid === 'math' ? ['Dễ', 'Vừa', 'Khó'] : ['Dễ', 'Trung bình', 'Khó'];
-  const card = t => { const n = figPool(bid, t).length, b = st[t], sub = bid === 'math' ? (MATH_TYP[t] ? MATH_TYP[t][0] : MATH_TIPS[t] || '') : '';
+  const D = DRILL[bid], st = figStats(bid), diffs = bid === 'fig' ? ['Dễ', 'Trung bình', 'Khó'] : ['Dễ', 'Vừa', 'Khó'];
+  const card = t => { const n = figPool(bid, t).length, b = st[t], sub = tagDesc(bid, t);
     return `<button class="panel p-3 text-left ${n ? '' : 'opacity-40'}" ${n ? `onclick="figDrill('${bid}','${t}')"` : 'disabled'}><div class="font-bold ${t === 'TRỘN' ? 'text-yellow-300' : 'text-cyan-300'}">${t === 'TRỘN' ? '🔀 TRỘN (mọi dạng)' : esc(tagLabel(bid, t).split(' · ')[0])}</div>
       ${sub ? `<div class="text-xs text-slate-300">${esc(sub)}</div>` : ''}<div class="text-xs text-slate-400">${n} câu${n ? '' : ' · sách không có dạng này'}</div>
       <div class="text-xs mt-1">${b.n ? `đúng <b class="${b.ok / b.n >= .7 ? 'text-emerald-300' : 'text-red-300'}">${Math.round(b.ok / b.n * 100)}%</b> (${b.ok}/${b.n}) · TB <b>${Math.round(b.sec / b.n)}s</b>/câu` : 'chưa làm'}</div></button>`; };
@@ -1876,6 +1885,16 @@ function figPanel(bid = 'fig') {
     <details class="panel p-4 mt-3"><summary class="cursor-pointer font-semibold">📋 Bảng phân loại ${KERN[bid].ex.length} câu (để kiểm tra)</summary>
       <div class="text-xs text-slate-400 mt-1">Phân loại tự động từ lời giải của sách; câu nào sai báo Claude sửa.</div>
       <div class="mt-2 space-y-1 text-sm">${KERN[bid].ex.map(e => `<div class="flex flex-wrap gap-2 items-center"><button class="optbtn text-xs" onclick="FIGQ=null;openPractice('${bid}','${e.id}')">${e.id}</button><span class="text-slate-400">${esc(e.diff || '')}</span>${(e.tags || []).map(t => `<span class="lq-chip on text-xs">${esc(tagLabel(bid, t).split(' · ')[0])}</span>`).join('')}</div>`).join('')}</div></details>`;
+}
+// Quyển 3: the book's check-list applied to this exercise
+function latinOrderHTML(ex) {
+  if (!ex.tags) return '';
+  const has = t => ex.tags.includes(t), aux = has('Ô PHỤ NGẮN') || has('Ô PHỤ DÀI');
+  const row = (n, t, label) => `<div class="mt-1"><b class="${has(t) ? 'text-emerald-300' : 'text-slate-500'}">${has(t) ? '✓' : '✗'} ${n} ${label}</b>${has(t) ? ' → <b>xong ngay</b>' : ''}</div>`;
+  return `<section class="panel p-3 mt-3" style="border-color:rgba(0,229,255,.45)"><div class="font-bold">🔎 Check-list cho câu này (theo thứ tự hỏi)</div>
+    ${row('1.', 'ĐẾM QUANH Ô', 'Đếm quanh ô: hàng + cột của ? đã có 4 chữ khác nhau?')}${row('2.', 'QUÉT 1 CHỮ', 'Quét 1 chữ: có chữ chỉ còn chỗ ở ô ??')}${row('3.', 'CÒN 2 Ô', 'Hàng/cột của ? chỉ còn 2 ô trống?')}
+    ${aux ? `<div class="mt-1"><b class="text-yellow-300">→ 4. Điền ô phụ</b>${ex.steps ? ` (sách: ${ex.steps} bước, tức ${ex.steps - 1} ô phụ)` : ''}: ưu tiên ô cùng hàng/cột với ?, điền xong 1 ô thì hỏi lại 1–3.${has('Ô PHỤ DÀI') ? ' Quá ~90 giây → 5. đoán trong số chữ chưa có ở hàng + cột của ?.' : ''}</div>` : ''}
+    <div class="text-xs text-slate-500 mt-2">Xem từng bước bằng ngón tay ở khung 🖐 bên dưới.</div></section>`;
 }
 // Quyển 2: the book's 75-second routine applied to this exercise
 function mathOrderHTML(ex) {
@@ -1914,7 +1933,7 @@ function submitPractice(giveUp) {
   ok ? praise(PR.t < 0 ? `Đúng, nhưng quá giờ ${-PR.t}s. Thi thật thì tiếc lắm.` : '') : roast(giveUp ? 'Đầu hàng sớm thế. Đọc lời giải rồi làm lại sau nhé.' : '');
   $('#pr-actions').innerHTML = `${debts().length ? `<button class="btn btn-red" onclick="payDebt()">💸 Trả nợ tiếp (${debtSummary()})</button>` : ''}${PR.i < b.ex.length - 1 ? `<button class="btn btn-neon" onclick="FIGQ=null;openPractice('${PR.bid}','${b.ex[PR.i + 1].id}')">Bài tiếp →</button>` : ''}${PR.figMode ? `<button class="btn btn-neon" onclick="figNext()">Câu tiếp (${esc(FIGQ.tag)}) →</button><button class="btn btn-ghost" onclick="figPanel('${PR.bid}')">📊 Thống kê dạng</button>` : ''}
     <button class="btn btn-ghost" onclick="openPractice('${PR.bid}','${ex.id}')">Làm lại</button>`;
-  $('#pr-feedback').innerHTML = `<div class="mt-3 text-lg font-bold ${ok ? 'text-emerald-300' : 'text-red-400'}">${ok ? '✓ ĐÚNG' : '✗ SAI'} <span class="text-sm font-normal text-slate-400">· bạn chọn: ${esc(fmtAnswer(PR.bid, a))} · thời gian ${fmtMS(PR.t0 - PR.t)}</span></div>${PR.bid === 'fig' ? figOrderHTML(ex) : PR.bid === 'math' ? mathOrderHTML(ex) : ''}${ex.grid ? '<section class="panel p-3 mt-3" style="border-color:rgba(0,229,255,.45)"><div class="font-bold mb-2">🖐 Lời giải từng bước (làm trong đầu, không nháp)</div><div id="lq-inline"></div></section>' : ''}${solutionHTML(ex)}`;
+  $('#pr-feedback').innerHTML = `<div class="mt-3 text-lg font-bold ${ok ? 'text-emerald-300' : 'text-red-400'}">${ok ? '✓ ĐÚNG' : '✗ SAI'} <span class="text-sm font-normal text-slate-400">· bạn chọn: ${esc(fmtAnswer(PR.bid, a))} · thời gian ${fmtMS(PR.t0 - PR.t)}</span></div>${PR.bid === 'fig' ? figOrderHTML(ex) : PR.bid === 'math' ? mathOrderHTML(ex) : PR.bid === 'latin' ? latinOrderHTML(ex) : ''}${ex.grid ? '<section class="panel p-3 mt-3" style="border-color:rgba(0,229,255,.45)"><div class="font-bold mb-2">🖐 Lời giải từng bước (làm trong đầu, không nháp)</div><div id="lq-inline"></div></section>' : ''}${solutionHTML(ex)}`;
   if (ex.grid) lqStart(PR.bid, ex.id, 'lq-inline');
 }
 
